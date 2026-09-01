@@ -23,6 +23,40 @@ export type PublicEvent = {
   imageUrl?: string
 }
 
+export type EventPackage = {
+  id: string
+  eventId: string
+  name: string
+  benefits?: string
+  capacity: number | null
+  registeredCount: number
+  remainingQuota: number | null
+  isUnlimited: boolean
+  price: number
+  sortOrder: number
+  isActive: boolean
+}
+
+export type RegistrationPaymentResponse = {
+  registrationId: string
+  eventId: string
+  eventPackageId: string
+  eventPackageName: string
+  price: number
+  bookingCode: string
+  snapToken: string
+  redirectUrl: string
+}
+
+export type RegisterEventRequest = {
+  eventPackageId: string
+  fullName: string
+  email: string
+  phone: string
+  organization?: string
+  department?: string
+}
+
 const mockSeminarFfws: PublicEvent = {
   id: 'seminar-ffws-ea851ec',
   slug: 'seminar-ffws-ea851ec',
@@ -101,11 +135,25 @@ const normalizeEvent = (value: unknown): PublicEvent | null => {
     slug,
     name,
     description: firstString(record, 'description', 'Description'),
-    type: firstString(record, 'type', 'eventType', 'Type', 'EventType'),
-    startDate: firstString(record, 'startDate', 'startAt', 'StartDate', 'StartAt'),
-    endDate: firstString(record, 'endDate', 'endAt', 'EndDate', 'EndAt'),
-    registrationStart: firstString(record, 'registrationStart', 'registrationStartDate', 'RegistrationStart'),
-    registrationEnd: firstString(record, 'registrationEnd', 'registrationEndDate', 'RegistrationEnd'),
+    type: firstString(record, 'type', 'eventType', 'kind', 'Type', 'EventType', 'Kind'),
+    startDate: firstString(record, 'startDate', 'startAt', 'startAtUtc', 'StartDate', 'StartAt', 'StartAtUtc'),
+    endDate: firstString(record, 'endDate', 'endAt', 'endAtUtc', 'EndDate', 'EndAt', 'EndAtUtc'),
+    registrationStart: firstString(
+      record,
+      'registrationStart',
+      'registrationOpenAtUtc',
+      'registrationStartDate',
+      'RegistrationStart',
+      'RegistrationOpenAtUtc'
+    ),
+    registrationEnd: firstString(
+      record,
+      'registrationEnd',
+      'registrationCloseAtUtc',
+      'registrationEndDate',
+      'RegistrationEnd',
+      'RegistrationCloseAtUtc'
+    ),
     location: firstString(record, 'location', 'Location'),
     venue: firstString(record, 'venue', 'Venue'),
     city: firstString(record, 'city', 'City'),
@@ -134,6 +182,12 @@ const extractEvents = (payload: unknown): unknown[] => {
   return [payload]
 }
 
+const parseError = async (response: Response, fallback: string) => {
+  const body = await response.json().catch(() => null)
+
+  return body?.detail ?? body?.message ?? fallback
+}
+
 export async function getPublicEvents(): Promise<PublicEvent[]> {
   const response = await fetch(`${apiUrl}/events`, { cache: 'no-store' })
 
@@ -160,4 +214,33 @@ export async function getPublicEventBySlug(slug: string): Promise<PublicEvent> {
   }
 
   throw new Error('Event unavailable.')
+}
+
+export async function getEventPackages(eventId: string): Promise<EventPackage[]> {
+  const response = await fetch(`${apiUrl}/events/${encodeURIComponent(eventId)}/packages`, {
+    cache: 'no-store'
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseError(response, 'Unable to load event packages.'))
+  }
+
+  return response.json()
+}
+
+export async function registerForEvent(
+  eventId: string,
+  request: RegisterEventRequest
+): Promise<RegistrationPaymentResponse> {
+  const response = await fetch(`${apiUrl}/events/${encodeURIComponent(eventId)}/registrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseError(response, 'Registration failed.'))
+  }
+
+  return response.json()
 }
