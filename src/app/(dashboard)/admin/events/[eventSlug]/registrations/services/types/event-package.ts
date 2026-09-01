@@ -3,9 +3,10 @@ export type EventPackage = {
   eventId: string
   name: string
   benefits: string | null
-  capacity: number
+  capacity: number | null
   registeredCount: number
-  remainingQuota: number
+  remainingQuota: number | null
+  isUnlimited: boolean
   price: number
   sortOrder: number
   isActive: boolean
@@ -14,10 +15,9 @@ export type EventPackage = {
 export type CreateEventPackageRequest = {
   name: string
   benefits?: string | null
-  capacity: number
+  capacity: number | null
   price: number
   sortOrder: number
 }
 
-export type UpdateEventPackageRequest =
-  CreateEventPackageRequest
+export type UpdateEventPackageRequest = CreateEventPackageRequest

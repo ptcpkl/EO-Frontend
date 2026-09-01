@@ -28,18 +28,15 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
   const [capacity, setCapacity] = useState('')
   const [price, setPrice] = useState('')
   const [sortOrder, setSortOrder] = useState('0')
-
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!open) {
-      return
-    }
+    if (!open) return
 
     setName(packageItem?.name ?? '')
     setBenefits(packageItem?.benefits ?? '')
-    setCapacity(packageItem ? String(packageItem.capacity) : '')
+    setCapacity(packageItem?.capacity == null ? '' : String(packageItem.capacity))
     setPrice(packageItem ? String(packageItem.price) : '')
     setSortOrder(packageItem ? String(packageItem.sortOrder) : '0')
     setError('')
@@ -50,31 +47,25 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
 
     if (!name.trim()) {
       setError('Package name is required.')
-
       return
     }
 
-    const parsedCapacity = Number(capacity)
-
+    const parsedCapacity = capacity.trim() ? Number(capacity) : null
     const parsedPrice = Number(price)
-
     const parsedSortOrder = Number(sortOrder)
 
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 1) {
-      setError('Capacity must be at least 1.')
-
+    if (parsedCapacity !== null && (!Number.isInteger(parsedCapacity) || parsedCapacity < 1)) {
+      setError('Capacity must be at least 1, or leave it blank for unlimited.')
       return
     }
 
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       setError('Price cannot be negative.')
-
       return
     }
 
     if (!Number.isInteger(parsedSortOrder) || parsedSortOrder < 0) {
       setError('Sort order cannot be negative.')
-
       return
     }
 
@@ -127,15 +118,12 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
 
           <TextField
             fullWidth
-            required
             type='number'
             label='Capacity'
             value={capacity}
             onChange={event => setCapacity(event.target.value)}
-            inputProps={{
-              min: 1
-            }}
-            helperText='Package capacity allocated from the event capacity.'
+            inputProps={{ min: 1 }}
+            helperText='Leave blank for unlimited package quota. The main event capacity still applies.'
           />
 
           <TextField
@@ -145,9 +133,7 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
             label='Price'
             value={price}
             onChange={event => setPrice(event.target.value)}
-            inputProps={{
-              min: 0
-            }}
+            inputProps={{ min: 0 }}
             helperText='Use 0 for free packages.'
           />
 
@@ -157,9 +143,7 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
             label='Sort Order'
             value={sortOrder}
             onChange={event => setSortOrder(event.target.value)}
-            inputProps={{
-              min: 0
-            }}
+            inputProps={{ min: 0 }}
             helperText='Lower numbers appear first.'
           />
         </Stack>
