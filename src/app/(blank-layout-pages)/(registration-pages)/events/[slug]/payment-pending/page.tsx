@@ -1,26 +1,19 @@
 'use client'
 
-import { use } from 'react'
-
+import { use, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
 
 type QueryValue = string | string[] | undefined
 
 type Props = {
-  params: Promise<{
-    slug: string
-  }>
-  searchParams: Promise<{
-    bookingCode?: QueryValue
-    registrationId?: QueryValue
-  }>
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ bookingCode?: QueryValue }>
 }
 
 const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] : value)
@@ -28,105 +21,29 @@ const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] 
 const PaymentPendingPage = ({ params, searchParams }: Props) => {
   const { slug } = use(params)
   const query = use(searchParams)
+  const router = useRouter()
   const bookingCode = firstQueryValue(query.bookingCode)
-  const registrationId = firstQueryValue(query.registrationId)
+
+  useEffect(() => {
+    if (bookingCode) {
+      router.replace(`/registration/${encodeURIComponent(bookingCode)}/status`)
+    }
+  }, [bookingCode, router])
+
+  if (!bookingCode) {
+    return (
+      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2 }}>
+        <Box sx={{ width: '100%', maxWidth: 560 }}>
+          <Alert severity='warning'>Booking code is missing, so registration status cannot be loaded.</Alert>
+          <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} sx={{ mt: 2 }}>Back to Event</Button>
+        </Box>
+      </Box>
+    )
+  }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        px: 2,
-        py: 6,
-        bgcolor: 'background.default'
-      }}
-    >
-      <Card
-        elevation={0}
-        sx={{
-          width: '100%',
-          maxWidth: 560,
-          border: theme => `1px solid ${theme.palette.divider}`
-        }}
-      >
-        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center'
-            }}
-          >
-            <Box
-              sx={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: 'warning.main',
-                color: 'warning.contrastText',
-                mb: 3
-              }}
-            >
-              <i className='tabler-clock-hour-4 text-4xl' />
-            </Box>
-
-            <Typography variant='h4' fontWeight={700}>
-              Pembayaran Menunggu Penyelesaian
-            </Typography>
-
-            <Typography color='text.secondary' sx={{ mt: 1.5, maxWidth: 440 }}>
-              Registrasi sudah dibuat, tetapi pembayaran masih berstatus pending. Selesaikan pembayaran sesuai instruksi Midtrans.
-            </Typography>
-
-            {bookingCode && (
-              <Box
-                sx={{
-                  mt: 3,
-                  width: '100%',
-                  p: 2.5,
-                  bgcolor: 'action.hover',
-                  borderRadius: 2
-                }}
-              >
-                <Typography variant='body2' color='text.secondary'>
-                  Booking Code
-                </Typography>
-                <Typography sx={{ mt: 0.5, fontWeight: 800, letterSpacing: 1 }}>
-                  {bookingCode}
-                </Typography>
-                {registrationId && (
-                  <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
-                    Registration ID: {registrationId}
-                  </Typography>
-                )}
-              </Box>
-            )}
-
-            <Alert severity='warning' sx={{ mt: 4, width: '100%', textAlign: 'left' }}>
-              Status final tidak ditentukan oleh halaman ini. Backend akan memperbarui registrasi setelah menerima webhook dari Midtrans. Jika transaksi gagal, dibatalkan, atau kedaluwarsa, slot dapat dilepas kembali oleh server.
-            </Alert>
-
-            <Button
-              component={Link}
-              href={`/events/${encodeURIComponent(slug)}`}
-              variant='contained'
-              fullWidth
-              sx={{ mt: 4, minHeight: 48 }}
-            >
-              Back to Event
-            </Button>
-
-            <Button component={Link} href='/home' variant='text' sx={{ mt: 1 }}>
-              Back to Home
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}>
+      <CircularProgress />
     </Box>
   )
 }
