@@ -1,6 +1,6 @@
-const apiUrl =
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:5174/api'
+import { parseError } from '@/lib/api'
+
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api').replace(/\/$/, '')
 
 export type CreateExternalRegistrationPaymentRequest = {
   eventPackageId: string
@@ -8,6 +8,7 @@ export type CreateExternalRegistrationPaymentRequest = {
   email: string
   phone: string
   organization?: string | null
+  department?: string | null
 }
 
 export type RegistrationPaymentResponse = {
@@ -15,41 +16,18 @@ export type RegistrationPaymentResponse = {
   eventId: string
   eventPackageId: string
   eventPackageName: string
-  amount: number
+  price: number
   bookingCode: string
   snapToken: string
+  redirectUrl: string
 }
 
 export async function createExternalRegistrationPayment(
-  slug: string,
+  eventId: string,
   payload: CreateExternalRegistrationPaymentRequest
 ): Promise<RegistrationPaymentResponse> {
-  const eventResponse = await fetch(
-    `${apiUrl}/events/${encodeURIComponent(slug)}`,
-    {
-      method: 'GET',
-      cache: 'no-store'
-    }
-  )
-
-  if (!eventResponse.ok) {
-    throw new Error(
-      `Failed to load event (${eventResponse.status})`
-    )
-  }
-
-  const event = await eventResponse.json()
-
-  const eventId = event?.id ?? event?.Id
-
-  if (!eventId) {
-    throw new Error(
-      'Event response does not contain an event id.'
-    )
-  }
-
   const response = await fetch(
-    `${apiUrl}/events/${eventId}/registrations/payment`,
+    `${apiUrl}/events/${encodeURIComponent(eventId)}/registrations`,
     {
       method: 'POST',
       headers: {
@@ -60,13 +38,14 @@ export async function createExternalRegistrationPayment(
   )
 
   if (!response.ok) {
-    const errorText = await response.text()
-
-    throw new Error(
-      errorText ||
-        `Registration failed (${response.status})`
-    )
+    throw new Error(await parseError(response, `Registration failed (${response.status}).`))
   }
 
-  return response.json()
+  const result = (await response.json()) as RegistrationPaymentResponse
+
+  if (!result.registrationId || !result.snapToken || !result.bookingCode) {
+    throw new Error('Backend returned an invalid payment response.')
+  }
+
+  return result
 }
