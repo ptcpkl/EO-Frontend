@@ -15,6 +15,7 @@ export type PublicEvent = {
   city?: string
   address?: string
   capacity?: number
+  registeredCount?: number
   remainingQuota?: number
   price?: number
   accessMode?: string
@@ -111,6 +112,7 @@ const normalizeEvent = (value: unknown): PublicEvent | null => {
     city: firstString(record, 'city', 'City'),
     address: firstString(record, 'address', 'Address'),
     capacity: firstNumber(record, 'capacity', 'Capacity'),
+    registeredCount: firstNumber(record, 'registeredCount', 'RegisteredCount'),
     remainingQuota: firstNumber(record, 'remainingQuota', 'remaining', 'RemainingQuota'),
     price: firstNumber(record, 'price', 'Price'),
     accessMode: firstString(record, 'accessMode', 'mode', 'AccessMode'),
@@ -134,8 +136,11 @@ const extractEvents = (payload: unknown): unknown[] => {
   return [payload]
 }
 
-export async function getPublicEvents(): Promise<PublicEvent[]> {
-  const response = await fetch(`${apiUrl}/events`, { cache: 'no-store' })
+export async function getPublicEvents(accessToken?: string): Promise<PublicEvent[]> {
+  const response = await fetch(`${apiUrl}/events`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    cache: 'no-store'
+  })
 
   if (!response.ok) throw new Error('Unable to load events.')
 

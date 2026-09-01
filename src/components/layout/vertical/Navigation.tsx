@@ -29,7 +29,10 @@ type Props = {
   mode: Mode
   showCreateEvent?: boolean
   showEventCategories?: boolean
+  showEventManagement?: boolean
+  showAbout?: boolean
   homeHref?: string
+  aboutHref?: string
 }
 
 const StyledBoxForShadow = styled('div')(({ theme }) => ({
@@ -52,7 +55,15 @@ const StyledBoxForShadow = styled('div')(({ theme }) => ({
 
 const Navigation = (props: Props) => {
   // Props
-  const { mode, showCreateEvent = false, showEventCategories = false, homeHref = '/home' } = props
+  const {
+    mode,
+    showCreateEvent = false,
+    showEventCategories = false,
+    showEventManagement = false,
+    showAbout = true,
+    homeHref = '/home',
+    aboutHref = '/about'
+  } = props
 
   // Hooks
   const verticalNavOptions = useVerticalNav()
@@ -112,7 +123,7 @@ const Navigation = (props: Props) => {
     >
       {/* Nav Header including Logo & nav toggle icons  */}
       <NavHeader>
-        <Link href='/'>
+        <Link href={homeHref}>
           <Logo />
         </Link>
         {!(isCollapsed && !isHovered) && (
@@ -135,7 +146,14 @@ const Navigation = (props: Props) => {
           Create event
         </Button>
       )}
-      <VerticalMenu scrollMenu={scrollMenu} showEventCategories={showEventCategories} homeHref={homeHref} />
+      <VerticalMenu
+        scrollMenu={scrollMenu}
+        showEventCategories={showEventCategories}
+        showEventManagement={showEventManagement}
+        showAbout={showAbout}
+        homeHref={homeHref}
+        aboutHref={aboutHref}
+      />
     </VerticalNav>
   )
 }

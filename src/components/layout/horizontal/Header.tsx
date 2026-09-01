@@ -9,7 +9,14 @@ import LayoutHeader from '@layouts/components/horizontal/Header'
 // Hook Imports
 import useHorizontalNav from '@menu/hooks/useHorizontalNav'
 
-const Header = () => {
+type Props = {
+  homeHref?: string
+  aboutHref?: string
+  showEventManagement?: boolean
+  showAbout?: boolean
+}
+
+const Header = ({ homeHref, aboutHref, showEventManagement, showAbout }: Props) => {
   // Hooks
   const { isBreakpointReached } = useHorizontalNav()
 
@@ -19,9 +26,23 @@ const Header = () => {
         <Navbar>
           <NavbarContent />
         </Navbar>
-        {!isBreakpointReached && <Navigation />}
+        {!isBreakpointReached && (
+          <Navigation
+            homeHref={homeHref}
+            aboutHref={aboutHref}
+            showEventManagement={showEventManagement}
+            showAbout={showAbout}
+          />
+        )}
       </LayoutHeader>
-      {isBreakpointReached && <Navigation />}
+      {isBreakpointReached && (
+        <Navigation
+          homeHref={homeHref}
+          aboutHref={aboutHref}
+          showEventManagement={showEventManagement}
+          showAbout={showAbout}
+        />
+      )}
     </>
   )
 }

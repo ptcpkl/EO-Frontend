@@ -28,7 +28,10 @@ type RenderExpandIconProps = {
 type Props = {
   scrollMenu: (container: any, isPerfectScrollbar: boolean) => void
   showEventCategories?: boolean
+  showEventManagement?: boolean
+  showAbout?: boolean
   homeHref?: string
+  aboutHref?: string
 }
 
 const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) => (
@@ -37,7 +40,14 @@ const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) =
   </StyledVerticalNavExpandIcon>
 )
 
-const VerticalMenu = ({ scrollMenu, showEventCategories = false, homeHref = '/home' }: Props) => {
+const VerticalMenu = ({
+  scrollMenu,
+  showEventCategories = false,
+  showEventManagement = false,
+  showAbout = true,
+  homeHref = '/home',
+  aboutHref = '/about'
+}: Props) => {
   // Hooks
   const theme = useTheme()
   const verticalNavOptions = useVerticalNav()
@@ -73,9 +83,21 @@ const VerticalMenu = ({ scrollMenu, showEventCategories = false, homeHref = '/ho
         <MenuItem href={homeHref} icon={<i className='tabler-smart-home' />}>
           Home
         </MenuItem>
-        <MenuItem href='/about' icon={<i className='tabler-info-circle' />}>
-          About
-        </MenuItem>
+        {showEventManagement && (
+          <MenuItem
+            href='/admin/events'
+            activeUrl='/admin/events'
+            exactMatch={false}
+            icon={<i className='tabler-calendar-event' />}
+          >
+            Event Management
+          </MenuItem>
+        )}
+        {showAbout && (
+          <MenuItem href={aboutHref} icon={<i className='tabler-info-circle' />}>
+            About
+          </MenuItem>
+        )}
         {showEventCategories && (
           <SubMenu label='Event Categories' icon={<i className='tabler-category-2' />} defaultOpen>
             <SubMenu label='Olahraga' icon={<i className='tabler-run' />}>

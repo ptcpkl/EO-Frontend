@@ -43,7 +43,19 @@ const RenderVerticalExpandIcon = ({ open, transitionDuration }: RenderVerticalEx
   </StyledVerticalNavExpandIcon>
 )
 
-const HorizontalMenu = () => {
+type Props = {
+  homeHref?: string
+  aboutHref?: string
+  showEventManagement?: boolean
+  showAbout?: boolean
+}
+
+const HorizontalMenu = ({
+  homeHref = '/home',
+  aboutHref = '/about',
+  showEventManagement = false,
+  showAbout = true
+}: Props) => {
   // Hooks
   const verticalNavOptions = useVerticalNav()
   const theme = useTheme()
@@ -78,12 +90,24 @@ const HorizontalMenu = () => {
           menuSectionStyles: verticalMenuSectionStyles(verticalNavOptions, theme)
         }}
       >
-        <MenuItem href='/' icon={<i className='tabler-smart-home' />}>
+        <MenuItem href={homeHref} icon={<i className='tabler-smart-home' />}>
           Home
         </MenuItem>
-        <MenuItem href='/about' icon={<i className='tabler-info-circle' />}>
-          About
-        </MenuItem>
+        {showEventManagement && (
+          <MenuItem
+            href='/admin/events'
+            activeUrl='/admin/events'
+            exactMatch={false}
+            icon={<i className='tabler-calendar-event' />}
+          >
+            Event Management
+          </MenuItem>
+        )}
+        {showAbout && (
+          <MenuItem href={aboutHref} icon={<i className='tabler-info-circle' />}>
+            About
+          </MenuItem>
+        )}
       </Menu>
       {/* <Menu
         rootStyles={menuRootStyles(theme)}

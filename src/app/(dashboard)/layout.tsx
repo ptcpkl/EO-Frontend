@@ -36,7 +36,16 @@ const Layout = async (props: ChildrenType) => {
         systemMode={systemMode}
         verticalLayout={
           <VerticalLayout
-            navigation={<Navigation mode={mode} showCreateEvent homeHref='/admin/home' />}
+            navigation={
+              <Navigation
+                mode={mode}
+                showCreateEvent
+                showEventManagement
+                showAbout
+                homeHref='/admin/home'
+                aboutHref='/about'
+              />
+            }
             navbar={<Navbar />}
             footer={<VerticalFooter />}
           >
@@ -44,7 +53,10 @@ const Layout = async (props: ChildrenType) => {
           </VerticalLayout>
         }
         horizontalLayout={
-          <HorizontalLayout header={<Header />} footer={<HorizontalFooter />}>
+          <HorizontalLayout
+            header={<Header homeHref='/admin/home' aboutHref='/about' showEventManagement showAbout />}
+            footer={<HorizontalFooter />}
+          >
             <AdminSessionGuard>{children}</AdminSessionGuard>
           </HorizontalLayout>
         }

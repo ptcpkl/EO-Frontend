@@ -36,7 +36,14 @@ const StyledDiv = styled.div<StyledDivProps>`
   `}
 `
 
-const Navigation = () => {
+type Props = {
+  homeHref?: string
+  aboutHref?: string
+  showEventManagement?: boolean
+  showAbout?: boolean
+}
+
+const Navigation = ({ homeHref, aboutHref, showEventManagement, showAbout }: Props) => {
   // Hooks
   const { settings } = useSettings()
   const { isBreakpointReached } = useHorizontalNav()
@@ -57,7 +64,12 @@ const Navigation = () => {
           className: classnames(horizontalLayoutClasses.navigationContentWrapper, 'flex items-center is-full plb-2')
         })}
       >
-        <HorizontalMenu />
+        <HorizontalMenu
+          homeHref={homeHref}
+          aboutHref={aboutHref}
+          showEventManagement={showEventManagement}
+          showAbout={showAbout}
+        />
       </StyledDiv>
     </div>
   )

@@ -66,21 +66,6 @@ const registrations: Registration[] = [
     checkedInAt: '2026-08-24T10:15:00Z'
   },
   {
-    id: 'reg-005',
-    eventId: 'event-ffws-edit',
-    fullName: 'Fajar Ramadhan',
-    email: 'fajar.ramadhan@gmail.com',
-    phone: '081222233344',
-    organization: 'Freelance',
-    nip: null,
-    participantType: 'EXTERNAL',
-    registrationSource: 'PUBLIC',
-    bookingCode: 'FFWS-001249',
-    status: 'PENDING',
-    registeredAt: '2026-08-24T09:35:00Z',
-    checkedInAt: null
-  },
-  {
     id: 'reg-006',
     eventId: 'event-ffws-edit',
     fullName: 'Siti Rahma',

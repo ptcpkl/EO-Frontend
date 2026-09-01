@@ -11,6 +11,11 @@ const verticalMenuData = (): VerticalMenuDataType[] => [
     label: 'About',
     href: '/about',
     icon: 'tabler-info-circle'
+  },
+  {
+    label: 'Event Management',
+    href: '/events',
+    icon: 'tabler-calendar-plus'
   }
 ]
 
