@@ -1,27 +1,19 @@
 'use client'
 
-import { use } from 'react'
-
+import { use, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
-import Typography from '@mui/material/Typography'
 
 type QueryValue = string | string[] | undefined
 
 type Props = {
-  params: Promise<{
-    slug: string
-  }>
-  searchParams: Promise<{
-    bookingCode?: QueryValue
-    registrationId?: QueryValue
-  }>
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ bookingCode?: QueryValue }>
 }
 
 const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] : value)
@@ -29,129 +21,29 @@ const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] 
 const PaymentSuccessPage = ({ params, searchParams }: Props) => {
   const { slug } = use(params)
   const query = use(searchParams)
+  const router = useRouter()
   const bookingCode = firstQueryValue(query.bookingCode)
-  const registrationId = firstQueryValue(query.registrationId)
+
+  useEffect(() => {
+    if (bookingCode) {
+      router.replace(`/registration/${encodeURIComponent(bookingCode)}/status`)
+    }
+  }, [bookingCode, router])
+
+  if (!bookingCode) {
+    return (
+      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2 }}>
+        <Box sx={{ width: '100%', maxWidth: 560 }}>
+          <Alert severity='warning'>Booking code is missing, so registration status cannot be loaded.</Alert>
+          <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} sx={{ mt: 2 }}>Back to Event</Button>
+        </Box>
+      </Box>
+    )
+  }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        px: 2,
-        py: 6,
-        bgcolor: 'background.default'
-      }}
-    >
-      <Card
-        elevation={0}
-        sx={{
-          width: '100%',
-          maxWidth: 560,
-          border: theme => `1px solid ${theme.palette.divider}`
-        }}
-      >
-        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center'
-            }}
-          >
-            <Box
-              sx={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: 'success.main',
-                color: 'success.contrastText',
-                mb: 3
-              }}
-            >
-              <i className='tabler-check text-4xl' />
-            </Box>
-
-            <Typography variant='h4' fontWeight={700}>
-              Pembayaran Berhasil
-            </Typography>
-
-            <Typography color='text.secondary' sx={{ mt: 1.5, maxWidth: 440 }}>
-              Midtrans telah melaporkan pembayaran berhasil. Backend tetap menjadi sumber status final melalui webhook.
-            </Typography>
-
-            {bookingCode && (
-              <Box
-                sx={{
-                  mt: 3,
-                  width: '100%',
-                  p: 2.5,
-                  bgcolor: 'action.hover',
-                  borderRadius: 2
-                }}
-              >
-                <Typography variant='body2' color='text.secondary'>
-                  Booking Code
-                </Typography>
-                <Typography sx={{ mt: 0.5, fontWeight: 800, letterSpacing: 1 }}>
-                  {bookingCode}
-                </Typography>
-                {registrationId && (
-                  <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
-                    Registration ID: {registrationId}
-                  </Typography>
-                )}
-              </Box>
-            )}
-
-            <Alert
-              severity='info'
-              icon={<CircularProgress size={20} color='inherit' />}
-              sx={{ mt: 4, width: '100%', textAlign: 'left' }}
-            >
-              Registrasi sedang menunggu konfirmasi server. Setelah webhook pembayaran diproses, status peserta akan diperbarui menjadi Registered.
-            </Alert>
-
-            <Box
-              sx={{
-                mt: 4,
-                width: '100%',
-                p: 3,
-                bgcolor: 'action.hover',
-                borderRadius: 2
-              }}
-            >
-              <Typography variant='body2' color='text.secondary'>
-                Selanjutnya
-              </Typography>
-              <Typography sx={{ mt: 0.75, fontWeight: 600 }}>
-                Tiket dan bukti registrasi sedang diproses
-              </Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-                Informasi registrasi, tiket, dan receipt dapat dikirim setelah backend menerima konfirmasi pembayaran final.
-              </Typography>
-            </Box>
-
-            <Button
-              component={Link}
-              href={`/events/${encodeURIComponent(slug)}`}
-              variant='contained'
-              fullWidth
-              sx={{ mt: 4, minHeight: 48 }}
-            >
-              Back to Event
-            </Button>
-
-            <Button component={Link} href='/home' variant='text' sx={{ mt: 1 }}>
-              Back to Home
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}>
+      <CircularProgress />
     </Box>
   )
 }
