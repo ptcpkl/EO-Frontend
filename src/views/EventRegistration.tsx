@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import Link from 'next/link'
 
@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { useSettings } from '@core/hooks/useSettings'
+import { getEventPackages, getPublicEventBySlug, registerForEvent, type EventPackage } from '@/lib/api'
 
 type RegistrationFormData = {
   fullName: string
@@ -20,7 +21,7 @@ type RegistrationFormData = {
   whatsappNumber: string
   institution: string
   position: string
-  participantType: string
+  eventPackageId: string
   consent: boolean
 }
 
@@ -82,7 +83,7 @@ const initialForm: RegistrationFormData = {
   whatsappNumber: '',
   institution: '',
   position: '',
-  participantType: '',
+  eventPackageId: '',
   consent: false
 }
 
@@ -94,11 +95,18 @@ const validate = (form: RegistrationFormData): RegistrationErrors => {
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Please enter a valid email address.'
   if (!form.whatsappNumber.trim()) errors.whatsappNumber = 'WhatsApp Number is required.'
   if (!form.institution.trim()) errors.institution = 'Institution / Company is required.'
-  if (!form.participantType) errors.participantType = 'Please select a participant type.'
+  if (!form.eventPackageId) errors.eventPackageId = 'Please select an event package.'
   if (!form.consent) errors.consent = 'You must agree to the personal data consent.'
 
   return errors
 }
+
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  }).format(price)
 
 const EventRegistration = ({ slug }: Props) => {
   const theme = useTheme()
@@ -107,7 +115,48 @@ const EventRegistration = ({ slug }: Props) => {
   const [form, setForm] = useState<RegistrationFormData>(initialForm)
   const [errors, setErrors] = useState<RegistrationErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true)
   const [formMessage, setFormMessage] = useState('')
+  const [eventId, setEventId] = useState('')
+  const [eventName, setEventName] = useState('Event Registration')
+  const [packages, setPackages] = useState<EventPackage[]>([])
+
+  useEffect(() => {
+    let active = true
+
+    const loadRegistrationData = async () => {
+      try {
+        setIsLoadingEvent(true)
+        setFormMessage('')
+
+        const event = await getPublicEventBySlug(slug)
+
+        if (!event.id) throw new Error('Event ID is unavailable.')
+
+        const eventPackages = await getEventPackages(event.id)
+
+        if (!active) return
+
+        setEventId(event.id)
+        setEventName(event.name)
+        setPackages(eventPackages.filter(item => item.isActive))
+
+        if (eventPackages.length === 1) {
+          setForm(current => ({ ...current, eventPackageId: eventPackages[0].id }))
+        }
+      } catch (error) {
+        if (active) setFormMessage(error instanceof Error ? error.message : 'Unable to load registration data.')
+      } finally {
+        if (active) setIsLoadingEvent(false)
+      }
+    }
+
+    void loadRegistrationData()
+
+    return () => {
+      active = false
+    }
+  }, [slug])
 
   const updateField = <K extends keyof RegistrationFormData>(field: K, value: RegistrationFormData[K]) => {
     setForm(current => ({ ...current, [field]: value }))
@@ -122,18 +171,33 @@ const EventRegistration = ({ slug }: Props) => {
     updateSettings({ mode: nextMode })
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const nextErrors = validate(form)
 
     setErrors(nextErrors)
 
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0 || !eventId) return
 
-    setIsSubmitting(true)
-    setFormMessage(`Registration data for ${slug} is ready for the future API connection.`)
-    setIsSubmitting(false)
+    try {
+      setIsSubmitting(true)
+      setFormMessage('Creating your payment session...')
+
+      const payment = await registerForEvent(eventId, {
+        eventPackageId: form.eventPackageId,
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        phone: form.whatsappNumber.trim(),
+        organization: form.institution.trim(),
+        department: form.position.trim() || undefined
+      })
+
+      window.location.assign(payment.redirectUrl)
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -174,10 +238,10 @@ const EventRegistration = ({ slug }: Props) => {
                 fontSize: { xs: '1.45rem', sm: '1.7rem' }
               }}
             >
-              Register for Seminar FFWS Edit
+              Register for {eventName}
             </Typography>
             <Typography sx={{ mt: 1, color: 'text.secondary', lineHeight: 1.5 }}>
-              Join the event and get the latest FFWS insights.
+              Complete your information, choose a package, and continue to secure Midtrans payment.
             </Typography>
 
             <form noValidate onSubmit={handleSubmit} className='mt-6 flex flex-col gap-4'>
@@ -224,26 +288,32 @@ const EventRegistration = ({ slug }: Props) => {
                 sx={fieldStyles}
               />
               <CustomTextField
-                label='Position / Role'
-                placeholder='Enter your position or role'
+                label='Position / Department'
+                placeholder='Enter your position or department'
                 value={form.position}
                 onChange={event => updateField('position', event.target.value)}
                 sx={fieldStyles}
               />
               <CustomTextField
                 select
-                label='Participant Type'
+                label='Event Package'
                 required
-                value={form.participantType}
-                onChange={event => updateField('participantType', event.target.value)}
-                error={Boolean(errors.participantType)}
-                helperText={errors.participantType}
+                disabled={isLoadingEvent || packages.length === 0}
+                value={form.eventPackageId}
+                onChange={event => updateField('eventPackageId', event.target.value)}
+                error={Boolean(errors.eventPackageId)}
+                helperText={
+                  errors.eventPackageId ??
+                  (packages.length === 0 && !isLoadingEvent ? 'No active package is available.' : undefined)
+                }
                 sx={fieldStyles}
               >
-                <MenuItem value='Student'>Student</MenuItem>
-                <MenuItem value='Professional'>Professional</MenuItem>
-                <MenuItem value='General'>General</MenuItem>
-                <MenuItem value='Other'>Other</MenuItem>
+                {packages.map(item => (
+                  <MenuItem key={item.id} value={item.id} disabled={item.remainingQuota === 0}>
+                    {item.name} — {formatPrice(item.price)}
+                    {item.isUnlimited ? ' — package quota unlimited' : ` — ${item.remainingQuota ?? 0} left`}
+                  </MenuItem>
+                ))}
               </CustomTextField>
               <div>
                 <FormControlLabel
@@ -272,10 +342,10 @@ const EventRegistration = ({ slug }: Props) => {
                 fullWidth
                 type='submit'
                 variant='contained'
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingEvent || packages.length === 0}
                 sx={{ minHeight: 50, borderRadius: '10px', mt: 1 }}
               >
-                {isSubmitting ? 'Preparing...' : 'Register Now'}
+                {isSubmitting ? 'Redirecting to payment...' : 'Register & Pay'}
               </Button>
             </form>
           </div>
