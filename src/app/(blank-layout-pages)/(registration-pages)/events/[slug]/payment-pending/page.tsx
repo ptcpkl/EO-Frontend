@@ -10,7 +10,6 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
-import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 
 type Props = {
@@ -19,7 +18,7 @@ type Props = {
   }>
 }
 
-const PaymentSuccessPage = ({ params }: Props) => {
+const PaymentPendingPage = ({ params }: Props) => {
   const { slug } = use(params)
   const searchParams = useSearchParams()
   const bookingCode = searchParams.get('bookingCode')
@@ -61,20 +60,20 @@ const PaymentSuccessPage = ({ params }: Props) => {
                 borderRadius: '50%',
                 display: 'grid',
                 placeItems: 'center',
-                bgcolor: 'success.main',
-                color: 'success.contrastText',
+                bgcolor: 'warning.main',
+                color: 'warning.contrastText',
                 mb: 3
               }}
             >
-              <i className='tabler-check text-4xl' />
+              <i className='tabler-clock-hour-4 text-4xl' />
             </Box>
 
             <Typography variant='h4' fontWeight={700}>
-              Pembayaran Berhasil
+              Pembayaran Menunggu Penyelesaian
             </Typography>
 
             <Typography color='text.secondary' sx={{ mt: 1.5, maxWidth: 440 }}>
-              Midtrans telah melaporkan pembayaran berhasil. Backend tetap menjadi sumber status final melalui webhook.
+              Registrasi sudah dibuat, tetapi pembayaran masih berstatus pending. Selesaikan pembayaran sesuai instruksi Midtrans.
             </Typography>
 
             {bookingCode && (
@@ -101,33 +100,9 @@ const PaymentSuccessPage = ({ params }: Props) => {
               </Box>
             )}
 
-            <Alert
-              severity='info'
-              icon={<CircularProgress size={20} color='inherit' />}
-              sx={{ mt: 4, width: '100%', textAlign: 'left' }}
-            >
-              Registrasi sedang menunggu konfirmasi server. Setelah webhook pembayaran diproses, status peserta akan diperbarui menjadi Registered.
+            <Alert severity='warning' sx={{ mt: 4, width: '100%', textAlign: 'left' }}>
+              Status final tidak ditentukan oleh halaman ini. Backend akan memperbarui registrasi setelah menerima webhook dari Midtrans. Jika transaksi gagal, dibatalkan, atau kedaluwarsa, slot dapat dilepas kembali oleh server.
             </Alert>
-
-            <Box
-              sx={{
-                mt: 4,
-                width: '100%',
-                p: 3,
-                bgcolor: 'action.hover',
-                borderRadius: 2
-              }}
-            >
-              <Typography variant='body2' color='text.secondary'>
-                Selanjutnya
-              </Typography>
-              <Typography sx={{ mt: 0.75, fontWeight: 600 }}>
-                Tiket dan bukti registrasi sedang diproses
-              </Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-                Informasi registrasi, tiket, dan receipt dapat dikirim setelah backend menerima konfirmasi pembayaran final.
-              </Typography>
-            </Box>
 
             <Button
               component={Link}
@@ -149,4 +124,4 @@ const PaymentSuccessPage = ({ params }: Props) => {
   )
 }
 
-export default PaymentSuccessPage
+export default PaymentPendingPage

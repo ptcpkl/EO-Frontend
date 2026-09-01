@@ -5,11 +5,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-import {
-  styled,
-  useColorScheme,
-  useTheme
-} from '@mui/material/styles'
+import { styled, useColorScheme, useTheme } from '@mui/material/styles'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
@@ -20,15 +16,18 @@ import CustomTextField from '@core/components/mui/TextField'
 import { useSettings } from '@core/hooks/useSettings'
 
 import {
-  createExternalRegistrationPayment
+  getEventPackages,
+  getPublicEventBySlug,
+  type EventPackage,
+  type PublicEvent
+} from '@/lib/api'
+import { openMidtransSnap } from '../lib/midtrans'
+import {
+  createExternalRegistrationPayment,
+  type RegistrationPaymentResponse
 } from '../services/registration.service'
 
-import { loadMidtransSnap } from '../lib/midtrans'
-
-type AttendeeType =
-  | 'STUDENT'
-  | 'PROFESSIONAL'
-  | 'GENERAL'
+type AttendeeType = 'STUDENT' | 'PROFESSIONAL' | 'GENERAL'
 
 type RegistrationFormData = {
   fullName: string
@@ -41,21 +40,10 @@ type RegistrationFormData = {
   consent: boolean
 }
 
-type RegistrationErrors =
-  Partial<Record<keyof RegistrationFormData, string>>
+type RegistrationErrors = Partial<Record<keyof RegistrationFormData, string>>
 
 type Props = {
   slug: string
-}
-
-type EventPackage = {
-  id: string
-  name: string
-  benefits?: string | null
-  price?: number
-  isActive?: boolean
-  sortOrder?: number
-  remainingQuota?: number
 }
 
 const RegistrationPage = styled('main')({
@@ -65,67 +53,44 @@ const RegistrationPage = styled('main')({
   overflowY: 'auto'
 })
 
-const RegistrationBackground = styled('div')(
-  ({ theme }) => ({
-    position: 'fixed',
-    inset: 0,
-    zIndex: 0,
-    backgroundImage:
-      theme.palette.mode === 'dark'
-        ? "url('/Dark.png')"
-        : "url('/back.png')",
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
-  })
-)
+const RegistrationBackground = styled('div')(({ theme }) => ({
+  position: 'fixed',
+  inset: 0,
+  zIndex: 0,
+  backgroundImage: theme.palette.mode === 'dark' ? "url('/Dark.png')" : "url('/back.png')",
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat'
+}))
 
-const RegistrationCard = styled('section')(
-  ({ theme }) => ({
-    position: 'relative',
-    zIndex: 1,
-    width: 'min(100%, 560px)',
-    boxSizing: 'border-box',
-    margin: '0 auto',
-    padding: theme.spacing(4),
-    border:
-      theme.palette.mode === 'dark'
-        ? '1px solid rgba(219, 232, 240, 0.16)'
-        : '1px solid rgba(27, 45, 58, 0.14)',
-    borderRadius: 0,
-    backgroundColor:
-      theme.palette.mode === 'dark'
-        ? '#17232d'
-        : '#ffffff',
-    boxShadow:
-      theme.palette.mode === 'dark'
-        ? '0 20px 60px rgba(0, 0, 0, 0.55)'
-        : '0 20px 60px rgba(0, 0, 0, 0.16)',
-    '@media (max-width: 600px)': {
-      padding: theme.spacing(2.5)
-    }
-  })
-)
+const RegistrationCard = styled('section')(({ theme }) => ({
+  position: 'relative',
+  zIndex: 1,
+  width: 'min(100%, 560px)',
+  boxSizing: 'border-box',
+  margin: '0 auto',
+  padding: theme.spacing(4),
+  border: theme.palette.mode === 'dark' ? '1px solid rgba(219, 232, 240, 0.16)' : '1px solid rgba(27, 45, 58, 0.14)',
+  borderRadius: 0,
+  backgroundColor: theme.palette.mode === 'dark' ? '#17232d' : '#ffffff',
+  boxShadow: theme.palette.mode === 'dark' ? '0 20px 60px rgba(0, 0, 0, 0.55)' : '0 20px 60px rgba(0, 0, 0, 0.16)',
+  '@media (max-width: 600px)': {
+    padding: theme.spacing(2.5)
+  }
+}))
 
 const fieldStyles = {
   '& .MuiInputBase-root': {
     minHeight: 50,
     borderRadius: '10px !important'
   },
-
   '& .MuiInputBase-input': {
     '&:-webkit-autofill': {
-      WebkitBoxShadow:
-        '0 0 0 1000px transparent inset',
-      WebkitTextFillColor:
-        'var(--mui-palette-text-primary)'
+      WebkitBoxShadow: '0 0 0 1000px transparent inset',
+      WebkitTextFillColor: 'var(--mui-palette-text-primary)'
     }
   }
 }
-
-const apiUrl =
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:5174/api'
 
 const initialForm: RegistrationFormData = {
   fullName: '',
@@ -138,72 +103,42 @@ const initialForm: RegistrationFormData = {
   consent: false
 }
 
-const validate = (
-  form: RegistrationFormData
-): RegistrationErrors => {
+const validate = (form: RegistrationFormData): RegistrationErrors => {
   const errors: RegistrationErrors = {}
 
-  if (!form.attendeeType) {
-    errors.attendeeType =
-      'Please select an attendee type.'
-  }
-
-  if (!form.fullName.trim()) {
-    errors.fullName = 'Full Name is required.'
-  }
+  if (!form.attendeeType) errors.attendeeType = 'Please select an attendee type.'
+  if (!form.fullName.trim()) errors.fullName = 'Full Name is required.'
 
   if (!form.email.trim()) {
     errors.email = 'Email is required.'
-  } else if (
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      form.email.trim()
-    )
-  ) {
-    errors.email =
-      'Please enter a valid email address.'
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    errors.email = 'Please enter a valid email address.'
   }
 
-  if (!form.whatsappNumber.trim()) {
-    errors.whatsappNumber =
-      'WhatsApp Number is required.'
+  if (!form.whatsappNumber.trim()) errors.whatsappNumber = 'WhatsApp Number is required.'
+
+  if (form.attendeeType === 'STUDENT' && !form.institution.trim()) {
+    errors.institution = 'Institution / Company is required.'
   }
 
-  if (
-    form.attendeeType === 'STUDENT' &&
-    !form.institution.trim()
-  ) {
-    errors.institution =
-      'Institution / Company is required.'
+  if (form.attendeeType === 'PROFESSIONAL' && !form.institution.trim()) {
+    errors.institution = 'Institution / Company is required.'
   }
 
-  if (
-    form.attendeeType === 'PROFESSIONAL' &&
-    !form.institution.trim()
-  ) {
-    errors.institution =
-      'Institution / Company is required.'
+  if (form.attendeeType === 'PROFESSIONAL' && !form.position.trim()) {
+    errors.position = 'Position / Role is required.'
   }
 
-  if (
-    form.attendeeType === 'PROFESSIONAL' &&
-    !form.position.trim()
-  ) {
-    errors.position =
-      'Position / Role is required.'
-  }
-
-  if (!form.eventPackageId) {
-    errors.eventPackageId =
-      'Please select a package.'
-  }
-
-  if (!form.consent) {
-    errors.consent =
-      'You must agree to the personal data consent.'
-  }
+  if (!form.eventPackageId) errors.eventPackageId = 'Please select a package.'
+  if (!form.consent) errors.consent = 'You must agree to the personal data consent.'
 
   return errors
 }
+
+const isPackageSoldOut = (eventPackage: EventPackage) =>
+  !eventPackage.isUnlimited &&
+  typeof eventPackage.remainingQuota === 'number' &&
+  eventPackage.remainingQuota <= 0
 
 const EventRegistration = ({ slug }: Props) => {
   const theme = useTheme()
@@ -211,186 +146,77 @@ const EventRegistration = ({ slug }: Props) => {
   const { updateSettings } = useSettings()
   const router = useRouter()
 
-  const [form, setForm] =
-    useState<RegistrationFormData>(initialForm)
+  const [form, setForm] = useState<RegistrationFormData>(initialForm)
+  const [errors, setErrors] = useState<RegistrationErrors>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingPackages, setIsLoadingPackages] = useState(true)
+  const [formMessage, setFormMessage] = useState('')
+  const [eventData, setEventData] = useState<PublicEvent | null>(null)
+  const [packages, setPackages] = useState<EventPackage[]>([])
+  const [paymentSession, setPaymentSession] = useState<RegistrationPaymentResponse | null>(null)
 
-  const [errors, setErrors] =
-    useState<RegistrationErrors>({})
-
-  const [isSubmitting, setIsSubmitting] =
-    useState(false)
-
-  const [formMessage, setFormMessage] =
-    useState('')
-
-  const [packages, setPackages] =
-    useState<EventPackage[]>([])
-
-  const [isLoadingPackages, setIsLoadingPackages] =
-    useState(true)
-
-  /*
-   * =====================================================
-   * LOAD EVENT PACKAGES
-   * =====================================================
-   */
+  const paymentLocked = paymentSession !== null
 
   useEffect(() => {
     let mounted = true
 
-    const loadPackages = async () => {
+    const loadRegistrationData = async () => {
       try {
         setIsLoadingPackages(true)
         setFormMessage('')
 
-        /*
-         * 1. Load event berdasarkan slug
-         */
+        const loadedEvent = await getPublicEventBySlug(slug)
+        const loadedPackages = await getEventPackages(loadedEvent.id)
 
-        const eventResponse = await fetch(
-          `${apiUrl}/events/${encodeURIComponent(slug)}`,
-          {
-            method: 'GET',
-            cache: 'no-store'
-          }
-        )
+        if (!mounted) return
 
-        if (!eventResponse.ok) {
-          throw new Error(
-            `Failed to load event (${eventResponse.status})`
-          )
-        }
+        const activePackages = loadedPackages
+          .filter(item => item.isActive)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
 
-        const event =
-          await eventResponse.json()
-
-        const eventId =
-          event?.id ?? event?.Id
-
-        if (!eventId) {
-          throw new Error(
-            'Event response does not contain an event id.'
-          )
-        }
-
-        /*
-         * 2. Load package
-         */
-
-        const packagesResponse =
-          await fetch(
-            `${apiUrl}/events/${eventId}/packages`,
-            {
-              method: 'GET',
-              cache: 'no-store'
-            }
-          )
-
-        if (!packagesResponse.ok) {
-          throw new Error(
-            `Failed to load event packages (${packagesResponse.status})`
-          )
-        }
-
-        const eventPackages =
-          await packagesResponse.json()
-
-        if (!mounted) {
-          return
-        }
-
-        /*
-         * 3. Hanya package aktif
-         */
-
-        const activePackages =
-          Array.isArray(eventPackages)
-            ? eventPackages
-                .filter(
-                  (item: EventPackage) =>
-                    item.isActive !== false
-                )
-                .sort(
-                  (
-                    a: EventPackage,
-                    b: EventPackage
-                  ) =>
-                    (a.sortOrder ?? 0) -
-                    (b.sortOrder ?? 0)
-                )
-            : []
-
+        setEventData(loadedEvent)
         setPackages(activePackages)
+
+        const availablePackages = activePackages.filter(item => !isPackageSoldOut(item))
+
+        if (availablePackages.length === 1) {
+          setForm(current => ({ ...current, eventPackageId: availablePackages[0].id }))
+        }
       } catch (error) {
-        console.error(
-          'Failed to load event packages:',
-          error
-        )
+        console.error('Failed to load registration data:', error)
 
         if (mounted) {
+          setEventData(null)
           setPackages([])
-          setFormMessage(
-            'Unable to load available packages. Please try again.'
-          )
+          setFormMessage(error instanceof Error ? error.message : 'Unable to load registration data.')
         }
       } finally {
-        if (mounted) {
-          setIsLoadingPackages(false)
-        }
+        if (mounted) setIsLoadingPackages(false)
       }
     }
 
-    loadPackages()
+    void loadRegistrationData()
 
     return () => {
       mounted = false
     }
   }, [slug])
 
-  /*
-   * =====================================================
-   * FORM HELPERS
-   * =====================================================
-   */
+  const updateField = <K extends keyof RegistrationFormData>(field: K, value: RegistrationFormData[K]) => {
+    if (paymentLocked) return
 
-  const updateField = <
-    K extends keyof RegistrationFormData
-  >(
-    field: K,
-    value: RegistrationFormData[K]
-  ) => {
-    setForm(current => ({
-      ...current,
-      [field]: value
-    }))
-
-    setErrors(current => ({
-      ...current,
-      [field]: undefined
-    }))
-
+    setForm(current => ({ ...current, [field]: value }))
+    setErrors(current => ({ ...current, [field]: undefined }))
     setFormMessage('')
   }
 
-  const handlePackageSelect = (
-    packageId: string
-  ) => {
-    updateField(
-      'eventPackageId',
-      packageId
-    )
-  }
+  const handleAttendeeTypeChange = (value: AttendeeType) => {
+    if (paymentLocked) return
 
-  const handleAttendeeTypeChange = (
-    value: AttendeeType
-  ) => {
     setForm(current => ({
       ...current,
       attendeeType: value,
-      position:
-        value === 'STUDENT'
-          ? ''
-          : current.position
+      position: value === 'STUDENT' ? '' : current.position
     }))
 
     setErrors(current => ({
@@ -404,279 +230,136 @@ const EventRegistration = ({ slug }: Props) => {
   }
 
   const handleToggleMode = () => {
-    const nextMode =
-      theme.palette.mode === 'dark'
-        ? 'light'
-        : 'dark'
+    const nextMode = theme.palette.mode === 'dark' ? 'light' : 'dark'
 
     setMode(nextMode)
-    updateSettings({
-      mode: nextMode
-    })
+    updateSettings({ mode: nextMode })
   }
 
-  /*
-   * =====================================================
-   * SUBMIT REGISTRATION + MIDTRANS
-   * =====================================================
-   */
-
-  const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
+  const redirectToPaymentResult = (
+    status: 'success' | 'pending',
+    session: RegistrationPaymentResponse
   ) => {
-    event.preventDefault()
+    const query = new URLSearchParams({
+      registrationId: session.registrationId,
+      bookingCode: session.bookingCode
+    })
 
-    const nextErrors = validate(form)
+    router.push(`/events/${encodeURIComponent(slug)}/payment-${status}?${query.toString()}`)
+  }
 
-    setErrors(nextErrors)
-
-    if (
-      Object.keys(nextErrors).length > 0
-    ) {
-      return
-    }
-
-    if (!form.eventPackageId) {
-      return
-    }
-
+  const openPayment = async (session: RegistrationPaymentResponse) => {
     setIsSubmitting(true)
-    setFormMessage(
-      'Preparing your registration and payment...'
-    )
+    setFormMessage('Opening secure payment...')
 
     try {
-      /*
-       * =================================================
-       * STEP 1
-       * SEND REGISTRATION TO BACKEND
-       *
-       * Backend akan:
-       * - validate event
-       * - validate package
-       * - create registration
-       * - create Midtrans transaction
-       * - return snapToken
-       * =================================================
-       */
-
-      const result =
-        await createExternalRegistrationPayment(
-          slug,
-          {
-            eventPackageId:
-              form.eventPackageId,
-
-            fullName:
-              form.fullName.trim(),
-
-            email:
-              form.email.trim(),
-
-            phone:
-              form.whatsappNumber.trim(),
-
-            organization:
-              form.institution.trim() ||
-              null
-          }
-        )
-
-      console.log(
-        'Registration created:',
-        result
-      )
-
-      /*
-       * =================================================
-       * STEP 2
-       * LOAD MIDTRANS SNAP
-       * =================================================
-       */
-
-      setFormMessage(
-        'Opening secure payment...'
-      )
-
-      const snap =
-        await loadMidtransSnap()
-
-      /*
-       * =================================================
-       * STEP 3
-       * OPEN MIDTRANS SNAP
-       * =================================================
-       */
-
-      snap.pay(
-        result.snapToken,
-        {
-          /*
-           * PAYMENT SUCCESS
-           */
-
-          onSuccess: () => {
-            console.log(
-              'Midtrans payment success:',
-              result
-            )
-
-            /*
-             * Redirect ke halaman sukses.
-             *
-             * Booking code dikirim melalui query
-             * supaya halaman success bisa menampilkan
-             * kode booking.
-             */
-
-            router.push(
-              `/registration/success?bookingCode=${encodeURIComponent(
-                result.bookingCode
-              )}&registrationId=${encodeURIComponent(
-                result.registrationId
-              )}`
-            )
-          },
-
-          /*
-           * PAYMENT PENDING
-           *
-           * Contoh:
-           * user memilih bank transfer,
-           * VA, atau metode yang belum langsung
-           * terkonfirmasi.
-           */
-
-          onPending: () => {
-            console.log(
-              'Midtrans payment pending:',
-              result
-            )
-
-            router.push(
-              `/registration/success?status=pending&bookingCode=${encodeURIComponent(
-                result.bookingCode
-              )}&registrationId=${encodeURIComponent(
-                result.registrationId
-              )}`
-            )
-          },
-
-          /*
-           * PAYMENT ERROR
-           */
-
-          onError: (error: unknown) => {
-            console.error(
-              'Midtrans payment error:',
-              error
-            )
-
-            setFormMessage(
-              'Payment failed. Please try again.'
-            )
-          },
-
-          /*
-           * USER CLOSE MIDTRANS
-           */
-
-          onClose: () => {
-            console.log(
-              'Midtrans Snap was closed.'
-            )
-
-            setFormMessage(
-              'Payment window was closed. Your registration is still pending payment.'
-            )
-          }
+      await openMidtransSnap(session.snapToken, {
+        onSuccess: () => redirectToPaymentResult('success', session),
+        onPending: () => redirectToPaymentResult('pending', session),
+        onError: error => {
+          console.error('Midtrans payment error:', error)
+          setFormMessage('Payment failed. Your registration is still available to retry from this page.')
+        },
+        onClose: () => {
+          setFormMessage('Payment window was closed. Click Continue Payment to reopen the same payment session.')
         }
-      )
+      })
     } catch (error) {
-      console.error(
-        'Registration/payment failed:',
-        error
-      )
-
-      /*
-       * Ambil pesan error dari backend
-       * kalau tersedia.
-       */
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Registration failed. Please try again.'
-
-      setFormMessage(message)
+      console.error('Failed to open Midtrans Snap:', error)
+      setFormMessage(error instanceof Error ? error.message : 'Unable to open payment. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const isStudent =
-    form.attendeeType === 'STUDENT'
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
-  const isProfessional =
-    form.attendeeType === 'PROFESSIONAL'
+    if (paymentSession) {
+      await openPayment(paymentSession)
+      return
+    }
 
-  /*
-   * =====================================================
-   * UI
-   * =====================================================
-   */
+    const nextErrors = validate(form)
+
+    setErrors(nextErrors)
+
+    if (Object.keys(nextErrors).length > 0) return
+
+    if (!eventData) {
+      setFormMessage('Event information is not ready. Please refresh the page.')
+      return
+    }
+
+    const selectedPackage = packages.find(item => item.id === form.eventPackageId)
+
+    if (!selectedPackage) {
+      setFormMessage('The selected package is no longer available. Please refresh the page.')
+      return
+    }
+
+    if (isPackageSoldOut(selectedPackage)) {
+      setErrors(current => ({ ...current, eventPackageId: 'This package is sold out.' }))
+      setFormMessage('The selected package is sold out. Please choose another package.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setFormMessage('Creating your registration and payment session...')
+
+    try {
+      const result = await createExternalRegistrationPayment(eventData.id, {
+        eventPackageId: form.eventPackageId,
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        phone: form.whatsappNumber.trim(),
+        organization: form.institution.trim() || null,
+        department: form.position.trim() || null
+      })
+
+      setPaymentSession(result)
+      await openPayment(result)
+    } catch (error) {
+      console.error('Registration/payment failed:', error)
+      setFormMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const isStudent = form.attendeeType === 'STUDENT'
+  const isProfessional = form.attendeeType === 'PROFESSIONAL'
+  const hasAvailablePackage = packages.some(item => !isPackageSoldOut(item))
+  const messageLower = formMessage.toLowerCase()
+  const messageIsError = ['failed', 'error', 'invalid', 'sold out', 'unavailable', 'unable'].some(word =>
+    messageLower.includes(word)
+  )
 
   return (
     <RegistrationPage>
-      <RegistrationBackground
-        aria-hidden='true'
-      />
-
-      {/* THEME TOGGLE */}
+      <RegistrationBackground aria-hidden='true' />
 
       <button
         type='button'
-        aria-label={
-          theme.palette.mode === 'dark'
-            ? 'Switch to light mode'
-            : 'Switch to dark mode'
-        }
+        aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         onClick={handleToggleMode}
         className='fixed right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-xl border border-divider bg-backgroundPaper text-textPrimary transition-colors hover:bg-backgroundDefault focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-backgroundPaper sm:right-5 sm:top-5'
       >
-        <i
-          className={
-            theme.palette.mode === 'dark'
-              ? 'tabler-sun'
-              : 'tabler-moon'
-          }
-        />
+        <i className={theme.palette.mode === 'dark' ? 'tabler-sun' : 'tabler-moon'} />
       </button>
 
       <div className='relative z-10 flex min-h-[100dvh] items-center justify-center px-4 py-8 sm:px-6'>
         <RegistrationCard>
           <div className='mx-auto flex w-full max-w-[460px] flex-col'>
-
-            {/* BACK */}
-
             <Button
               component={Link}
-              href='/home'
+              href={`/events/${encodeURIComponent(slug)}`}
               variant='text'
-              startIcon={
-                <i className='tabler-arrow-left' />
-              }
-              sx={{
-                alignSelf: 'flex-start',
-                mb: 2,
-                color: 'text.secondary',
-                px: 0
-              }}
+              startIcon={<i className='tabler-arrow-left' />}
+              sx={{ alignSelf: 'flex-start', mb: 2, color: 'text.secondary', px: 0 }}
             >
-              Back to home
+              Back to event
             </Button>
-
-            {/* LOGO */}
 
             <img
               src='/logoo.png'
@@ -684,462 +367,226 @@ const EventRegistration = ({ slug }: Props) => {
               className='mx-auto mb-5 block h-auto w-[190px] object-contain sm:w-[210px]'
             />
 
-            {/* TITLE */}
-
             <Typography
               variant='h4'
               sx={{
                 color: 'text.primary',
                 fontWeight: 700,
                 lineHeight: 1.2,
-                fontSize: {
-                  xs: '1.45rem',
-                  sm: '1.7rem'
-                }
+                fontSize: { xs: '1.45rem', sm: '1.7rem' }
               }}
             >
-              Register for Seminar FFWS Edit
+              Register for {eventData?.name ?? 'Event'}
             </Typography>
 
-            <Typography
-              sx={{
-                mt: 1,
-                color: 'text.secondary',
-                lineHeight: 1.5
-              }}
-            >
-              Join the event and get the latest
-              FFWS insights.
+            <Typography sx={{ mt: 1, color: 'text.secondary', lineHeight: 1.5 }}>
+              {eventData?.description ?? 'Complete your information, choose a package, and continue to secure payment.'}
             </Typography>
 
-            <form
-              noValidate
-              onSubmit={handleSubmit}
-              className='mt-6 flex flex-col gap-4'
-            >
+            {paymentSession && (
+              <div className='mt-5 rounded-xl border border-divider p-4'>
+                <Typography variant='body2' sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  Registration created
+                </Typography>
+                <Typography variant='body2' sx={{ mt: 0.5, color: 'text.secondary' }}>
+                  Booking code: {paymentSession.bookingCode}. Your form is locked to prevent duplicate registrations.
+                </Typography>
+              </div>
+            )}
 
-              {/* =========================================
-                  ATTENDEE TYPE
-                  ========================================= */}
-
+            <form noValidate onSubmit={handleSubmit} className='mt-6 flex flex-col gap-4'>
               <CustomTextField
                 select
                 label='Attendee Type'
                 required
+                disabled={paymentLocked}
                 value={form.attendeeType}
-                onChange={event =>
-                  handleAttendeeTypeChange(
-                    event.target.value as AttendeeType
-                  )
-                }
-                error={Boolean(
-                  errors.attendeeType
-                )}
-                helperText={
-                  errors.attendeeType
-                }
+                onChange={event => handleAttendeeTypeChange(event.target.value as AttendeeType)}
+                error={Boolean(errors.attendeeType)}
+                helperText={errors.attendeeType}
                 sx={fieldStyles}
               >
-                <MenuItem value='STUDENT'>
-                  Student
-                </MenuItem>
-
-                <MenuItem value='PROFESSIONAL'>
-                  Professional
-                </MenuItem>
-
-                <MenuItem value='GENERAL'>
-                  General
-                </MenuItem>
+                <MenuItem value='STUDENT'>Student</MenuItem>
+                <MenuItem value='PROFESSIONAL'>Professional</MenuItem>
+                <MenuItem value='GENERAL'>General</MenuItem>
               </CustomTextField>
-
-              {/* =========================================
-                  FULL NAME
-                  ========================================= */}
 
               <CustomTextField
                 label='Full Name'
                 required
+                disabled={paymentLocked}
                 placeholder='Enter your full name'
                 value={form.fullName}
-                onChange={event =>
-                  updateField(
-                    'fullName',
-                    event.target.value
-                  )
-                }
-                error={Boolean(
-                  errors.fullName
-                )}
-                helperText={
-                  errors.fullName
-                }
+                onChange={event => updateField('fullName', event.target.value)}
+                error={Boolean(errors.fullName)}
+                helperText={errors.fullName}
                 sx={fieldStyles}
               />
-
-              {/* =========================================
-                  EMAIL
-                  ========================================= */}
 
               <CustomTextField
                 label='Email'
                 required
+                disabled={paymentLocked}
                 type='email'
                 placeholder='Enter your email address'
                 value={form.email}
-                onChange={event =>
-                  updateField(
-                    'email',
-                    event.target.value
-                  )
-                }
-                error={Boolean(
-                  errors.email
-                )}
-                helperText={
-                  errors.email
-                }
+                onChange={event => updateField('email', event.target.value)}
+                error={Boolean(errors.email)}
+                helperText={errors.email}
                 sx={fieldStyles}
               />
-
-              {/* =========================================
-                  WHATSAPP
-                  ========================================= */}
 
               <CustomTextField
                 label='WhatsApp Number'
                 required
+                disabled={paymentLocked}
                 type='tel'
                 placeholder='08xxxxxxxxxx'
-                value={
-                  form.whatsappNumber
-                }
-                onChange={event =>
-                  updateField(
-                    'whatsappNumber',
-                    event.target.value
-                  )
-                }
-                error={Boolean(
-                  errors.whatsappNumber
-                )}
-                helperText={
-                  errors.whatsappNumber
-                }
+                value={form.whatsappNumber}
+                onChange={event => updateField('whatsappNumber', event.target.value)}
+                error={Boolean(errors.whatsappNumber)}
+                helperText={errors.whatsappNumber}
                 sx={fieldStyles}
               />
-
-              {/* =========================================
-                  INSTITUTION
-                  ========================================= */}
 
               <CustomTextField
                 label='Institution / Company'
-                required={
-                  isProfessional ||
-                  isStudent
-                }
+                required={isProfessional || isStudent}
+                disabled={paymentLocked}
                 placeholder='Enter your institution or company'
                 value={form.institution}
-                onChange={event =>
-                  updateField(
-                    'institution',
-                    event.target.value
-                  )
-                }
-                error={Boolean(
-                  errors.institution
-                )}
+                onChange={event => updateField('institution', event.target.value)}
+                error={Boolean(errors.institution)}
                 helperText={
                   errors.institution ||
-                  (form.attendeeType ===
-                  'GENERAL'
-                    ? 'Optional for General.'
-                    : undefined)
+                  (form.attendeeType === 'GENERAL' ? 'Optional for General.' : undefined)
                 }
                 sx={fieldStyles}
               />
-
-              {/* =========================================
-                  POSITION / ROLE
-                  ========================================= */}
 
               <CustomTextField
                 label='Position / Role'
                 required={isProfessional}
-                disabled={isStudent}
-                placeholder={
-                  isStudent
-                    ? 'Not applicable for Student'
-                    : 'Enter your position or role'
-                }
+                disabled={isStudent || paymentLocked}
+                placeholder={isStudent ? 'Not applicable for Student' : 'Enter your position or role'}
                 value={form.position}
-                onChange={event =>
-                  updateField(
-                    'position',
-                    event.target.value
-                  )
-                }
-                error={Boolean(
-                  errors.position
-                )}
+                onChange={event => updateField('position', event.target.value)}
+                error={Boolean(errors.position)}
                 helperText={
                   errors.position ||
                   (isStudent
                     ? 'Not required for Student.'
-                    : form.attendeeType ===
-                        'GENERAL'
+                    : form.attendeeType === 'GENERAL'
                       ? 'Optional for General.'
                       : undefined)
                 }
                 sx={fieldStyles}
               />
 
-              {/* =========================================
-                  PACKAGE
-                  ========================================= */}
-
               <div className='flex flex-col gap-2'>
-                <Typography
-                  sx={{
-                    color: 'text.primary',
-                    fontWeight: 600
-                  }}
-                >
+                <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>
                   Choose Your Package
-
-                  <span
-                    style={{
-                      color:
-                        theme.palette.error.main,
-                      marginLeft: 4
-                    }}
-                  >
-                    *
-                  </span>
+                  <span style={{ color: theme.palette.error.main, marginLeft: 4 }}>*</span>
                 </Typography>
 
-                <Typography
-                  variant='body2'
-                  sx={{
-                    color: 'text.secondary',
-                    mb: 1
-                  }}
-                >
-                  Select the package that suits
-                  you best.
+                <Typography variant='body2' sx={{ color: 'text.secondary', mb: 1 }}>
+                  Select the package that suits you best.
                 </Typography>
 
                 {isLoadingPackages ? (
                   <div className='rounded-xl border border-divider p-5 text-center'>
-                    <Typography
-                      variant='body2'
-                      sx={{
-                        color:
-                          'text.secondary'
-                      }}
-                    >
-                      Loading available
-                      packages...
+                    <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                      Loading available packages...
                     </Typography>
                   </div>
                 ) : packages.length === 0 ? (
                   <div className='rounded-xl border border-divider p-5 text-center'>
-                    <Typography
-                      variant='body2'
-                      sx={{
-                        color:
-                          'text.secondary'
-                      }}
-                    >
-                      No package is currently
-                      available.
+                    <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                      No package is currently available.
                     </Typography>
                   </div>
                 ) : (
                   <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
                     {packages.map(item => {
-                      const isSelected =
-                        form.eventPackageId ===
-                        item.id
-
-                      const isSoldOut =
-                        typeof item.remainingQuota ===
-                          'number' &&
-                        item.remainingQuota <= 0
+                      const isSelected = form.eventPackageId === item.id
+                      const soldOut = isPackageSoldOut(item)
 
                       return (
                         <button
                           key={item.id}
                           type='button'
-                          disabled={isSoldOut}
-                          onClick={() =>
-                            handlePackageSelect(
-                              item.id
-                            )
-                          }
+                          disabled={soldOut || paymentLocked}
+                          onClick={() => updateField('eventPackageId', item.id)}
                           className='text-left disabled:cursor-not-allowed disabled:opacity-50'
-                          aria-pressed={
-                            isSelected
-                          }
+                          aria-pressed={isSelected}
                         >
                           <div
                             className='relative h-full rounded-xl border p-5 transition-all duration-200'
                             style={{
-                              borderColor:
-                                isSelected
-                                  ? theme
-                                      .palette
-                                      .primary
-                                      .main
-                                  : theme
-                                      .palette
-                                      .divider,
-
-                              boxShadow:
-                                isSelected
-                                  ? `0 0 0 2px ${theme.palette.primary.main}`
-                                  : 'none',
-
-                              transform:
-                                isSelected
-                                  ? 'translateY(-2px)'
-                                  : 'none'
+                              borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
+                              boxShadow: isSelected ? `0 0 0 2px ${theme.palette.primary.main}` : 'none',
+                              transform: isSelected ? 'translateY(-2px)' : 'none'
                             }}
                           >
-
-                            {/* SELECTED */}
-
-                            {isSelected && (
+                            {isSelected && !soldOut && (
                               <div
                                 className='absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full'
                                 style={{
-                                  backgroundColor:
-                                    theme
-                                      .palette
-                                      .primary
-                                      .main,
-
-                                  color:
-                                    theme
-                                      .palette
-                                      .primary
-                                      .contrastText
+                                  backgroundColor: theme.palette.primary.main,
+                                  color: theme.palette.primary.contrastText
                                 }}
                               >
                                 <i className='tabler-check text-base' />
                               </div>
                             )}
 
-                            {/* SOLD OUT */}
-
-                            {isSoldOut && (
+                            {soldOut && (
                               <div
                                 className='absolute right-4 top-4 rounded-full px-3 py-1 text-xs font-semibold'
                                 style={{
-                                  backgroundColor:
-                                    theme
-                                      .palette
-                                      .error
-                                      .main,
-
-                                  color:
-                                    theme
-                                      .palette
-                                      .error
-                                      .contrastText
+                                  backgroundColor: theme.palette.error.main,
+                                  color: theme.palette.error.contrastText
                                 }}
                               >
                                 Sold Out
                               </div>
                             )}
 
-                            {/* PACKAGE NAME */}
-
                             <Typography
                               variant='h6'
-                              sx={{
-                                color:
-                                  'text.primary',
-                                fontWeight: 700,
-                                pr:
-                                  isSelected ||
-                                  isSoldOut
-                                    ? 5
-                                    : 0
-                              }}
+                              sx={{ color: 'text.primary', fontWeight: 700, pr: isSelected || soldOut ? 5 : 0 }}
                             >
                               {item.name}
                             </Typography>
 
-                            {/* PRICE */}
-
                             <Typography
-                              sx={{
-                                mt: 1,
-                                color:
-                                  'primary.main',
-                                fontWeight: 700,
-                                fontSize:
-                                  '1.05rem'
-                              }}
+                              sx={{ mt: 1, color: 'primary.main', fontWeight: 700, fontSize: '1.05rem' }}
                             >
-                              {typeof item.price ===
-                              'number'
-                                ? `Rp ${item.price.toLocaleString(
-                                    'id-ID'
-                                  )}`
-                                : 'Price unavailable'}
+                              Rp {item.price.toLocaleString('id-ID')}
                             </Typography>
-
-                            {/* BENEFITS */}
 
                             <div className='mt-4'>
                               <Typography
                                 variant='body2'
-                                sx={{
-                                  color:
-                                    'text.primary',
-                                  fontWeight: 600,
-                                  mb: 0.75
-                                }}
+                                sx={{ color: 'text.primary', fontWeight: 600, mb: 0.75 }}
                               >
                                 Benefits
                               </Typography>
-
-                              <Typography
-                                variant='body2'
-                                sx={{
-                                  color:
-                                    'text.secondary',
-                                  lineHeight: 1.6
-                                }}
-                              >
-                                {item.benefits?.trim() ||
-                                  'Package benefits will be announced.'}
+                              <Typography variant='body2' sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+                                {item.benefits?.trim() || 'Package benefits will be announced.'}
                               </Typography>
                             </div>
 
-                            {/* QUOTA */}
-
-                            {typeof item.remainingQuota ===
-                              'number' && (
-                              <Typography
-                                variant='caption'
-                                sx={{
-                                  display:
-                                    'block',
-                                  mt: 2,
-                                  color:
-                                    'text.secondary'
-                                }}
-                              >
-                                {item.remainingQuota >
-                                0
-                                  ? `${item.remainingQuota} slot(s) remaining`
-                                  : 'Package sold out'}
-                              </Typography>
-                            )}
+                            <Typography
+                              variant='caption'
+                              sx={{ display: 'block', mt: 2, color: 'text.secondary' }}
+                            >
+                              {item.isUnlimited
+                                ? 'Package quota unlimited'
+                                : soldOut
+                                  ? 'Package sold out'
+                                  : `${item.remainingQuota ?? 0} slot(s) remaining`}
+                            </Typography>
                           </div>
                         </button>
                       )
@@ -1148,42 +595,19 @@ const EventRegistration = ({ slug }: Props) => {
                 )}
 
                 {errors.eventPackageId && (
-                  <Typography
-                    variant='caption'
-                    color='error'
-                    sx={{
-                      mt: 0.25
-                    }}
-                  >
+                  <Typography variant='caption' color='error' sx={{ mt: 0.25 }}>
                     {errors.eventPackageId}
                   </Typography>
                 )}
               </div>
 
-              {/* =========================================
-                  PACKAGE MAP
-                  ========================================= */}
-
-              <Typography
-                sx={{
-                  px: 2,
-                  pt: 2,
-                  fontWeight: 600,
-                  color: 'text.primary'
-                }}
-              >
+              <Typography sx={{ px: 2, pt: 2, fontWeight: 600, color: 'text.primary' }}>
                 Seminar Area Map
               </Typography>
 
               <button
                 type='button'
-                onClick={() =>
-                  window.open(
-                    '/denahh.png',
-                    '_blank',
-                    'noopener,noreferrer'
-                  )
-                }
+                onClick={() => window.open('/denahh.png', '_blank', 'noopener,noreferrer')}
                 className='block w-full cursor-zoom-in'
                 aria-label='Open seminar package map'
               >
@@ -1194,83 +618,39 @@ const EventRegistration = ({ slug }: Props) => {
                 />
               </button>
 
-              {/* =========================================
-                  CONSENT
-                  ========================================= */}
-
               <div>
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={
-                        form.consent
-                      }
-                      onChange={event =>
-                        updateField(
-                          'consent',
-                          event.target.checked
-                        )
-                      }
+                      disabled={paymentLocked}
+                      checked={form.consent}
+                      onChange={event => updateField('consent', event.target.checked)}
                     />
                   }
                   label='I agree to the processing of my personal data for the purposes of this event.'
                   sx={{
-                    alignItems:
-                      'flex-start',
-                    color:
-                      'text.secondary',
-
-                    '& .MuiFormControlLabel-label':
-                      {
-                        fontSize:
-                          '0.875rem',
-                        lineHeight: 1.45,
-                        pt: 0.8
-                      }
+                    alignItems: 'flex-start',
+                    color: 'text.secondary',
+                    '& .MuiFormControlLabel-label': {
+                      fontSize: '0.875rem',
+                      lineHeight: 1.45,
+                      pt: 0.8
+                    }
                   }}
                 />
 
                 {errors.consent && (
-                  <Typography
-                    color='error'
-                    variant='caption'
-                  >
+                  <Typography color='error' variant='caption'>
                     {errors.consent}
                   </Typography>
                 )}
               </div>
 
-              {/* =========================================
-                  MESSAGE
-                  ========================================= */}
-
               {formMessage && (
-                <Typography
-                  color={
-                    formMessage
-                      .toLowerCase()
-                      .includes('failed') ||
-                    formMessage
-                      .toLowerCase()
-                      .includes('error') ||
-                    formMessage
-                      .toLowerCase()
-                      .includes('already') ||
-                    formMessage
-                      .toLowerCase()
-                      .includes('sold out')
-                      ? 'error'
-                      : 'text.secondary'
-                  }
-                  variant='body2'
-                >
+                <Typography color={messageIsError ? 'error' : 'text.secondary'} variant='body2'>
                   {formMessage}
                 </Typography>
               )}
-
-              {/* =========================================
-                  SUBMIT
-                  ========================================= */}
 
               <Button
                 fullWidth
@@ -1279,17 +659,16 @@ const EventRegistration = ({ slug }: Props) => {
                 disabled={
                   isSubmitting ||
                   isLoadingPackages ||
-                  !form.eventPackageId
+                  !eventData ||
+                  (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))
                 }
-                sx={{
-                  minHeight: 50,
-                  borderRadius: '10px',
-                  mt: 1
-                }}
+                sx={{ minHeight: 50, borderRadius: '10px', mt: 1 }}
               >
                 {isSubmitting
-                  ? 'Preparing Payment...'
-                  : 'Register Now'}
+                  ? 'Opening Payment...'
+                  : paymentSession
+                    ? 'Continue Payment'
+                    : 'Register & Pay'}
               </Button>
             </form>
           </div>
