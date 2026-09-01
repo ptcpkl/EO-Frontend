@@ -1,7 +1,7 @@
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api'
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api').replace(/\/$/, '')
 
 export type PublicEvent = {
-  id?: string
+  id: string
   slug: string
   name: string
   description?: string
@@ -57,27 +57,6 @@ export type RegisterEventRequest = {
   department?: string
 }
 
-const mockSeminarFfws: PublicEvent = {
-  id: 'seminar-ffws-ea851ec',
-  slug: 'seminar-ffws-ea851ec',
-  name: 'Seminar FFWS Edit',
-  description:
-    'Learn, play, and get the W! Join an engaging public seminar experience inspired by the FFWS Edit community.',
-  type: 'Seminar',
-  startDate: '2026-08-24T09:00:00Z',
-  endDate: '2026-08-24T17:00:00Z',
-  location: 'Jakarta',
-  venue: 'Pertamina Event Hub',
-  city: 'Jakarta, Indonesia',
-  capacity: 500,
-  remainingQuota: 500,
-  price: 0,
-  accessMode: 'On-site',
-  registrationStatus: 'Registration open',
-  published: true,
-  imageUrl: '/ffws.png'
-}
-
 export type LoginResponse = {
   accessToken: string
   expiresAtUtc: string
@@ -125,13 +104,17 @@ const firstNumber = (record: Record<string, unknown>, ...keys: string[]) => {
 
 const normalizeEvent = (value: unknown): PublicEvent | null => {
   const record = asRecord(value)
-  const slug = record && firstString(record, 'slug', 'Slug')
-  const name = record && firstString(record, 'name', 'title', 'eventName', 'Name', 'Title')
 
-  if (!record || !slug || !name) return null
+  if (!record) return null
+
+  const id = firstString(record, 'id', 'eventId', 'Id', 'EventId')
+  const slug = firstString(record, 'slug', 'Slug')
+  const name = firstString(record, 'name', 'title', 'eventName', 'Name', 'Title')
+
+  if (!id || !slug || !name) return null
 
   return {
-    id: firstString(record, 'id', 'eventId', 'Id', 'EventId'),
+    id,
     slug,
     name,
     description: firstString(record, 'description', 'Description'),
@@ -185,13 +168,15 @@ const extractEvents = (payload: unknown): unknown[] => {
 const parseError = async (response: Response, fallback: string) => {
   const body = await response.json().catch(() => null)
 
-  return body?.detail ?? body?.message ?? fallback
+  return body?.detail ?? body?.message ?? body?.title ?? fallback
 }
 
 export async function getPublicEvents(): Promise<PublicEvent[]> {
   const response = await fetch(`${apiUrl}/events`, { cache: 'no-store' })
 
-  if (!response.ok) throw new Error('Unable to load events.')
+  if (!response.ok) {
+    throw new Error(await parseError(response, `Unable to load events (${response.status}).`))
+  }
 
   const payload: unknown = await response.json()
 
@@ -201,19 +186,17 @@ export async function getPublicEvents(): Promise<PublicEvent[]> {
 }
 
 export async function getPublicEventBySlug(slug: string): Promise<PublicEvent> {
-  try {
-    const response = await fetch(`${apiUrl}/events/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+  const response = await fetch(`${apiUrl}/events/${encodeURIComponent(slug)}`, { cache: 'no-store' })
 
-    if (!response.ok) throw new Error('Event unavailable.')
-
-    const event = normalizeEvent(await response.json())
-
-    if (event) return event
-  } catch {
-    if (slug === mockSeminarFfws.slug) return mockSeminarFfws
+  if (!response.ok) {
+    throw new Error(await parseError(response, `Unable to load event (${response.status}).`))
   }
 
-  throw new Error('Event unavailable.')
+  const event = normalizeEvent(await response.json())
+
+  if (!event) throw new Error('Backend returned an invalid event response.')
+
+  return event
 }
 
 export async function getEventPackages(eventId: string): Promise<EventPackage[]> {
@@ -222,7 +205,7 @@ export async function getEventPackages(eventId: string): Promise<EventPackage[]>
   })
 
   if (!response.ok) {
-    throw new Error(await parseError(response, 'Unable to load event packages.'))
+    throw new Error(await parseError(response, `Unable to load event packages (${response.status}).`))
   }
 
   return response.json()
@@ -239,7 +222,7 @@ export async function registerForEvent(
   })
 
   if (!response.ok) {
-    throw new Error(await parseError(response, 'Registration failed.'))
+    throw new Error(await parseError(response, `Registration failed (${response.status}).`))
   }
 
   return response.json()
