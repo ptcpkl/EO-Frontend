@@ -3,7 +3,6 @@
 import { use } from 'react'
 
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -13,17 +12,25 @@ import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 
+type QueryValue = string | string[] | undefined
+
 type Props = {
   params: Promise<{
     slug: string
   }>
+  searchParams: Promise<{
+    bookingCode?: QueryValue
+    registrationId?: QueryValue
+  }>
 }
 
-const PaymentSuccessPage = ({ params }: Props) => {
+const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] : value)
+
+const PaymentSuccessPage = ({ params, searchParams }: Props) => {
   const { slug } = use(params)
-  const searchParams = useSearchParams()
-  const bookingCode = searchParams.get('bookingCode')
-  const registrationId = searchParams.get('registrationId')
+  const query = use(searchParams)
+  const bookingCode = firstQueryValue(query.bookingCode)
+  const registrationId = firstQueryValue(query.registrationId)
 
   return (
     <Box
