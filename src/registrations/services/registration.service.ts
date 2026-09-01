@@ -1,4 +1,5 @@
 import { parseError } from '@/lib/api'
+import { storeRegistrationAccessToken } from './registration-public.service'
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api').replace(/\/$/, '')
 
@@ -20,22 +21,20 @@ export type RegistrationPaymentResponse = {
   bookingCode: string
   snapToken: string
   redirectUrl: string
+  accessToken: string
 }
 
 export async function createExternalRegistrationPayment(
   eventId: string,
   payload: CreateExternalRegistrationPaymentRequest
 ): Promise<RegistrationPaymentResponse> {
-  const response = await fetch(
-    `${apiUrl}/events/${encodeURIComponent(eventId)}/registrations`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    }
-  )
+  const response = await fetch(`${apiUrl}/events/${encodeURIComponent(eventId)}/registrations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
 
   if (!response.ok) {
     throw new Error(await parseError(response, `Registration failed (${response.status}).`))
@@ -43,9 +42,11 @@ export async function createExternalRegistrationPayment(
 
   const result = (await response.json()) as RegistrationPaymentResponse
 
-  if (!result.registrationId || !result.snapToken || !result.bookingCode) {
+  if (!result.registrationId || !result.snapToken || !result.bookingCode || !result.accessToken) {
     throw new Error('Backend returned an invalid payment response.')
   }
+
+  storeRegistrationAccessToken(result.bookingCode, result.accessToken)
 
   return result
 }
