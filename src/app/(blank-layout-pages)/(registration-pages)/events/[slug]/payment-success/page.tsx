@@ -3,6 +3,7 @@
 import { use } from 'react'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -20,6 +21,9 @@ type Props = {
 
 const PaymentSuccessPage = ({ params }: Props) => {
   const { slug } = use(params)
+  const searchParams = useSearchParams()
+  const bookingCode = searchParams.get('bookingCode')
+  const registrationId = searchParams.get('registrationId')
 
   return (
     <Box
@@ -38,18 +42,10 @@ const PaymentSuccessPage = ({ params }: Props) => {
         sx={{
           width: '100%',
           maxWidth: 560,
-          border: theme =>
-            `1px solid ${theme.palette.divider}`
+          border: theme => `1px solid ${theme.palette.divider}`
         }}
       >
-        <CardContent
-          sx={{
-            p: {
-              xs: 3,
-              sm: 5
-            }
-          }}
-        >
+        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
           <Box
             sx={{
               display: 'flex',
@@ -73,42 +69,44 @@ const PaymentSuccessPage = ({ params }: Props) => {
               <i className='tabler-check text-4xl' />
             </Box>
 
-            <Typography
-              variant='h4'
-              fontWeight={700}
-            >
+            <Typography variant='h4' fontWeight={700}>
               Pembayaran Berhasil
             </Typography>
 
-            <Typography
-              color='text.secondary'
-              sx={{
-                mt: 1.5,
-                maxWidth: 440
-              }}
-            >
-              Pembayaran Anda telah diterima oleh
-              sistem pembayaran.
+            <Typography color='text.secondary' sx={{ mt: 1.5, maxWidth: 440 }}>
+              Midtrans telah melaporkan pembayaran berhasil. Backend tetap menjadi sumber status final melalui webhook.
             </Typography>
+
+            {bookingCode && (
+              <Box
+                sx={{
+                  mt: 3,
+                  width: '100%',
+                  p: 2.5,
+                  bgcolor: 'action.hover',
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant='body2' color='text.secondary'>
+                  Booking Code
+                </Typography>
+                <Typography sx={{ mt: 0.5, fontWeight: 800, letterSpacing: 1 }}>
+                  {bookingCode}
+                </Typography>
+                {registrationId && (
+                  <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                    Registration ID: {registrationId}
+                  </Typography>
+                )}
+              </Box>
+            )}
 
             <Alert
               severity='info'
-              icon={
-                <CircularProgress
-                  size={20}
-                  color='inherit'
-                />
-              }
-              sx={{
-                mt: 4,
-                width: '100%',
-                textAlign: 'left'
-              }}
+              icon={<CircularProgress size={20} color='inherit' />}
+              sx={{ mt: 4, width: '100%', textAlign: 'left' }}
             >
-              Registrasi sedang diverifikasi.
-              Setelah pembayaran dikonfirmasi oleh
-              server, status peserta akan diproses
-              menjadi Registered.
+              Registrasi sedang menunggu konfirmasi server. Setelah webhook pembayaran diproses, status peserta akan diperbarui menjadi Registered.
             </Alert>
 
             <Box
@@ -120,30 +118,14 @@ const PaymentSuccessPage = ({ params }: Props) => {
                 borderRadius: 2
               }}
             >
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
+              <Typography variant='body2' color='text.secondary'>
                 Selanjutnya
               </Typography>
-
-              <Typography
-                sx={{
-                  mt: 0.75,
-                  fontWeight: 600
-                }}
-              >
-                Tiket Anda sedang diproses
+              <Typography sx={{ mt: 0.75, fontWeight: 600 }}>
+                Tiket dan bukti registrasi sedang diproses
               </Typography>
-
-              <Typography
-                variant='body2'
-                color='text.secondary'
-                sx={{ mt: 0.75 }}
-              >
-                Tiket dan informasi registrasi akan
-                dikirim melalui email setelah
-                pembayaran terverifikasi.
+              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
+                Informasi registrasi, tiket, dan receipt dapat dikirim setelah backend menerima konfirmasi pembayaran final.
               </Typography>
             </Box>
 
@@ -152,20 +134,12 @@ const PaymentSuccessPage = ({ params }: Props) => {
               href={`/events/${encodeURIComponent(slug)}`}
               variant='contained'
               fullWidth
-              sx={{
-                mt: 4,
-                minHeight: 48
-              }}
+              sx={{ mt: 4, minHeight: 48 }}
             >
               Back to Event
             </Button>
 
-            <Button
-              component={Link}
-              href='/home'
-              variant='text'
-              sx={{ mt: 1 }}
-            >
+            <Button component={Link} href='/home' variant='text' sx={{ mt: 1 }}>
               Back to Home
             </Button>
           </Box>
