@@ -1,28 +1,19 @@
 'use client'
 
-import { use, useEffect } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 
-type QueryValue = string | string[] | undefined
-
-type Props = {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<{ bookingCode?: QueryValue }>
-}
-
-const firstQueryValue = (value: QueryValue) => (Array.isArray(value) ? value[0] : value)
-
-const PaymentPendingPage = ({ params, searchParams }: Props) => {
-  const { slug } = use(params)
-  const query = use(searchParams)
+const PaymentPendingPage = () => {
+  const params = useParams<{ slug: string }>()
+  const query = useSearchParams()
   const router = useRouter()
-  const bookingCode = firstQueryValue(query.bookingCode)
+  const bookingCode = query.get('bookingCode')
 
   useEffect(() => {
     if (bookingCode) {
@@ -32,17 +23,19 @@ const PaymentPendingPage = ({ params, searchParams }: Props) => {
 
   if (!bookingCode) {
     return (
-      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2 }}>
+      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, bgcolor: 'background.default' }}>
         <Box sx={{ width: '100%', maxWidth: 560 }}>
           <Alert severity='warning'>Booking code is missing, so registration status cannot be loaded.</Alert>
-          <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} sx={{ mt: 2 }}>Back to Event</Button>
+          <Button component={Link} href={`/events/${encodeURIComponent(params.slug)}`} variant='outlined' sx={{ mt: 2 }}>
+            Back to Event
+          </Button>
         </Box>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}>
+    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
       <CircularProgress />
     </Box>
   )
