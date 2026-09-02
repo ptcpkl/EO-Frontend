@@ -40,6 +40,9 @@ const Layout = async (props: ChildrenType) => {
                 mode={mode}
                 showCreateEvent
                 showEventManagement
+                showRegistrations
+                showCheckIns
+                showUsers
                 showArchivedEvents
                 showAbout
                 homeHref='/admin/home'
