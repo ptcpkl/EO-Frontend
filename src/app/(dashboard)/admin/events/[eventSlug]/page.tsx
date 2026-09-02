@@ -1,8 +1,8 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-
 import NextLink from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -17,78 +17,43 @@ import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
 
 import EventPackages from './components/EventPackages'
+import {
+  archiveAdminEvent,
+  getAdminEvent,
+  publishAdminEvent,
+  type AdminEvent
+} from '@/lib/admin-events'
 
-import { getPublicEvents, type PublicEvent } from '@/lib/api'
+type Props = { params: Promise<{ eventSlug: string }> }
 
-type Props = {
-  params: Promise<{
-    eventSlug: string
-  }>
+const formatDateTime = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(date)
 }
 
-type StoredSession = {
-  accessToken?: string
-}
-
-const formatDateRange = (startDate?: string, endDate?: string) => {
-  if (!startDate) return 'Date to be announced'
-
-  const formatDate = (value: string) => {
-    const date = new Date(value)
-
-    return Number.isNaN(date.getTime())
-      ? value
-      : new Intl.DateTimeFormat('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        }).format(date)
-  }
-
-  const start = formatDate(startDate)
-
-  return endDate && endDate !== startDate ? `${start} – ${formatDate(endDate)}` : start
-}
-
-const getLocation = (event: PublicEvent) => {
-  return (
-    [event.venue, event.location, event.city, event.address].filter(Boolean).join(' · ') || 'Location to be announced'
-  )
-}
+const formatPrice = (value: number) =>
+  value === 0 ? 'Free / no active package' : new Intl.NumberFormat('id-ID', {
+    style: 'currency', currency: 'IDR', maximumFractionDigits: 0
+  }).format(value)
 
 const EventOverviewPage = ({ params }: Props) => {
-  const { eventSlug } = use(params)
-  const [event, setEvent] = useState<PublicEvent | null>(null)
+  const { eventSlug: eventId } = use(params)
+  const router = useRouter()
+  const [event, setEvent] = useState<AdminEvent | null>(null)
   const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadEvent = async () => {
-    setLoading(true)
-    setError(null)
-    setNotFound(false)
-
     try {
-      const rawSession = window.localStorage.getItem('eo-auth')
-      const session = rawSession ? (JSON.parse(rawSession) as StoredSession) : null
-
-      if (!session?.accessToken) {
-        throw new Error('Your session has expired. Please login again.')
-      }
-
-      const events = await getPublicEvents(session.accessToken)
-      const matchedEvent = events.find(item => item.id === eventSlug || item.slug === eventSlug)
-
-      if (!matchedEvent) {
-        setEvent(null)
-        setNotFound(true)
-
-        return
-      }
-
-      setEvent(matchedEvent)
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to load event.')
+      setLoading(true)
+      setError(null)
+      setEvent(await getAdminEvent(eventId))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load event.')
     } finally {
       setLoading(false)
     }
@@ -97,177 +62,118 @@ const EventOverviewPage = ({ params }: Props) => {
   useEffect(() => {
     loadEvent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventSlug])
+  }, [eventId])
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 12 }}>
-        <CircularProgress size={32} />
-        <Typography variant='body2' color='text.secondary'>
-          Loading event overview…
-        </Typography>
-      </Box>
-    )
+  const handlePublish = async () => {
+    if (!event || !window.confirm('Publish this event? It will become publicly visible and registration will follow the configured registration window.')) return
+    try {
+      setActionLoading(true)
+      setError(null)
+      setEvent(await publishAdminEvent(event.id))
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to publish event.')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  if (error) {
-    return (
-      <Alert
-        severity='error'
-        action={
-          <Button color='inherit' size='small' onClick={loadEvent}>
-            Retry
-          </Button>
-        }
-      >
-        {error}
-      </Alert>
-    )
+  const handleArchive = async () => {
+    if (!event || !window.confirm('Archive this event? It will disappear from public registration while its event, package, and registration history remain stored.')) return
+    try {
+      setActionLoading(true)
+      setError(null)
+      await archiveAdminEvent(event.id)
+      router.push('/admin/events/archived')
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to archive event.')
+      setActionLoading(false)
+    }
   }
 
-  if (notFound || !event) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 2, py: 12 }}>
-        <Box
-          sx={{
-            display: 'grid',
-            placeItems: 'center',
-            width: 48,
-            height: 48,
-            borderRadius: 1,
-            bgcolor: 'action.hover'
-          }}
-        >
-          <i className='tabler-calendar-off text-2xl' />
-        </Box>
-        <Box>
-          <Typography variant='h5' fontWeight={600}>
-            Event not found
-          </Typography>
-          <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-            This event may have been removed or is no longer available.
-          </Typography>
-        </Box>
-        <Button component={NextLink} href='/admin/events' variant='outlined' sx={{ borderRadius: 0 }}>
-          Back to events
-        </Button>
-      </Box>
-    )
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}><CircularProgress size={32} /></Box>
+
+  if (!event) {
+    return <Alert severity='error' action={<Button onClick={loadEvent}>Retry</Button>}>{error ?? 'Event not found.'}</Alert>
   }
+
+  const archived = event.status === 'Archived'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       <Box>
         <Breadcrumbs sx={{ mb: 3 }}>
-          <Link component={NextLink} href='/admin/home' color='inherit' underline='hover'>
-            Home
-          </Link>
-          <Link component={NextLink} href='/admin/events' color='inherit' underline='hover'>
-            Events
+          <Link component={NextLink} href='/admin/home' color='inherit' underline='hover'>Home</Link>
+          <Link component={NextLink} href={archived ? '/admin/events/archived' : '/admin/events'} color='inherit' underline='hover'>
+            {archived ? 'Archived Events' : 'Events'}
           </Link>
           <Typography color='text.primary'>{event.name}</Typography>
         </Breadcrumbs>
 
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            alignItems: { md: 'center' },
-            justifyContent: 'space-between',
-            gap: 3
-          }}
-        >
+        {error && <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>}
+        {archived && <Alert severity='info' sx={{ mb: 3 }}>This event is archived and read-only. Its history remains available to administrators.</Alert>}
+
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, justifyContent: 'space-between', gap: 3 }}>
           <Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
-              <Typography variant='h4' fontWeight={700}>
-                {event.name}
-              </Typography>
-              <Chip
-                label={event.published === false ? 'Unpublished' : event.published ? 'Published' : 'Draft'}
-                color={event.published ? 'success' : 'default'}
-                size='small'
-              />
+              <Typography variant='h4' fontWeight={700}>{event.name}</Typography>
+              <Chip label={event.status} color={event.status === 'Published' ? 'success' : 'default'} size='small' />
+              <Chip label={event.kind} variant='outlined' size='small' />
             </Box>
             <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-              Manage event details, registrations, and package availability.
+              {archived ? 'Review event, package, and participant history.' : 'Manage event details, packages, publishing, and registrations.'}
             </Typography>
           </Box>
 
-          <Button
-            component={NextLink}
-            href={`/admin/events/${encodeURIComponent(event.slug)}/registrations`}
-            variant='contained'
-            startIcon={<i className='tabler-users' />}
-            sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, borderRadius: 0 }}
-          >
-            Manage Registrations
-          </Button>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignSelf: { xs: 'flex-start', lg: 'center' } }}>
+            {!archived && (
+              <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/edit`} variant='outlined' startIcon={<i className='tabler-edit' />}>
+                Edit Event
+              </Button>
+            )}
+            {event.status === 'Draft' && (
+              <Button variant='contained' disabled={actionLoading} onClick={handlePublish} startIcon={<i className='tabler-world-upload' />}>
+                Publish Event
+              </Button>
+            )}
+            <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/registrations`} variant='outlined' startIcon={<i className='tabler-users' />}>
+              {archived ? 'View Registrations' : 'Manage Registrations'}
+            </Button>
+            {!archived && (
+              <Button color='error' variant='outlined' disabled={actionLoading} onClick={handleArchive} startIcon={<i className='tabler-archive' />}>
+                Archive Event
+              </Button>
+            )}
+          </Box>
         </Box>
       </Box>
 
       <Card elevation={0}>
         <CardContent>
-          <Typography variant='h6' fontWeight={600}>
-            Event overview
-          </Typography>
-          <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-            Core event information from the current event record.
-          </Typography>
+          <Typography variant='h6' fontWeight={600}>Event overview</Typography>
+          <Divider sx={{ my: 4 }} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 4 }}>
+            <Box><Typography variant='body2' color='text.secondary'>Location</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{event.location || 'Not set'}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Event starts</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{formatDateTime(event.startAtUtc)}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Event ends</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{formatDateTime(event.endAtUtc)}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Displayed price</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{formatPrice(event.price)}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Registration opens</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{formatDateTime(event.registrationOpenAtUtc)}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Registration closes</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{formatDateTime(event.registrationCloseAtUtc)}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Capacity</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{event.capacity.toLocaleString()}</Typography></Box>
+            <Box><Typography variant='body2' color='text.secondary'>Registered / remaining</Typography><Typography fontWeight={600} sx={{ mt: .75 }}>{event.registeredCount.toLocaleString()} / {event.remainingQuota.toLocaleString()}</Typography></Box>
+          </Box>
 
           <Divider sx={{ my: 4 }} />
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-              gap: 3
-            }}
-          >
-            <Box>
-              <Typography variant='body2' color='text.secondary'>
-                Event date
-              </Typography>
-              <Typography variant='body1' fontWeight={600} sx={{ mt: 0.75 }}>
-                {formatDateRange(event.startDate, event.endDate)}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant='body2' color='text.secondary'>
-                Location
-              </Typography>
-              <Typography variant='body1' fontWeight={600} sx={{ mt: 0.75 }}>
-                {getLocation(event)}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant='body2' color='text.secondary'>
-                Event capacity
-              </Typography>
-              <Typography variant='body1' fontWeight={600} sx={{ mt: 0.75 }}>
-                {event.capacity?.toLocaleString() ?? 'Not set'}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant='body2' color='text.secondary'>
-                Remaining quota
-              </Typography>
-              <Typography variant='body1' fontWeight={600} sx={{ mt: 0.75 }}>
-                {event.remainingQuota?.toLocaleString() ?? 'Not available'}
-              </Typography>
-            </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Chip label={event.accessMode === 'InvitationCode' ? 'Invitation Code' : event.accessMode === 'EmailDomain' ? 'Email Domain' : 'Public Access'} variant='outlined' size='small' />
+            {event.accessMode !== 'Public' && event.accessValue && <Chip label={event.accessValue} variant='outlined' size='small' />}
+            <Chip label={`Slug: ${event.slug}`} variant='outlined' size='small' />
           </Box>
 
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 4 }}>
-            {event.type && <Chip label={event.type} size='small' variant='outlined' />}
-            {event.registrationStatus && (
-              <Chip label={event.registrationStatus} color='primary' size='small' variant='outlined' />
-            )}
-            {event.accessMode && <Chip label={event.accessMode} size='small' variant='outlined' />}
-          </Box>
+          {event.description && <Typography variant='body2' color='text.secondary' sx={{ mt: 4, whiteSpace: 'pre-line' }}>{event.description}</Typography>}
         </CardContent>
       </Card>
 
-      <EventPackages eventSlug={event.slug} />
+      <EventPackages eventId={event.id} readOnly={archived} />
     </Box>
   )
 }
