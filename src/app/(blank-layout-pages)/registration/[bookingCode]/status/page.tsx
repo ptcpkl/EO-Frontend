@@ -69,6 +69,8 @@ const RegistrationStatusPage = ({ params }: Props) => {
     }
   }, [bookingCode])
 
+  const paymentConfirmed = data?.paymentStatus.toLowerCase() === 'paid'
+
   return (
     <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, py: 6, bgcolor: 'background.default' }}>
       <Card elevation={0} sx={{ width: '100%', maxWidth: 600, border: theme => `1px solid ${theme.palette.divider}` }}>
@@ -100,8 +102,8 @@ const RegistrationStatusPage = ({ params }: Props) => {
                 </Alert>
               )}
 
-              {data.status === 'Paid' && (
-                <Alert severity='success' sx={{ mt: 2 }}>Payment confirmed. Your ticket and receipt are ready.</Alert>
+              {['Registered', 'CheckedIn'].includes(data.status) && paymentConfirmed && (
+                <Alert severity='success' sx={{ mt: 2 }}>Payment confirmed. Your registration is active and your ticket is ready.</Alert>
               )}
 
               {['Failed', 'Expired', 'Cancelled'].includes(data.status) && (

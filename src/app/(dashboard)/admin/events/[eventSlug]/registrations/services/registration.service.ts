@@ -142,21 +142,25 @@ const normalizeParticipantType = (value: string): Registration['participantType'
 }
 
 const normalizeStatus = (value: string): Registration['status'] => {
-  const status = value.toUpperCase()
+  const status = value.replace(/[_\s-]/g, '').toUpperCase()
 
-  if (status === 'CHECKED_IN' || status === 'CHECKEDIN') {
+  if (status === 'CHECKEDIN') {
     return 'CHECKED_IN'
   }
 
-  if (status === 'CANCELLED' || status === 'CANCELED') {
+  if (status === 'CANCELLED' || status === 'CANCELED' || status === 'FAILED' || status === 'EXPIRED') {
     return 'CANCELLED'
   }
 
-  if (status === 'PENDING') {
+  if (status === 'PENDING' || status === 'PENDINGPAYMENT') {
     return 'PENDING'
   }
 
-  return 'REGISTERED'
+  if (status === 'REGISTERED' || status === 'PAID') {
+    return 'REGISTERED'
+  }
+
+  return 'PENDING'
 }
 
 const normalizeRegistration = (value: ApiRegistration): Registration => {
