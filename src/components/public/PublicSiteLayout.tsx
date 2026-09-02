@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import NextLink from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -9,7 +10,9 @@ import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
-import Typography from '@mui/material/Typography'
+
+import { getPublicEventBySlug } from '@/lib/api'
+import PublicFooter from './PublicFooter'
 
 const categories = [
   { label: 'Running', href: '/events/category/running', icon: 'tabler-run' },
@@ -45,7 +48,7 @@ const PublicNavbar = () => {
           backdropFilter: 'blur(16px)'
         }}
       >
-        <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'text.primary', minWidth: 0 }}>
+        <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
           <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 32, md: 38 }, width: 'auto', objectFit: 'contain' }} />
         </Box>
 
@@ -63,40 +66,59 @@ const PublicNavbar = () => {
       <Menu anchorEl={eventsAnchor} open={Boolean(eventsAnchor)} onClose={() => setEventsAnchor(null)}>
         {categories.map(category => (
           <MenuItem key={category.href} component={NextLink} href={category.href} onClick={() => setEventsAnchor(null)} sx={{ gap: 1.5, minWidth: 190 }}>
-            <i className={category.icon} />
-            {category.label}
+            <i className={category.icon} /> {category.label}
           </MenuItem>
         ))}
       </Menu>
 
       <Menu anchorEl={mobileAnchor} open={Boolean(mobileAnchor)} onClose={() => setMobileAnchor(null)}>
-        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
-          <i className='tabler-home' /> Home
-        </MenuItem>
+        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-home' /> Home</MenuItem>
         {categories.map(category => (
           <MenuItem key={category.href} component={NextLink} href={category.href} onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
             <i className={category.icon} /> {category.label}
           </MenuItem>
         ))}
-        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
-          <i className='tabler-info-circle' /> About
-        </MenuItem>
+        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-info-circle' /> About</MenuItem>
       </Menu>
     </Box>
   )
 }
 
-const PublicSiteLayout = ({ children }: { children: ReactNode }) => (
-  <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
-    <PublicNavbar />
-    <Box component='main'>{children}</Box>
-    <Box component='footer' sx={{ px: 3, py: 5 }}>
-      <Box sx={{ maxWidth: 1180, mx: 'auto', pt: 4, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Typography variant='body2' color='text.secondary'>Pertamina Event</Typography>
-        <Typography variant='body2' color='text.secondary'>Event registration & information platform</Typography>
-      </Box>
+const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
+  const pathname = usePathname()
+  const [eventBrand, setEventBrand] = useState<{ logoUrl?: string; name?: string }>({})
+
+  const eventSlug = useMemo(() => {
+    const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
+    return match?.[1] ? decodeURIComponent(match[1]) : null
+  }, [pathname])
+
+  useEffect(() => {
+    let active = true
+
+    if (!eventSlug) {
+      setEventBrand({})
+      return
+    }
+
+    getPublicEventBySlug(eventSlug)
+      .then(event => {
+        if (active) setEventBrand({ logoUrl: event.logoUrl, name: event.name })
+      })
+      .catch(() => {
+        if (active) setEventBrand({})
+      })
+
+    return () => { active = false }
+  }, [eventSlug])
+
+  return (
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+      <PublicNavbar />
+      <Box component='main' sx={{ flex: 1 }}>{children}</Box>
+      <PublicFooter eventLogoUrl={eventBrand.logoUrl} eventName={eventBrand.name} />
     </Box>
-  </Box>
-)
+  )
+}
 
 export default PublicSiteLayout
