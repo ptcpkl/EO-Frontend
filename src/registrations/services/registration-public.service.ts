@@ -13,6 +13,7 @@ export type PublicRegistrationStatusResponse = {
   paidAtUtc?: string | null
   ticketAvailable: boolean
   receiptAvailable: boolean
+  snapToken?: string | null
 }
 
 export type PublicRegistrationTicketResponse = {
