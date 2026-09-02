@@ -19,8 +19,14 @@ export type PublicRegistrationTicketResponse = {
   registrationId: string
   bookingCode: string
   fullName: string
+  email: string
+  phone: string
   eventName: string
+  eventLocation?: string | null
+  eventStartAtUtc: string
+  eventEndAtUtc: string
   eventPackageName?: string | null
+  grossAmount: number
   status: string
   qrToken: string
   registeredAtUtc: string
@@ -30,6 +36,8 @@ export type PublicRegistrationReceiptResponse = {
   registrationId: string
   bookingCode: string
   fullName: string
+  email: string
+  phone: string
   eventName: string
   eventPackageName?: string | null
   grossAmount: number
@@ -86,6 +94,22 @@ async function getProtected<T>(bookingCode: string, suffix: string, accessToken:
   return (await response.json()) as T
 }
 
+async function getProtectedBlob(bookingCode: string, suffix: string, accessToken: string): Promise<Blob> {
+  const response = await fetch(`${apiUrl}/registrations/${encodeURIComponent(bookingCode)}/${suffix}`, {
+    method: 'GET',
+    headers: {
+      'X-Registration-Token': accessToken
+    },
+    cache: 'no-store'
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseError(response, `Unable to download registration ${suffix} (${response.status}).`))
+  }
+
+  return response.blob()
+}
+
 export function getPublicRegistrationStatus(bookingCode: string, accessToken: string) {
   return getProtected<PublicRegistrationStatusResponse>(bookingCode, 'status', accessToken)
 }
@@ -94,6 +118,14 @@ export function getPublicRegistrationTicket(bookingCode: string, accessToken: st
   return getProtected<PublicRegistrationTicketResponse>(bookingCode, 'ticket', accessToken)
 }
 
+export function getPublicRegistrationTicketPdf(bookingCode: string, accessToken: string) {
+  return getProtectedBlob(bookingCode, 'ticket.pdf', accessToken)
+}
+
 export function getPublicRegistrationReceipt(bookingCode: string, accessToken: string) {
   return getProtected<PublicRegistrationReceiptResponse>(bookingCode, 'receipt', accessToken)
+}
+
+export function getPublicRegistrationReceiptPdf(bookingCode: string, accessToken: string) {
+  return getProtectedBlob(bookingCode, 'receipt.pdf', accessToken)
 }
