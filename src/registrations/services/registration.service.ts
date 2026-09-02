@@ -19,8 +19,9 @@ export type RegistrationPaymentResponse = {
   eventPackageName: string
   price: number
   bookingCode: string
-  snapToken: string
-  redirectUrl: string
+  paymentRequired: boolean
+  snapToken: string | null
+  redirectUrl: string | null
   accessToken: string
 }
 
@@ -42,8 +43,12 @@ export async function createExternalRegistrationPayment(
 
   const result = (await response.json()) as RegistrationPaymentResponse
 
-  if (!result.registrationId || !result.snapToken || !result.bookingCode || !result.accessToken) {
-    throw new Error('Backend returned an invalid payment response.')
+  if (!result.registrationId || !result.bookingCode || !result.accessToken) {
+    throw new Error('Backend returned an invalid registration response.')
+  }
+
+  if (result.paymentRequired && !result.snapToken) {
+    throw new Error('Backend did not return a payment token for this paid package.')
   }
 
   storeRegistrationAccessToken(result.bookingCode, result.accessToken)
