@@ -22,6 +22,9 @@ type Props = {
   showCreateEvent?: boolean
   showEventCategories?: boolean
   showEventManagement?: boolean
+  showRegistrations?: boolean
+  showCheckIns?: boolean
+  showUsers?: boolean
   showArchivedEvents?: boolean
   showAbout?: boolean
   homeHref?: string
@@ -50,6 +53,9 @@ const Navigation = (props: Props) => {
     showCreateEvent = false,
     showEventCategories = false,
     showEventManagement = false,
+    showRegistrations = false,
+    showCheckIns = false,
+    showUsers = false,
     showArchivedEvents = false,
     showAbout = true,
     homeHref = '/home',
@@ -112,10 +118,18 @@ const Navigation = (props: Props) => {
         <Button
           component={Link}
           href='/admin/events/create'
-          fullWidth
           variant='contained'
           startIcon={<i className='tabler-plus' />}
-          sx={{ mx: 3, mb: 2, width: 'calc(100% - 48px)', borderRadius: 0 }}
+          sx={{
+            mx: 2,
+            mb: 2,
+            width: 'calc(100% - 32px)',
+            minHeight: 42,
+            borderRadius: 1.5,
+            justifyContent: 'flex-start',
+            px: 2.5,
+            boxShadow: 'none'
+          }}
         >
           Create event
         </Button>
@@ -124,6 +138,9 @@ const Navigation = (props: Props) => {
         scrollMenu={scrollMenu}
         showEventCategories={showEventCategories}
         showEventManagement={showEventManagement}
+        showRegistrations={showRegistrations}
+        showCheckIns={showCheckIns}
+        showUsers={showUsers}
         showArchivedEvents={showArchivedEvents}
         showAbout={showAbout}
         homeHref={homeHref}
