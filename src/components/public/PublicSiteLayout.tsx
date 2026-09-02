@@ -101,6 +101,7 @@ const PublicNavbar = () => {
 const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname()
   const [eventBrand, setEventBrand] = useState<{ logoUrl?: string; name?: string }>({})
+  const eventDetailRoute = /^\/events\/(?!category\/)[^/]+\/?$/.test(pathname)
 
   const eventSlug = useMemo(() => {
     const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
@@ -129,7 +130,7 @@ const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   return (
     <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <PublicNavbar />
-      <Box component='main' sx={{ flex: 1 }}>{children}</Box>
+      <Box component='main' sx={{ flex: 1, pt: eventDetailRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
       <PublicFooter eventLogoUrl={eventBrand.logoUrl} eventName={eventBrand.name} />
     </Box>
   )
