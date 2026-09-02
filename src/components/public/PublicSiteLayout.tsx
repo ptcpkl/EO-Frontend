@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import NextLink from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -11,8 +11,7 @@ import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 
-import { getPublicEventBySlug } from '@/lib/api'
-import PublicFooter from './PublicFooter'
+import EventAwarePublicFooter from './EventAwarePublicFooter'
 
 const categories = [
   { label: 'Running', href: '/events/category/running', icon: 'tabler-run' },
@@ -100,38 +99,13 @@ const PublicNavbar = () => {
 
 const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname()
-  const [eventBrand, setEventBrand] = useState<{ logoUrl?: string; name?: string }>({})
   const eventDetailRoute = /^\/events\/(?!category\/)[^/]+\/?$/.test(pathname)
-
-  const eventSlug = useMemo(() => {
-    const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
-    return match?.[1] ? decodeURIComponent(match[1]) : null
-  }, [pathname])
-
-  useEffect(() => {
-    let active = true
-
-    if (!eventSlug) {
-      setEventBrand({})
-      return
-    }
-
-    getPublicEventBySlug(eventSlug)
-      .then(event => {
-        if (active) setEventBrand({ logoUrl: event.logoUrl, name: event.name })
-      })
-      .catch(() => {
-        if (active) setEventBrand({})
-      })
-
-    return () => { active = false }
-  }, [eventSlug])
 
   return (
     <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <PublicNavbar />
       <Box component='main' sx={{ flex: 1, pt: eventDetailRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
-      <PublicFooter eventLogoUrl={eventBrand.logoUrl} eventName={eventBrand.name} />
+      <EventAwarePublicFooter />
     </Box>
   )
 }
