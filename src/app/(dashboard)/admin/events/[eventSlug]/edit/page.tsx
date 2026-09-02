@@ -1,8 +1,8 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import NextLink from 'next/link'
 
 import Alert from '@mui/material/Alert'
@@ -16,12 +16,9 @@ import Typography from '@mui/material/Typography'
 import EventForm from '../../components/EventForm'
 import { getAdminEvent, updateAdminEvent, type AdminEvent, type EventUpsertRequest } from '@/lib/admin-events'
 
-type Props = {
-  params: Promise<{ eventSlug: string }>
-}
-
-const EditEventPage = ({ params }: Props) => {
-  const { eventSlug } = use(params)
+const EditEventPage = () => {
+  const params = useParams<{ eventSlug: string }>()
+  const eventSlug = params.eventSlug
   const router = useRouter()
   const [event, setEvent] = useState<AdminEvent | null>(null)
   const [loading, setLoading] = useState(true)
@@ -44,7 +41,7 @@ const EditEventPage = ({ params }: Props) => {
       }
     }
 
-    load()
+    void load()
 
     return () => {
       active = false
