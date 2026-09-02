@@ -1,13 +1,15 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
@@ -19,9 +21,12 @@ import {
   type PublicRegistrationTicketResponse
 } from '@/registrations/services/registration-public.service'
 
-type Props = {
-  params: Promise<{ bookingCode: string }>
-}
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  }).format(value)
 
 const formatSchedule = (startUtc: string, endUtc: string) => {
   const start = new Date(startUtc)
@@ -54,8 +59,9 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   URL.revokeObjectURL(url)
 }
 
-const RegistrationTicketPage = ({ params }: Props) => {
-  const { bookingCode } = use(params)
+const RegistrationTicketPage = () => {
+  const params = useParams<{ bookingCode: string }>()
+  const bookingCode = params.bookingCode
   const [data, setData] = useState<PublicRegistrationTicketResponse | null>(null)
   const [error, setError] = useState('')
   const [downloadError, setDownloadError] = useState('')
@@ -106,80 +112,94 @@ const RegistrationTicketPage = ({ params }: Props) => {
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: '#eef2f5', px: 2, py: { xs: 3, md: 6 } }}>
-      <Box sx={{ width: '100%', maxWidth: 760, mx: 'auto' }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', px: 2, py: { xs: 4, md: 8 } }}>
+      <Box sx={{ width: '100%', maxWidth: 660, mx: 'auto' }}>
         {!data && !error && (
-          <Box sx={{ minHeight: 420, display: 'grid', placeItems: 'center' }}>
-            <CircularProgress size={30} />
-          </Box>
+          <Card>
+            <CardContent sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </CardContent>
+          </Card>
         )}
 
         {error && <Alert severity='error'>{error}</Alert>}
 
         {data && (
-          <Card elevation={0} sx={{ overflow: 'hidden', border: '1px solid #dfe6ec', borderRadius: 3 }}>
-            <Box sx={{ bgcolor: '#0b5cab', color: 'white', px: { xs: 3, sm: 4 }, py: 3.5 }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.8, opacity: 0.88 }}>
-                PTC EVENT ORGANIZER
-              </Typography>
-              <Typography variant='h4' sx={{ mt: 1, fontWeight: 800, lineHeight: 1.2 }}>
-                Event Ticket
-              </Typography>
-              <Typography sx={{ mt: 1, opacity: 0.92 }}>{data.eventName}</Typography>
-            </Box>
+          <Card>
+            <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3, flexWrap: 'wrap' }}>
+                <Box>
+                  <Chip label='Event Ticket' color='primary' variant='tonal' size='small' />
+                  <Typography variant='h4' fontWeight={700} sx={{ mt: 2 }}>{data.eventName}</Typography>
+                  <Typography color='text.secondary' sx={{ mt: 1 }}>{data.eventPackageName ?? 'Event access'}</Typography>
+                </Box>
+                <Chip label={data.status} color='success' variant='tonal' icon={<i className='tabler-circle-check' />} />
+              </Box>
 
-            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+              <Divider sx={{ my: 4 }} />
+
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
                 <Box>
-                  <Typography variant='overline' color='text.secondary'>Ticket No.</Typography>
-                  <Typography fontWeight={800}>{data.registrationId.replaceAll('-', '').slice(0, 12).toUpperCase()}</Typography>
+                  <Typography variant='caption' color='text.secondary'>Ticket No.</Typography>
+                  <Typography fontWeight={700} sx={{ mt: .5 }}>
+                    {data.registrationId.replaceAll('-', '').slice(0, 12).toUpperCase()}
+                  </Typography>
                 </Box>
                 <Box>
-                  <Typography variant='overline' color='text.secondary'>No. Pesanan</Typography>
-                  <Typography fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>{data.bookingCode}</Typography>
+                  <Typography variant='caption' color='text.secondary'>Booking Code</Typography>
+                  <Typography fontWeight={700} sx={{ mt: .5, overflowWrap: 'anywhere' }}>{data.bookingCode}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant='overline' color='text.secondary'>Nama</Typography>
-                  <Typography fontWeight={700}>{data.fullName}</Typography>
+                  <Typography variant='caption' color='text.secondary'>Participant</Typography>
+                  <Typography fontWeight={700} sx={{ mt: .5 }}>{data.fullName}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant='overline' color='text.secondary'>Status</Typography>
-                  <Typography fontWeight={700} color='success.main'>{data.status}</Typography>
+                  <Typography variant='caption' color='text.secondary'>Price</Typography>
+                  <Typography fontWeight={700} sx={{ mt: .5 }}>{formatCurrency(data.grossAmount)}</Typography>
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 3 }} />
-
-              <Typography variant='h6' fontWeight={800}>Informasi Event</Typography>
-              <Box sx={{ mt: 2, display: 'grid', gap: 1.2 }}>
-                <Typography><strong>Paket:</strong> {data.eventPackageName ?? '-'}</Typography>
-                <Typography><strong>Jadwal:</strong> {formatSchedule(data.eventStartAtUtc, data.eventEndAtUtc)}</Typography>
-                <Typography><strong>Lokasi:</strong> {data.eventLocation || 'Akan diinformasikan'}</Typography>
-                <Typography><strong>Harga:</strong> Rp{data.grossAmount.toLocaleString('id-ID')}</Typography>
-              </Box>
+              <Card variant='outlined' sx={{ mt: 4 }}>
+                <CardContent>
+                  <Typography variant='h6' fontWeight={600}>Event information</Typography>
+                  <Box sx={{ display: 'grid', gap: 2.25, mt: 3 }}>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <i className='tabler-calendar-event' />
+                      <Typography variant='body2'>{formatSchedule(data.eventStartAtUtc, data.eventEndAtUtc)}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <i className='tabler-map-pin' />
+                      <Typography variant='body2'>{data.eventLocation || 'Location to be announced'}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <i className='tabler-package' />
+                      <Typography variant='body2'>{data.eventPackageName ?? '-'}</Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
 
               <Alert severity='info' sx={{ mt: 3 }}>
-                QR check-in tersimpan di PDF ticket. Jangan membagikan PDF, QR, atau token ticket kepada orang lain.
+                Your secure QR check-in is included in the PDF ticket sent by the backend. Keep the ticket and QR private.
               </Alert>
 
-              {downloadError && <Alert severity='error' sx={{ mt: 2 }}>{downloadError}</Alert>}
+              {downloadError && <Alert severity='error' sx={{ mt: 3 }}>{downloadError}</Alert>}
 
               <Button
                 fullWidth
                 variant='contained'
                 size='large'
-                onClick={handleDownload}
+                onClick={() => void handleDownload()}
                 disabled={isDownloading}
                 startIcon={isDownloading ? <CircularProgress size={17} color='inherit' /> : <i className='tabler-download' />}
-                sx={{ mt: 3, py: 1.4, fontWeight: 800 }}
+                sx={{ mt: 4 }}
               >
-                {isDownloading ? 'Menyiapkan PDF...' : 'Download Ticket PDF'}
+                {isDownloading ? 'Preparing PDF...' : 'Download Ticket PDF'}
               </Button>
 
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
-                <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/status`} variant='text'>Back to Status</Button>
-                <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/receipt`} variant='outlined'>Lihat Receipt</Button>
-              </Box>
+              <Button component={Link} href='/home' fullWidth variant='outlined' sx={{ mt: 2 }}>
+                Back To Home Screen
+              </Button>
             </CardContent>
           </Card>
         )}

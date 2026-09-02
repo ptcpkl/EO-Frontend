@@ -1,7 +1,8 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import NextLink from 'next/link'
+import { useParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -23,10 +24,9 @@ import type { EventPackage } from './services/types/event-package'
 import type { Registration, RegistrationFilters, RegistrationStatsData } from './types'
 import { getAdminEvent, type AdminEvent } from '@/lib/admin-events'
 
-type Props = { params: Promise<{ eventSlug: string }> }
-
-const Page = ({ params }: Props) => {
-  const { eventSlug: eventId } = use(params)
+const Page = () => {
+  const params = useParams<{ eventSlug: string }>()
+  const eventId = params.eventSlug
   const [event, setEvent] = useState<AdminEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [filters, setFilters] = useState<RegistrationFilters>({
@@ -73,7 +73,7 @@ const Page = ({ params }: Props) => {
   }
 
   useEffect(() => {
-    loadRegistrations()
+    void loadRegistrations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, filters.search, filters.participantType, filters.status, filters.eventPackageId])
 
@@ -107,7 +107,7 @@ const Page = ({ params }: Props) => {
       {archived && <Alert severity='info'>Archived event registrations are read-only. Search and filters remain available for history review.</Alert>}
 
       {event && (
-        <Card elevation={0}>
+        <Card>
           <CardContent>
             <Typography variant='h6' fontWeight={600}>Event quota</Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: .5 }}>Quota is shared across all packages for this event.</Typography>
