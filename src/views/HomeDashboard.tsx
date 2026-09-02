@@ -1,185 +1,153 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Chip from '@mui/material/Chip'
-import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
-
-import { getPublicEvents, type PublicEvent } from '@/lib/api'
+import { alpha } from '@mui/material/styles'
 
 type Props = {
   publicView?: boolean
 }
 
-const formatEventDate = (value?: string) => {
-  if (!value) return 'Date to be announced'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  }).format(date)
-}
-
-const formatPrice = (value?: number) => {
-  if (typeof value !== 'number') return 'Price available on registration'
-  if (value === 0) return 'Free'
-
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0
-  }).format(value)
-}
-
-const PublicEventHome = () => {
-  const [events, setEvents] = useState<PublicEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const loadEvents = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      setEvents(await getPublicEvents())
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load published events.')
-    } finally {
-      setLoading(false)
-    }
+const publicCategories = [
+  {
+    label: 'Running',
+    description: 'Race, fun run, and active community events.',
+    icon: 'tabler-run',
+    href: '/events/category/running'
+  },
+  {
+    label: 'Seminar',
+    description: 'Talks, learning sessions, and knowledge-sharing events.',
+    icon: 'tabler-microphone',
+    href: '/events/category/seminar'
+  },
+  {
+    label: 'Workshop',
+    description: 'Hands-on sessions designed for practical learning.',
+    icon: 'tabler-tool',
+    href: '/events/category/workshop'
+  },
+  {
+    label: 'Other',
+    description: 'Discover other Pertamina events and special programs.',
+    icon: 'tabler-calendar-event',
+    href: '/events/category/other'
   }
+]
 
-  useEffect(() => {
-    void loadEvents()
-  }, [])
+const PublicEventHome = () => (
+  <Box>
+    <Box
+      sx={theme => ({
+        position: 'relative',
+        overflow: 'hidden',
+        minHeight: { xs: '72dvh', md: '78dvh' },
+        display: 'grid',
+        placeItems: 'center',
+        px: 3,
+        py: { xs: 10, md: 14 },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          width: { xs: 260, md: 460 },
+          height: { xs: 260, md: 460 },
+          borderRadius: '50%',
+          bgcolor: alpha(theme.palette.primary.main, 0.1),
+          insetInlineStart: { xs: -150, md: -180 },
+          insetBlockStart: { xs: 20, md: 30 },
+          filter: 'blur(8px)'
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          width: { xs: 220, md: 380 },
+          height: { xs: 220, md: 380 },
+          borderRadius: '50%',
+          bgcolor: alpha(theme.palette.info.main, 0.08),
+          insetInlineEnd: { xs: -130, md: -120 },
+          insetBlockEnd: { xs: 20, md: 40 },
+          filter: 'blur(10px)'
+        }
+      })}
+    >
+      <Box sx={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 900, mx: 'auto', textAlign: 'center' }}>
+        <Chip label='Pertamina Event' color='primary' variant='tonal' />
+        <Typography
+          component='h1'
+          sx={{
+            mt: 3,
+            fontWeight: 800,
+            fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4.5rem' },
+            lineHeight: 1.05,
+            letterSpacing: '-0.04em'
+          }}
+        >
+          Welcome to Pertamina Event!
+        </Typography>
+        <Typography variant='h6' color='text.secondary' sx={{ mt: 3, mx: 'auto', maxWidth: 700, fontWeight: 400, lineHeight: 1.7 }}>
+          Discover experiences, learn something new, meet communities, and take part in events created for you.
+        </Typography>
 
-  return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', py: { xs: 6, md: 10 }, px: 3 }}>
+        <Box sx={{ mt: 5, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Button component={Link} href='/events/category/seminar' size='large' variant='contained' endIcon={<i className='tabler-arrow-right' />}>
+            Explore Events
+          </Button>
+          <Button component={Link} href='/about' size='large' variant='outlined'>
+            About Pertamina Event
+          </Button>
+        </Box>
+
+        <Box sx={{ mt: 8, display: 'flex', justifyContent: 'center', gap: { xs: 3, md: 7 }, flexWrap: 'wrap', color: 'text.secondary' }}>
+          {[
+            ['tabler-calendar-event', 'Curated events'],
+            ['tabler-ticket', 'Easy registration'],
+            ['tabler-mail-check', 'Ticket delivered by email']
+          ].map(([icon, label]) => (
+            <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className={icon} />
+              <Typography variant='body2' color='inherit'>{label}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+
+    <Box sx={{ px: 3, pb: { xs: 8, md: 12 } }}>
       <Box sx={{ width: '100%', maxWidth: 1180, mx: 'auto' }}>
-        <Box sx={{ mb: 6 }}>
-          <Chip label='PTC Event' color='primary' variant='tonal' size='small' />
-          <Typography variant='h3' fontWeight={700} sx={{ mt: 2 }}>
-            Upcoming Events
-          </Typography>
-          <Typography variant='body1' color='text.secondary' sx={{ mt: 1, maxWidth: 680 }}>
-            Browse published events and register using the available event packages.
+        <Box sx={{ textAlign: 'center', mb: 5 }}>
+          <Typography variant='h3' fontWeight={700}>Explore by category</Typography>
+          <Typography variant='body1' color='text.secondary' sx={{ mt: 1.5 }}>
+            Published events live inside the category selected by the event organizer.
           </Typography>
         </Box>
 
-        {loading && (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 12 }}>
-            <CircularProgress size={32} />
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity='error' action={<Button color='inherit' onClick={() => void loadEvents()}>Retry</Button>}>
-            {error}
-          </Alert>
-        )}
-
-        {!loading && !error && events.length === 0 && (
-          <Card>
-            <CardContent sx={{ py: 8, textAlign: 'center' }}>
-              <Box
-                sx={{
-                  width: 56,
-                  height: 56,
-                  mx: 'auto',
-                  display: 'grid',
-                  placeItems: 'center',
-                  borderRadius: 2,
-                  bgcolor: 'action.hover'
-                }}
-              >
-                <i className='tabler-calendar-off text-3xl' />
-              </Box>
-              <Typography variant='h5' fontWeight={600} sx={{ mt: 3 }}>
-                No published events yet
-              </Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-                Published events will appear here automatically.
-              </Typography>
-            </CardContent>
-          </Card>
-        )}
-
-        {!loading && !error && events.length > 0 && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
-              gap: 4
-            }}
-          >
-            {events.map(event => (
-              <Card key={event.id} sx={{ height: '100%' }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-                    <Box>
-                      <Typography variant='h5' fontWeight={700}>
-                        {event.name}
-                      </Typography>
-                      <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-                        {event.description || 'Event registration is available.'}
-                      </Typography>
-                    </Box>
-                    {event.type && <Chip label={event.type} color='primary' variant='tonal' size='small' />}
-                  </Box>
-
-                  <Divider />
-
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <i className='tabler-calendar-event' />
-                      <Typography variant='body2'>{formatEventDate(event.startDate)}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <i className='tabler-map-pin' />
-                      <Typography variant='body2'>{event.location || 'Location to be announced'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <i className='tabler-ticket' />
-                      <Typography variant='body2'>{formatPrice(event.price)}</Typography>
-                    </Box>
-                    {typeof event.remainingQuota === 'number' && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <i className='tabler-users' />
-                        <Typography variant='body2'>{event.remainingQuota.toLocaleString('id-ID')} seats remaining</Typography>
-                      </Box>
-                    )}
-                  </Box>
-
-                  <Button
-                    component={Link}
-                    href={`/events/${encodeURIComponent(event.slug)}/register`}
-                    variant='contained'
-                    startIcon={<i className='tabler-ticket' />}
-                    sx={{ mt: 'auto' }}
-                  >
-                    Register
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-        )}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
+          {publicCategories.map(category => (
+            <Card key={category.href} sx={{ height: '100%' }}>
+              <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <Box sx={{ width: 52, height: 52, borderRadius: 2, bgcolor: 'action.hover', display: 'grid', placeItems: 'center', color: 'primary.main' }}>
+                  <i className={`${category.icon} text-2xl`} />
+                </Box>
+                <Typography variant='h5' fontWeight={700} sx={{ mt: 3 }}>{category.label}</Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 1, mb: 3, lineHeight: 1.7 }}>{category.description}</Typography>
+                <Button component={Link} href={category.href} variant='text' endIcon={<i className='tabler-arrow-right' />} sx={{ mt: 'auto', px: 0 }}>
+                  View {category.label}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
       </Box>
     </Box>
-  )
-}
+  </Box>
+)
 
 const HomeDashboard = ({ publicView = false }: Props) => {
   if (publicView) return <PublicEventHome />
@@ -187,21 +155,13 @@ const HomeDashboard = ({ publicView = false }: Props) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <Box>
-        <Typography variant='h4' fontWeight={700}>
-          Welcome back, Admin 👋
-        </Typography>
+        <Typography variant='h4' fontWeight={700}>Welcome back, Admin 👋</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
           Manage your events, participants, and registrations from one place.
         </Typography>
       </Box>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-          gap: 4
-        }}
-      >
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 4 }}>
         {[
           ['tabler-calendar-event', 'Event Management', 'Create, edit, publish, and manage your events.', 'Manage Events'],
           ['tabler-users', 'Registration Management', 'View participants, registration status, and imported registrations.', 'View Registrations'],
@@ -209,18 +169,7 @@ const HomeDashboard = ({ publicView = false }: Props) => {
         ].map(([icon, title, description, label]) => (
           <Card key={title}>
             <CardContent>
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: 'action.hover',
-                  mb: 3
-                }}
-              >
+              <Box sx={{ width: 48, height: 48, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'action.hover', mb: 3 }}>
                 <i className={`${icon} text-2xl`} />
               </Box>
               <Typography variant='h6' fontWeight={600}>{title}</Typography>
