@@ -12,6 +12,11 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
@@ -44,6 +49,7 @@ const EventOverviewPage = () => {
   const [event, setEvent] = useState<AdminEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [actionDialog, setActionDialog] = useState<'publish' | 'archive' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadEvent = async () => {
@@ -59,25 +65,29 @@ const EventOverviewPage = () => {
   }
 
   useEffect(() => {
-    loadEvent()
+    void loadEvent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId])
 
   const handlePublish = async () => {
-    if (!event || !window.confirm('Publish this event? It will become publicly visible and registration will follow the configured registration window.')) return
+    if (!event) return
+
     try {
       setActionLoading(true)
       setError(null)
       setEvent(await publishAdminEvent(event.id))
+      setActionDialog(null)
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Unable to publish event.')
+      setActionDialog(null)
     } finally {
       setActionLoading(false)
     }
   }
 
   const handleArchive = async () => {
-    if (!event || !window.confirm('Archive this event? It will disappear from public registration while its event, package, and registration history remain stored.')) return
+    if (!event) return
+
     try {
       setActionLoading(true)
       setError(null)
@@ -85,6 +95,7 @@ const EventOverviewPage = () => {
       router.push('/admin/events/archived')
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Unable to archive event.')
+      setActionDialog(null)
       setActionLoading(false)
     }
   }
@@ -96,6 +107,13 @@ const EventOverviewPage = () => {
   }
 
   const archived = event.status === 'Archived'
+  const presentationItems = [
+    ['Event logo', event.logoUrl],
+    ['Hero image', event.heroImageUrl],
+    ['Registration visual', event.registrationImageUrl],
+    ['Visual title', event.registrationImageTitle]
+  ] as const
+  const mediaComplete = presentationItems.every(([, value]) => Boolean(value))
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -110,16 +128,21 @@ const EventOverviewPage = () => {
 
         {error && <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>}
         {archived && <Alert severity='info' sx={{ mb: 3 }}>This event is archived and read-only. Its history remains available to administrators.</Alert>}
+        {event.status === 'Draft' && !mediaComplete && (
+          <Alert severity='warning' sx={{ mb: 3 }}>
+            Event presentation is incomplete. Add the logo, hero image, registration visual, and visual title before publishing.
+          </Alert>
+        )}
 
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, justifyContent: 'space-between', gap: 3 }}>
           <Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
               <Typography variant='h4' fontWeight={700}>{event.name}</Typography>
-              <Chip label={event.status} color={event.status === 'Published' ? 'success' : 'default'} size='small' />
-              <Chip label={event.kind} variant='outlined' size='small' />
+              <Chip label={event.status} color={event.status === 'Published' ? 'success' : 'default'} variant='tonal' size='small' />
+              <Chip label={event.kind} color='primary' variant='tonal' size='small' />
             </Box>
             <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-              {archived ? 'Review event, package, and participant history.' : 'Manage event details, packages, publishing, and registrations.'}
+              {archived ? 'Review event, package, and participant history.' : 'Manage event details, public presentation, packages, and registrations.'}
             </Typography>
           </Box>
 
@@ -130,7 +153,12 @@ const EventOverviewPage = () => {
               </Button>
             )}
             {event.status === 'Draft' && (
-              <Button variant='contained' disabled={actionLoading} onClick={handlePublish} startIcon={<i className='tabler-world-upload' />}>
+              <Button
+                variant='contained'
+                disabled={actionLoading || !mediaComplete}
+                onClick={() => setActionDialog('publish')}
+                startIcon={<i className='tabler-world-upload' />}
+              >
                 Publish Event
               </Button>
             )}
@@ -138,7 +166,7 @@ const EventOverviewPage = () => {
               {archived ? 'View Registrations' : 'Manage Registrations'}
             </Button>
             {!archived && (
-              <Button color='error' variant='outlined' disabled={actionLoading} onClick={handleArchive} startIcon={<i className='tabler-archive' />}>
+              <Button color='error' variant='outlined' disabled={actionLoading} onClick={() => setActionDialog('archive')} startIcon={<i className='tabler-archive' />}>
                 Archive Event
               </Button>
             )}
@@ -146,7 +174,7 @@ const EventOverviewPage = () => {
         </Box>
       </Box>
 
-      <Card elevation={0}>
+      <Card>
         <CardContent>
           <Typography variant='h6' fontWeight={600}>Event overview</Typography>
           <Divider sx={{ my: 4 }} />
@@ -172,7 +200,75 @@ const EventOverviewPage = () => {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant='h6' fontWeight={600}>Public presentation</Typography>
+              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+                Media and content used by the public event microsite and registration page.
+              </Typography>
+            </Box>
+            <Chip label={mediaComplete ? 'Ready to publish' : 'Setup required'} color={mediaComplete ? 'success' : 'warning'} variant='tonal' />
+          </Box>
+
+          <Divider sx={{ my: 4 }} />
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 3 }}>
+            {presentationItems.map(([label, value]) => (
+              <Box key={label} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Typography variant='body2' color='text.secondary'>{label}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                  <i className={value ? 'tabler-circle-check text-success' : 'tabler-alert-circle'} />
+                  <Typography fontWeight={600}>{value ? 'Configured' : 'Missing'}</Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
+          {(event.about || event.benefits || event.additionalInformation || event.venueAddress || event.mapsUrl) && (
+            <Box sx={{ mt: 4, display: 'grid', gap: 3 }}>
+              {event.about && <Box><Typography fontWeight={600}>About</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.about}</Typography></Box>}
+              {event.benefits && <Box><Typography fontWeight={600}>Benefits</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.benefits}</Typography></Box>}
+              {event.additionalInformation && <Box><Typography fontWeight={600}>Additional information</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.additionalInformation}</Typography></Box>}
+              {event.venueAddress && <Box><Typography fontWeight={600}>Venue address</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>{event.venueAddress}</Typography></Box>}
+              {event.mapsUrl && <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='outlined' startIcon={<i className='tabler-map-pin' />} sx={{ justifySelf: 'start' }}>Open Google Maps</Button>}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
       <EventPackages eventId={event.id} readOnly={archived} />
+
+      <Dialog open={actionDialog === 'publish'} onClose={() => !actionLoading && setActionDialog(null)} maxWidth='xs' fullWidth>
+        <DialogTitle>Publish this event?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            The event will become visible on its public category page. Registration availability will still follow the configured registration dates and package quota.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant='text' onClick={() => setActionDialog(null)} disabled={actionLoading}>Cancel</Button>
+          <Button variant='contained' onClick={() => void handlePublish()} disabled={actionLoading}>
+            {actionLoading ? 'Publishing...' : 'Publish Event'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={actionDialog === 'archive'} onClose={() => !actionLoading && setActionDialog(null)} maxWidth='xs' fullWidth>
+        <DialogTitle>Archive this event?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            The event will disappear from public pages and registration, while packages, participants, and history remain stored for admin review.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant='text' onClick={() => setActionDialog(null)} disabled={actionLoading}>Cancel</Button>
+          <Button color='error' variant='contained' onClick={() => void handleArchive()} disabled={actionLoading}>
+            {actionLoading ? 'Archiving...' : 'Archive Event'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
