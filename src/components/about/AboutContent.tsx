@@ -65,7 +65,7 @@ const AboutContent = ({ publicPage = false }: Props) => {
         maxWidth: 1180,
         mx: 'auto',
         px: publicPage ? 3 : 0,
-        pt: publicPage ? { xs: 14, md: 16 } : 0,
+        pt: publicPage ? { xs: 2, md: 3 } : 0,
         pb: publicPage ? { xs: 7, md: 10 } : 0
       }}
     >
