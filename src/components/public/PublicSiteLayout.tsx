@@ -26,21 +26,21 @@ const PublicNavbar = () => {
   const openMobile = (event: MouseEvent<HTMLElement>) => setMobileAnchor(event.currentTarget)
 
   return (
-    <Box component='header' sx={{ position: 'sticky', top: { xs: 10, md: 16 }, zIndex: theme => theme.zIndex.appBar, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
+    <Box component='header' sx={{ position: 'sticky', top: { xs: 20, md: 16 }, zIndex: theme => theme.zIndex.appBar, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
       <Paper
         elevation={8}
         sx={{
           maxWidth: 1180,
           mx: 'auto',
-          px: { xs: 2, md: 3 },
-          py: 1.25,
+          px: { xs: 5, md: 8 },
+          py: 3.25,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 2,
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: 4,
+          borderRadius: 7,
           bgcolor: 'background.paper',
           backdropFilter: 'blur(16px)'
         }}
