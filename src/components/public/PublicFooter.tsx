@@ -1,135 +1,70 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
 import NextLink from 'next/link'
-import { usePathname } from 'next/navigation'
 
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
-import { alpha } from '@mui/material/styles'
-
-import { getPublicEventBySlug, type PublicEvent } from '@/lib/api'
 
 const categories = [
-  { label: 'Running', href: '/events/category/running' },
-  { label: 'Seminar', href: '/events/category/seminar' },
-  { label: 'Workshop', href: '/events/category/workshop' },
-  { label: 'Other', href: '/events/category/other' }
-]
+  ['Running', '/events/category/running'],
+  ['Seminar', '/events/category/seminar'],
+  ['Workshop', '/events/category/workshop'],
+  ['Other', '/events/category/other']
+] as const
 
-const resolveEventSlug = (pathname: string) => {
-  const match = pathname.match(/^\/events\/([^/]+)/)
-  const value = match?.[1]
-
-  if (!value || value === 'category') return null
-
-  return decodeURIComponent(value)
+type Props = {
+  eventLogoUrl?: string | null
+  eventName?: string | null
 }
 
 const FooterLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
-  <Link
-    component={NextLink}
-    href={href}
-    underline='none'
-    color='text.primary'
-    sx={{ display: 'inline-flex', width: 'fit-content', fontWeight: 500, '&:hover': { color: 'primary.main' } }}
-  >
+  <Link component={NextLink} href={href} color='text.primary' underline='hover' variant='body2'>
     {children}
   </Link>
 )
 
-const PublicFooter = () => {
-  const pathname = usePathname()
-  const eventSlug = useMemo(() => resolveEventSlug(pathname), [pathname])
-  const [event, setEvent] = useState<PublicEvent | null>(null)
-
-  useEffect(() => {
-    let active = true
-
-    if (!eventSlug) {
-      setEvent(null)
-      return () => {
-        active = false
-      }
-    }
-
-    void getPublicEventBySlug(eventSlug)
-      .then(result => {
-        if (active) setEvent(result)
-      })
-      .catch(() => {
-        if (active) setEvent(null)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [eventSlug])
-
-  const legacyFfws = Boolean(event?.name.toLowerCase().includes('ffws'))
-  const eventLogoUrl = event?.logoUrl ?? (legacyFfws ? '/logoo.png' : undefined)
-
-  return (
-    <Box
-      component='footer'
-      sx={theme => ({
-        position: 'relative',
-        zIndex: 2,
-        overflow: 'hidden',
-        borderTop: '1px solid',
-        borderColor: 'divider',
-        background: `radial-gradient(circle at 8% 16%, ${alpha(theme.palette.info.light, 0.2)}, transparent 28%), radial-gradient(circle at 92% 20%, ${alpha(theme.palette.primary.light, 0.16)}, transparent 30%), ${theme.palette.background.paper}`
-      })}
-    >
-      <Box aria-hidden='true' sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', color: 'primary.main', opacity: 0.12 }}>
-        <i className='tabler-microphone-2' style={{ position: 'absolute', left: '3%', top: '14%', fontSize: 68, transform: 'rotate(-18deg)' }} />
-        <i className='tabler-parachute' style={{ position: 'absolute', right: '10%', top: '7%', fontSize: 62 }} />
-        <i className='tabler-run' style={{ position: 'absolute', left: '7%', bottom: '20%', fontSize: 72 }} />
-        <i className='tabler-device-gamepad-2' style={{ position: 'absolute', right: '8%', bottom: '18%', fontSize: 68, transform: 'rotate(10deg)' }} />
-      </Box>
-
-      <Box sx={{ position: 'relative', width: '100%', maxWidth: 1180, mx: 'auto', px: 3, py: { xs: 7, md: 9 } }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.25fr 0.75fr 0.75fr' }, gap: { xs: 5, md: 8 }, alignItems: 'start' }}>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, minHeight: 66, flexWrap: 'wrap' }}>
-              <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 44, md: 54 }, width: 'auto', maxWidth: 230, objectFit: 'contain' }} />
-              {eventLogoUrl && (
-                <>
-                  <Divider orientation='vertical' flexItem sx={{ minHeight: 54 }} />
-                  <Box component='img' src={eventLogoUrl} alt={`${event?.name ?? 'Event'} logo`} sx={{ height: { xs: 54, md: 66 }, width: 'auto', maxWidth: 220, objectFit: 'contain' }} />
-                </>
-              )}
-            </Box>
-
-            <Typography variant='body1' color='text.secondary' sx={{ mt: 3, lineHeight: 1.8, maxWidth: 420 }}>
-              Energizing every event and inspiring every moment. Discover experiences, communities, and activities through Pertamina Event.
-            </Typography>
+const PublicFooter = ({ eventLogoUrl, eventName }: Props) => (
+  <Box component='footer' sx={{ mt: 'auto', bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ maxWidth: 1180, mx: 'auto', px: 3, py: { xs: 6, md: 8 } }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1.3fr 0.7fr 0.9fr' }, gap: { xs: 5, md: 8 } }}>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+            {eventLogoUrl && (
+              <>
+                <Divider orientation='vertical' flexItem />
+                <Box component='img' src={eventLogoUrl} alt={`${eventName || 'Event'} logo`} sx={{ maxHeight: 54, maxWidth: 160, width: 'auto', objectFit: 'contain' }} />
+              </>
+            )}
           </Box>
+          <Typography color='text.secondary' sx={{ mt: 3, maxWidth: 360, lineHeight: 1.8 }}>
+            Energizing every event, inspiring every moment. Discover Pertamina events, choose your experience, and register from one place.
+          </Typography>
+        </Box>
 
-          <Box sx={{ display: 'grid', gap: 1.75 }}>
-            <Typography variant='h6' fontWeight={700}>Quick Links</Typography>
-            <Box sx={{ width: 34, height: 3, borderRadius: 3, bgcolor: 'primary.main', mb: 1 }} />
-            <FooterLink href='/home'>Home</FooterLink>
-            <FooterLink href='/about'>About</FooterLink>
-          </Box>
+        <Box sx={{ display: 'grid', alignContent: 'start', gap: 1.5 }}>
+          <Typography fontWeight={700}>Quick Links</Typography>
+          <FooterLink href='/home'>Home</FooterLink>
+          <FooterLink href='/about'>About</FooterLink>
+        </Box>
 
-          <Box sx={{ display: 'grid', gap: 1.75 }}>
-            <Typography variant='h6' fontWeight={700}>Event Category</Typography>
-            <Box sx={{ width: 34, height: 3, borderRadius: 3, bgcolor: 'primary.main', mb: 1 }} />
-            {categories.map(category => <FooterLink key={category.href} href={category.href}>{category.label}</FooterLink>)}
-          </Box>
+        <Box sx={{ display: 'grid', alignContent: 'start', gap: 1.5 }}>
+          <Typography fontWeight={700}>Event Categories</Typography>
+          {categories.map(([label, href]) => <FooterLink key={href} href={href}>{label}</FooterLink>)}
         </Box>
       </Box>
+    </Box>
 
-      <Box sx={{ position: 'relative', bgcolor: 'primary.dark', color: 'primary.contrastText', py: 2.5, px: 3 }}>
-        <Typography variant='body2' color='inherit' textAlign='center'>
-          © 2026 PT Pertamina (Persero). All rights reserved.
+    <Box sx={{ bgcolor: 'action.hover', borderTop: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ maxWidth: 1180, mx: 'auto', px: 3, py: 2.5 }}>
+        <Typography variant='body2' color='text.secondary' textAlign='center'>
+          © {new Date().getFullYear()} PT Pertamina (Persero). All rights reserved.
         </Typography>
       </Box>
     </Box>
-  )
-}
+  </Box>
+)
 
 export default PublicFooter
