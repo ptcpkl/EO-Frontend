@@ -9,7 +9,8 @@ import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
-import Typography from '@mui/material/Typography'
+
+import PublicFooter from './PublicFooter'
 
 const categories = [
   { label: 'Running', href: '/events/category/running', icon: 'tabler-run' },
@@ -26,14 +27,14 @@ const PublicNavbar = () => {
   const openMobile = (event: MouseEvent<HTMLElement>) => setMobileAnchor(event.currentTarget)
 
   return (
-    <Box component='header' sx={{ position: 'sticky', top: { xs: 20, md: 16 }, zIndex: theme => theme.zIndex.appBar, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
+    <Box component='header' sx={{ position: 'sticky', top: { xs: 12, md: 16 }, zIndex: theme => theme.zIndex.appBar, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
       <Paper
         elevation={8}
         sx={{
           maxWidth: 1180,
           mx: 'auto',
-          px: { xs: 5, md: 8 },
-          py: 3.25,
+          px: { xs: 2.5, md: 4 },
+          py: { xs: 1.25, md: 1.5 },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -45,8 +46,8 @@ const PublicNavbar = () => {
           backdropFilter: 'blur(16px)'
         }}
       >
-        <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'text.primary', minWidth: 0 }}>
-          <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 32, md: 38 }, width: 'auto', objectFit: 'contain' }} />
+        <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
+          <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 30, md: 36 }, width: 'auto', objectFit: 'contain' }} />
         </Box>
 
         <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
@@ -70,32 +71,23 @@ const PublicNavbar = () => {
       </Menu>
 
       <Menu anchorEl={mobileAnchor} open={Boolean(mobileAnchor)} onClose={() => setMobileAnchor(null)}>
-        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
-          <i className='tabler-home' /> Home
-        </MenuItem>
+        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-home' /> Home</MenuItem>
         {categories.map(category => (
           <MenuItem key={category.href} component={NextLink} href={category.href} onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
             <i className={category.icon} /> {category.label}
           </MenuItem>
         ))}
-        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
-          <i className='tabler-info-circle' /> About
-        </MenuItem>
+        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-info-circle' /> About</MenuItem>
       </Menu>
     </Box>
   )
 }
 
 const PublicSiteLayout = ({ children }: { children: ReactNode }) => (
-  <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
+  <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
     <PublicNavbar />
-    <Box component='main'>{children}</Box>
-    <Box component='footer' sx={{ px: 3, py: 5 }}>
-      <Box sx={{ maxWidth: 1180, mx: 'auto', pt: 4, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Typography variant='body2' color='text.secondary'>Pertamina Event</Typography>
-        <Typography variant='body2' color='text.secondary'>Event registration & information platform</Typography>
-      </Box>
-    </Box>
+    <Box component='main' sx={{ flex: 1 }}>{children}</Box>
+    <PublicFooter />
   </Box>
 )
 

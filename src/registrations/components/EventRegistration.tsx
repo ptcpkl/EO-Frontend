@@ -1,26 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-import { styled, useColorScheme, useTheme } from '@mui/material/styles'
+import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardActionArea from '@mui/material/CardActionArea'
+import CardContent from '@mui/material/CardContent'
 import Checkbox from '@mui/material/Checkbox'
+import Chip from '@mui/material/Chip'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
+import { styled, useColorScheme, useTheme } from '@mui/material/styles'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { useSettings } from '@core/hooks/useSettings'
 
-import {
-  getEventPackages,
-  getPublicEventBySlug,
-  type EventPackage,
-  type PublicEvent
-} from '@/lib/api'
+import { getEventPackages, getPublicEventBySlug, type EventPackage, type PublicEvent } from '@/lib/api'
 import { openMidtransSnap } from '../lib/midtrans'
 import {
   createExternalRegistrationPayment,
@@ -49,8 +48,7 @@ type Props = {
 const RegistrationPage = styled('main')({
   position: 'relative',
   minHeight: '100dvh',
-  overflowX: 'hidden',
-  overflowY: 'auto'
+  overflowX: 'hidden'
 })
 
 const RegistrationBackground = styled('div')(({ theme }) => ({
@@ -66,16 +64,17 @@ const RegistrationBackground = styled('div')(({ theme }) => ({
 const RegistrationCard = styled('section')(({ theme }) => ({
   position: 'relative',
   zIndex: 1,
-  width: 'min(100%, 560px)',
+  width: 'min(100%, 620px)',
   boxSizing: 'border-box',
   margin: '0 auto',
-  padding: theme.spacing(4),
-  border: theme.palette.mode === 'dark' ? '1px solid rgba(219, 232, 240, 0.16)' : '1px solid rgba(27, 45, 58, 0.14)',
-  borderRadius: 0,
-  backgroundColor: theme.palette.mode === 'dark' ? '#17232d' : '#ffffff',
-  boxShadow: theme.palette.mode === 'dark' ? '0 20px 60px rgba(0, 0, 0, 0.55)' : '0 20px 60px rgba(0, 0, 0, 0.16)',
+  padding: theme.spacing(5),
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius * 2,
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[12],
   '@media (max-width: 600px)': {
-    padding: theme.spacing(2.5)
+    padding: theme.spacing(3),
+    borderRadius: theme.shape.borderRadius * 1.5
   }
 }))
 
@@ -83,12 +82,6 @@ const fieldStyles = {
   '& .MuiInputBase-root': {
     minHeight: 50,
     borderRadius: '10px !important'
-  },
-  '& .MuiInputBase-input': {
-    '&:-webkit-autofill': {
-      WebkitBoxShadow: '0 0 0 1000px transparent inset',
-      WebkitTextFillColor: 'var(--mui-palette-text-primary)'
-    }
   }
 }
 
@@ -117,11 +110,7 @@ const validate = (form: RegistrationFormData): RegistrationErrors => {
 
   if (!form.whatsappNumber.trim()) errors.whatsappNumber = 'WhatsApp Number is required.'
 
-  if (form.attendeeType === 'STUDENT' && !form.institution.trim()) {
-    errors.institution = 'Institution / Company is required.'
-  }
-
-  if (form.attendeeType === 'PROFESSIONAL' && !form.institution.trim()) {
+  if (['STUDENT', 'PROFESSIONAL'].includes(form.attendeeType) && !form.institution.trim()) {
     errors.institution = 'Institution / Company is required.'
   }
 
@@ -140,6 +129,15 @@ const isPackageSoldOut = (eventPackage: EventPackage) =>
   typeof eventPackage.remainingQuota === 'number' &&
   eventPackage.remainingQuota <= 0
 
+const formatPrice = (price: number) =>
+  price <= 0
+    ? 'Free'
+    : new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0
+      }).format(price)
+
 const EventRegistration = ({ slug }: Props) => {
   const theme = useTheme()
   const { setMode } = useColorScheme()
@@ -156,6 +154,15 @@ const EventRegistration = ({ slug }: Props) => {
   const [paymentSession, setPaymentSession] = useState<RegistrationPaymentResponse | null>(null)
 
   const paymentLocked = paymentSession !== null
+  const selectedPackage = useMemo(
+    () => packages.find(item => item.id === form.eventPackageId) ?? null,
+    [form.eventPackageId, packages]
+  )
+
+  const legacyFfws = Boolean(eventData?.name.toLowerCase().includes('ffws'))
+  const eventLogoUrl = eventData?.logoUrl ?? (legacyFfws ? '/logoo.png' : '/EO%20Navbar.png')
+  const guideImageUrl = eventData?.registrationImageUrl ?? (legacyFfws ? '/denahh.png' : undefined)
+  const guideTitle = eventData?.registrationImageTitle ?? (legacyFfws ? 'Seminar Area Map' : undefined)
 
   useEffect(() => {
     let mounted = true
@@ -225,7 +232,6 @@ const EventRegistration = ({ slug }: Props) => {
       position: undefined,
       institution: undefined
     }))
-
     setFormMessage('')
   }
 
@@ -236,10 +242,7 @@ const EventRegistration = ({ slug }: Props) => {
     updateSettings({ mode: nextMode })
   }
 
-  const redirectToPaymentResult = (
-    status: 'success' | 'pending',
-    session: RegistrationPaymentResponse
-  ) => {
+  const redirectToPaymentResult = (status: 'success' | 'pending', session: RegistrationPaymentResponse) => {
     const query = new URLSearchParams({
       registrationId: session.registrationId,
       bookingCode: session.bookingCode
@@ -248,7 +251,16 @@ const EventRegistration = ({ slug }: Props) => {
     router.push(`/events/${encodeURIComponent(slug)}/payment-${status}?${query.toString()}`)
   }
 
+  const redirectToRegistrationSuccess = (session: RegistrationPaymentResponse) => {
+    router.push(`/registration/${encodeURIComponent(session.bookingCode)}/status`)
+  }
+
   const openPayment = async (session: RegistrationPaymentResponse) => {
+    if (!session.paymentRequired || !session.snapToken) {
+      redirectToRegistrationSuccess(session)
+      return
+    }
+
     setIsSubmitting(true)
     setFormMessage('Opening secure payment...')
 
@@ -272,8 +284,8 @@ const EventRegistration = ({ slug }: Props) => {
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleSubmit = async (submitEvent: React.FormEvent<HTMLFormElement>) => {
+    submitEvent.preventDefault()
 
     if (paymentSession) {
       await openPayment(paymentSession)
@@ -281,7 +293,6 @@ const EventRegistration = ({ slug }: Props) => {
     }
 
     const nextErrors = validate(form)
-
     setErrors(nextErrors)
 
     if (Object.keys(nextErrors).length > 0) return
@@ -291,21 +302,21 @@ const EventRegistration = ({ slug }: Props) => {
       return
     }
 
-    const selectedPackage = packages.find(item => item.id === form.eventPackageId)
+    const packageToRegister = packages.find(item => item.id === form.eventPackageId)
 
-    if (!selectedPackage) {
+    if (!packageToRegister) {
       setFormMessage('The selected package is no longer available. Please refresh the page.')
       return
     }
 
-    if (isPackageSoldOut(selectedPackage)) {
+    if (isPackageSoldOut(packageToRegister)) {
       setErrors(current => ({ ...current, eventPackageId: 'This package is sold out.' }))
       setFormMessage('The selected package is sold out. Please choose another package.')
       return
     }
 
     setIsSubmitting(true)
-    setFormMessage('Creating your registration and payment session...')
+    setFormMessage(packageToRegister.price <= 0 ? 'Completing your registration...' : 'Creating your secure payment session...')
 
     try {
       const result = await createExternalRegistrationPayment(eventData.id, {
@@ -317,10 +328,15 @@ const EventRegistration = ({ slug }: Props) => {
         department: form.position.trim() || null
       })
 
+      if (!result.paymentRequired) {
+        redirectToRegistrationSuccess(result)
+        return
+      }
+
       setPaymentSession(result)
       await openPayment(result)
     } catch (error) {
-      console.error('Registration/payment failed:', error)
+      console.error('Registration failed:', error)
       setFormMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -335,66 +351,89 @@ const EventRegistration = ({ slug }: Props) => {
     messageLower.includes(word)
   )
 
+  const submitLabel = isSubmitting
+    ? selectedPackage?.price === 0
+      ? 'Completing Registration...'
+      : 'Opening Payment...'
+    : paymentSession
+      ? 'Continue Payment'
+      : selectedPackage?.price === 0
+        ? 'Register for Free'
+        : 'Register & Pay'
+
   return (
     <RegistrationPage>
       <RegistrationBackground aria-hidden='true' />
 
-      <button
-        type='button'
+      <Button
+        variant='outlined'
         aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         onClick={handleToggleMode}
-        className='fixed right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-xl border border-divider bg-backgroundPaper text-textPrimary transition-colors hover:bg-backgroundDefault focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-backgroundPaper sm:right-5 sm:top-5'
+        sx={{
+          position: 'fixed',
+          right: { xs: 16, sm: 20 },
+          top: { xs: 16, sm: 20 },
+          zIndex: 20,
+          minWidth: 44,
+          width: 44,
+          height: 44,
+          p: 0,
+          bgcolor: 'background.paper'
+        }}
       >
         <i className={theme.palette.mode === 'dark' ? 'tabler-sun' : 'tabler-moon'} />
-      </button>
+      </Button>
 
-      <div className='relative z-10 flex min-h-[100dvh] items-center justify-center px-4 py-8 sm:px-6'>
+      <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100dvh', alignItems: 'center', justifyContent: 'center', px: { xs: 2, sm: 3 }, py: { xs: 4, md: 7 } }}>
         <RegistrationCard>
-          <div className='mx-auto flex w-full max-w-[460px] flex-col'>
+          <Box sx={{ mx: 'auto', width: '100%', maxWidth: 500 }}>
             <Button
               component={Link}
               href={`/events/${encodeURIComponent(slug)}`}
               variant='text'
               startIcon={<i className='tabler-arrow-left' />}
-              sx={{ alignSelf: 'flex-start', mb: 2, color: 'text.secondary', px: 0 }}
+              sx={{ mb: 3, color: 'text.secondary', px: 0 }}
             >
               Back to event
             </Button>
 
-            <img
-              src='/logoo.png'
-              alt='Pertamina Event'
-              className='mx-auto mb-5 block h-auto w-[190px] object-contain sm:w-[210px]'
-            />
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Box
+                component='img'
+                src={eventLogoUrl}
+                alt={eventData ? `${eventData.name} logo` : 'Pertamina Event'}
+                sx={{ maxWidth: { xs: 190, sm: 230 }, maxHeight: 120, width: 'auto', height: 'auto', objectFit: 'contain' }}
+              />
+            </Box>
 
             <Typography
-              variant='h4'
+              variant='h3'
               sx={{
                 color: 'text.primary',
                 fontWeight: 700,
-                lineHeight: 1.2,
-                fontSize: { xs: '1.45rem', sm: '1.7rem' }
+                lineHeight: 1.18,
+                fontSize: { xs: '1.75rem', sm: '2rem' }
               }}
             >
               Register for {eventData?.name ?? 'Event'}
             </Typography>
 
-            <Typography sx={{ mt: 1, color: 'text.secondary', lineHeight: 1.5 }}>
-              {eventData?.description ?? 'Complete your information, choose a package, and continue to secure payment.'}
+            <Typography sx={{ mt: 1.25, color: 'text.secondary', lineHeight: 1.65 }}>
+              {eventData?.description ?? 'Complete your information and choose the registration package that suits you.'}
             </Typography>
 
             {paymentSession && (
-              <div className='mt-5 rounded-xl border border-divider p-4'>
-                <Typography variant='body2' sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  Registration created
-                </Typography>
-                <Typography variant='body2' sx={{ mt: 0.5, color: 'text.secondary' }}>
-                  Booking code: {paymentSession.bookingCode}. Your form is locked to prevent duplicate registrations.
-                </Typography>
-              </div>
+              <Card variant='outlined' sx={{ mt: 4 }}>
+                <CardContent>
+                  <Typography variant='body2' fontWeight={700}>Registration created</Typography>
+                  <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+                    Booking code: {paymentSession.bookingCode}. Your form is locked to prevent duplicate registrations.
+                  </Typography>
+                </CardContent>
+              </Card>
             )}
 
-            <form noValidate onSubmit={handleSubmit} className='mt-6 flex flex-col gap-4'>
+            <Box component='form' noValidate onSubmit={handleSubmit} sx={{ mt: 5, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <CustomTextField
                 select
                 label='Attendee Type'
@@ -411,269 +450,105 @@ const EventRegistration = ({ slug }: Props) => {
                 <MenuItem value='GENERAL'>General</MenuItem>
               </CustomTextField>
 
-              <CustomTextField
-                label='Full Name'
-                required
-                disabled={paymentLocked}
-                placeholder='Enter your full name'
-                value={form.fullName}
-                onChange={event => updateField('fullName', event.target.value)}
-                error={Boolean(errors.fullName)}
-                helperText={errors.fullName}
-                sx={fieldStyles}
-              />
+              <CustomTextField label='Full Name' required disabled={paymentLocked} placeholder='Enter your full name' value={form.fullName} onChange={event => updateField('fullName', event.target.value)} error={Boolean(errors.fullName)} helperText={errors.fullName} sx={fieldStyles} />
+              <CustomTextField label='Email' required disabled={paymentLocked} type='email' placeholder='Enter your email address' value={form.email} onChange={event => updateField('email', event.target.value)} error={Boolean(errors.email)} helperText={errors.email} sx={fieldStyles} />
+              <CustomTextField label='WhatsApp Number' required disabled={paymentLocked} type='tel' placeholder='08xxxxxxxxxx' value={form.whatsappNumber} onChange={event => updateField('whatsappNumber', event.target.value)} error={Boolean(errors.whatsappNumber)} helperText={errors.whatsappNumber} sx={fieldStyles} />
+              <CustomTextField label='Institution / Company' required={isProfessional || isStudent} disabled={paymentLocked} placeholder='Enter your institution or company' value={form.institution} onChange={event => updateField('institution', event.target.value)} error={Boolean(errors.institution)} helperText={errors.institution || (form.attendeeType === 'GENERAL' ? 'Optional for General.' : undefined)} sx={fieldStyles} />
+              <CustomTextField label='Position / Role' required={isProfessional} disabled={isStudent || paymentLocked} placeholder={isStudent ? 'Not applicable for Student' : 'Enter your position or role'} value={form.position} onChange={event => updateField('position', event.target.value)} error={Boolean(errors.position)} helperText={errors.position || (isStudent ? 'Not required for Student.' : form.attendeeType === 'GENERAL' ? 'Optional for General.' : undefined)} sx={fieldStyles} />
 
-              <CustomTextField
-                label='Email'
-                required
-                disabled={paymentLocked}
-                type='email'
-                placeholder='Enter your email address'
-                value={form.email}
-                onChange={event => updateField('email', event.target.value)}
-                error={Boolean(errors.email)}
-                helperText={errors.email}
-                sx={fieldStyles}
-              />
-
-              <CustomTextField
-                label='WhatsApp Number'
-                required
-                disabled={paymentLocked}
-                type='tel'
-                placeholder='08xxxxxxxxxx'
-                value={form.whatsappNumber}
-                onChange={event => updateField('whatsappNumber', event.target.value)}
-                error={Boolean(errors.whatsappNumber)}
-                helperText={errors.whatsappNumber}
-                sx={fieldStyles}
-              />
-
-              <CustomTextField
-                label='Institution / Company'
-                required={isProfessional || isStudent}
-                disabled={paymentLocked}
-                placeholder='Enter your institution or company'
-                value={form.institution}
-                onChange={event => updateField('institution', event.target.value)}
-                error={Boolean(errors.institution)}
-                helperText={
-                  errors.institution ||
-                  (form.attendeeType === 'GENERAL' ? 'Optional for General.' : undefined)
-                }
-                sx={fieldStyles}
-              />
-
-              <CustomTextField
-                label='Position / Role'
-                required={isProfessional}
-                disabled={isStudent || paymentLocked}
-                placeholder={isStudent ? 'Not applicable for Student' : 'Enter your position or role'}
-                value={form.position}
-                onChange={event => updateField('position', event.target.value)}
-                error={Boolean(errors.position)}
-                helperText={
-                  errors.position ||
-                  (isStudent
-                    ? 'Not required for Student.'
-                    : form.attendeeType === 'GENERAL'
-                      ? 'Optional for General.'
-                      : undefined)
-                }
-                sx={fieldStyles}
-              />
-
-              <div className='flex flex-col gap-2'>
-                <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>
-                  Choose Your Package
-                  <span style={{ color: theme.palette.error.main, marginLeft: 4 }}>*</span>
+              <Box>
+                <Typography fontWeight={600}>
+                  Choose Your Package <Box component='span' color='error.main'>*</Box>
                 </Typography>
-
-                <Typography variant='body2' sx={{ color: 'text.secondary', mb: 1 }}>
-                  Select the package that suits you best.
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75, mb: 2 }}>
+                  Free packages complete registration immediately. Paid packages continue through the secure payment gateway.
                 </Typography>
 
                 {isLoadingPackages ? (
-                  <div className='rounded-xl border border-divider p-5 text-center'>
-                    <Typography variant='body2' sx={{ color: 'text.secondary' }}>
-                      Loading available packages...
-                    </Typography>
-                  </div>
+                  <Card variant='outlined'><CardContent><Typography variant='body2' color='text.secondary' textAlign='center'>Loading available packages...</Typography></CardContent></Card>
                 ) : packages.length === 0 ? (
-                  <div className='rounded-xl border border-divider p-5 text-center'>
-                    <Typography variant='body2' sx={{ color: 'text.secondary' }}>
-                      No package is currently available.
-                    </Typography>
-                  </div>
+                  <Card variant='outlined'><CardContent><Typography variant='body2' color='text.secondary' textAlign='center'>No package is currently available.</Typography></CardContent></Card>
                 ) : (
-                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                     {packages.map(item => {
                       const isSelected = form.eventPackageId === item.id
                       const soldOut = isPackageSoldOut(item)
 
                       return (
-                        <button
+                        <Card
                           key={item.id}
-                          type='button'
-                          disabled={soldOut || paymentLocked}
-                          onClick={() => updateField('eventPackageId', item.id)}
-                          className='text-left disabled:cursor-not-allowed disabled:opacity-50'
-                          aria-pressed={isSelected}
+                          variant='outlined'
+                          sx={{
+                            height: '100%',
+                            borderColor: isSelected ? 'primary.main' : 'divider',
+                            boxShadow: isSelected ? theme.shadows[4] : 'none'
+                          }}
                         >
-                          <div
-                            className='relative h-full rounded-xl border p-5 transition-all duration-200'
-                            style={{
-                              borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
-                              boxShadow: isSelected ? `0 0 0 2px ${theme.palette.primary.main}` : 'none',
-                              transform: isSelected ? 'translateY(-2px)' : 'none'
-                            }}
-                          >
-                            {isSelected && !soldOut && (
-                              <div
-                                className='absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full'
-                                style={{
-                                  backgroundColor: theme.palette.primary.main,
-                                  color: theme.palette.primary.contrastText
-                                }}
-                              >
-                                <i className='tabler-check text-base' />
-                              </div>
-                            )}
-
-                            {soldOut && (
-                              <div
-                                className='absolute right-4 top-4 rounded-full px-3 py-1 text-xs font-semibold'
-                                style={{
-                                  backgroundColor: theme.palette.error.main,
-                                  color: theme.palette.error.contrastText
-                                }}
-                              >
-                                Sold Out
-                              </div>
-                            )}
-
-                            <Typography
-                              variant='h6'
-                              sx={{ color: 'text.primary', fontWeight: 700, pr: isSelected || soldOut ? 5 : 0 }}
-                            >
-                              {item.name}
-                            </Typography>
-
-                            <Typography
-                              sx={{ mt: 1, color: 'primary.main', fontWeight: 700, fontSize: '1.05rem' }}
-                            >
-                              Rp {item.price.toLocaleString('id-ID')}
-                            </Typography>
-
-                            <div className='mt-4'>
-                              <Typography
-                                variant='body2'
-                                sx={{ color: 'text.primary', fontWeight: 600, mb: 0.75 }}
-                              >
-                                Benefits
+                          <CardActionArea disabled={soldOut || paymentLocked} onClick={() => updateField('eventPackageId', item.id)} sx={{ height: '100%' }}>
+                            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'flex-start' }}>
+                                <Typography variant='h6' fontWeight={700}>{item.name}</Typography>
+                                {soldOut ? <Chip label='Sold Out' color='error' size='small' /> : item.price <= 0 ? <Chip label='Free' color='success' variant='tonal' size='small' /> : isSelected ? <Chip label='Selected' color='primary' variant='tonal' size='small' /> : null}
+                              </Box>
+                              <Typography color={item.price <= 0 ? 'success.main' : 'primary.main'} fontWeight={700} fontSize='1.05rem'>
+                                {formatPrice(item.price)}
                               </Typography>
-                              <Typography variant='body2' sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
-                                {item.benefits?.trim() || 'Package benefits will be announced.'}
+                              {item.benefits?.trim() && <Typography variant='body2' color='text.secondary' sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>{item.benefits}</Typography>}
+                              <Typography variant='caption' color='text.secondary' sx={{ mt: 'auto', pt: 1 }}>
+                                {item.isUnlimited ? 'Package quota unlimited' : soldOut ? 'Package sold out' : `${item.remainingQuota ?? 0} slot(s) remaining`}
                               </Typography>
-                            </div>
-
-                            <Typography
-                              variant='caption'
-                              sx={{ display: 'block', mt: 2, color: 'text.secondary' }}
-                            >
-                              {item.isUnlimited
-                                ? 'Package quota unlimited'
-                                : soldOut
-                                  ? 'Package sold out'
-                                  : `${item.remainingQuota ?? 0} slot(s) remaining`}
-                            </Typography>
-                          </div>
-                        </button>
+                            </CardContent>
+                          </CardActionArea>
+                        </Card>
                       )
                     })}
-                  </div>
+                  </Box>
                 )}
 
-                {errors.eventPackageId && (
-                  <Typography variant='caption' color='error' sx={{ mt: 0.25 }}>
-                    {errors.eventPackageId}
+                {errors.eventPackageId && <Typography variant='caption' color='error' sx={{ mt: 1, display: 'block' }}>{errors.eventPackageId}</Typography>}
+              </Box>
+
+              {guideImageUrl && (
+                <Box>
+                  <Typography variant='h6' fontWeight={600} sx={{ mb: 2 }}>
+                    {guideTitle || 'Event Guide'}
                   </Typography>
-                )}
-              </div>
-
-              <Typography sx={{ px: 2, pt: 2, fontWeight: 600, color: 'text.primary' }}>
-                Seminar Area Map
-              </Typography>
-
-              <button
-                type='button'
-                onClick={() => window.open('/denahh.png', '_blank', 'noopener,noreferrer')}
-                className='block w-full cursor-zoom-in'
-                aria-label='Open seminar package map'
-              >
-                <img
-                  src='/denahh.png'
-                  alt='Seminar package area map'
-                  className='block h-auto w-full object-contain transition-transform duration-200 hover:scale-[1.01]'
-                />
-              </button>
-
-              <div>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      disabled={paymentLocked}
-                      checked={form.consent}
-                      onChange={event => updateField('consent', event.target.checked)}
-                    />
-                  }
-                  label='I agree to the processing of my personal data for the purposes of this event.'
-                  sx={{
-                    alignItems: 'flex-start',
-                    color: 'text.secondary',
-                    '& .MuiFormControlLabel-label': {
-                      fontSize: '0.875rem',
-                      lineHeight: 1.45,
-                      pt: 0.8
-                    }
-                  }}
-                />
-
-                {errors.consent && (
-                  <Typography color='error' variant='caption'>
-                    {errors.consent}
+                  <Card variant='outlined' sx={{ overflow: 'hidden' }}>
+                    <CardActionArea onClick={() => window.open(guideImageUrl, '_blank', 'noopener,noreferrer')}>
+                      <Box component='img' src={guideImageUrl} alt={guideTitle || `${eventData?.name ?? 'Event'} guide`} sx={{ display: 'block', width: '100%', maxHeight: 560, objectFit: 'contain', bgcolor: 'background.default' }} />
+                    </CardActionArea>
+                  </Card>
+                  <Typography variant='caption' color='text.secondary' sx={{ mt: 1, display: 'block' }}>
+                    Click the image to open the full-size guide.
                   </Typography>
-                )}
-              </div>
-
-              {formMessage && (
-                <Typography color={messageIsError ? 'error' : 'text.secondary'} variant='body2'>
-                  {formMessage}
-                </Typography>
+                </Box>
               )}
+
+              <Box>
+                <FormControlLabel
+                  control={<Checkbox disabled={paymentLocked} checked={form.consent} onChange={event => updateField('consent', event.target.checked)} />}
+                  label='I agree to the processing of my personal data for the purposes of this event.'
+                  sx={{ alignItems: 'flex-start', color: 'text.secondary', '& .MuiFormControlLabel-label': { fontSize: '0.875rem', lineHeight: 1.45, pt: 0.8 } }}
+                />
+                {errors.consent && <Typography color='error' variant='caption'>{errors.consent}</Typography>}
+              </Box>
+
+              {formMessage && <Typography color={messageIsError ? 'error' : 'text.secondary'} variant='body2'>{formMessage}</Typography>}
 
               <Button
                 fullWidth
                 type='submit'
                 variant='contained'
-                disabled={
-                  isSubmitting ||
-                  isLoadingPackages ||
-                  !eventData ||
-                  (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))
-                }
-                sx={{ minHeight: 50, borderRadius: '10px', mt: 1 }}
+                size='large'
+                disabled={isSubmitting || isLoadingPackages || !eventData || (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))}
+                sx={{ minHeight: 50, mt: 1 }}
               >
-                {isSubmitting
-                  ? 'Opening Payment...'
-                  : paymentSession
-                    ? 'Continue Payment'
-                    : 'Register & Pay'}
+                {submitLabel}
               </Button>
-            </form>
-          </div>
+            </Box>
+          </Box>
         </RegistrationCard>
-      </div>
+      </Box>
     </RegistrationPage>
   )
 }

@@ -54,6 +54,25 @@ const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) 
   </Box>
 )
 
+const SuccessIcon = () => (
+  <Box
+    sx={{
+      width: 88,
+      height: 88,
+      mx: 'auto',
+      display: 'grid',
+      placeItems: 'center',
+      borderRadius: '50%',
+      bgcolor: 'success.lighter',
+      color: 'success.main'
+    }}
+  >
+    <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: 'success.main', color: 'success.contrastText' }}>
+      <i className='tabler-check text-3xl' />
+    </Box>
+  </Box>
+)
+
 const RegistrationStatusPage = () => {
   const params = useParams<{ bookingCode: string }>()
   const bookingCode = params.bookingCode
@@ -93,6 +112,8 @@ const RegistrationStatusPage = () => {
           } catch {
             if (!cancelled) setReceipt(null)
           }
+        } else {
+          setReceipt(null)
         }
 
         if (result.status === 'PendingPayment') {
@@ -114,8 +135,10 @@ const RegistrationStatusPage = () => {
     }
   }, [bookingCode])
 
-  const paymentConfirmed = data?.paymentStatus.toLowerCase() === 'paid'
-  const successful = Boolean(data && ['Registered', 'CheckedIn'].includes(data.status) && paymentConfirmed)
+  const paymentStatus = data?.paymentStatus.toLowerCase() ?? ''
+  const registrationActive = Boolean(data && ['Registered', 'CheckedIn'].includes(data.status))
+  const paidSuccessful = registrationActive && paymentStatus === 'paid'
+  const freeSuccessful = registrationActive && ['notrequired', 'not_required', 'not required'].includes(paymentStatus)
 
   const handleContinuePayment = async () => {
     if (!data?.snapToken || data.status !== 'PendingPayment') return
@@ -138,7 +161,7 @@ const RegistrationStatusPage = () => {
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', px: 2, py: { xs: 4, md: 8 } }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', px: 2, py: { xs: 5, md: 9 } }}>
       <Box sx={{ width: '100%', maxWidth: 560, mx: 'auto' }}>
         {loading && (
           <Card>
@@ -153,36 +176,48 @@ const RegistrationStatusPage = () => {
         {data && (
           <Card>
             <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-              {successful ? (
+              {freeSuccessful ? (
                 <>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Box
-                      sx={{
-                        width: 88,
-                        height: 88,
-                        mx: 'auto',
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: '50%',
-                        bgcolor: 'success.lighter',
-                        color: 'success.main'
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 52,
-                          height: 52,
-                          display: 'grid',
-                          placeItems: 'center',
-                          borderRadius: '50%',
-                          bgcolor: 'success.main',
-                          color: 'success.contrastText'
-                        }}
-                      >
-                        <i className='tabler-check text-3xl' />
-                      </Box>
-                    </Box>
+                    <SuccessIcon />
+                    <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>
+                      Registration successful
+                    </Typography>
+                    <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
+                      Your registration is confirmed. No payment is required for this package.
+                    </Typography>
+                  </Box>
 
+                  <Typography variant='h6' fontWeight={600} sx={{ mt: 6, mb: 2 }}>
+                    Registration details
+                  </Typography>
+
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 3, py: 1 }}>
+                    <DetailRow label='Booking Code' value={data.bookingCode} />
+                    <Divider />
+                    <DetailRow label='Event' value={data.eventName} />
+                    <Divider />
+                    <DetailRow label='Package' value={data.eventPackageName ?? '-'} />
+                    <Divider />
+                    <DetailRow label='Registration Date' value={formatDate(data.registeredAtUtc)} />
+                    <Divider />
+                    <DetailRow label='Registration Fee' value={<Chip label='Free' color='success' variant='tonal' size='small' />} />
+                    <Divider />
+                    <DetailRow label='Status' value={<Chip label='Registered' color='success' variant='tonal' size='small' icon={<i className='tabler-circle-check' />} />} />
+                  </Box>
+
+                  <Alert severity='success' sx={{ mt: 3 }}>
+                    Your ticket has been prepared by the backend and sent to your registered email address.
+                  </Alert>
+
+                  <Button component={Link} href='/home' fullWidth variant='contained' size='large' sx={{ mt: 4 }}>
+                    Back To Home Screen
+                  </Button>
+                </>
+              ) : paidSuccessful ? (
+                <>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <SuccessIcon />
                     <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>
                       Payment successful
                     </Typography>
@@ -211,19 +246,7 @@ const RegistrationStatusPage = () => {
                     <DetailRow label='Status' value={<Chip label='Success' color='success' variant='tonal' size='small' icon={<i className='tabler-circle-check' />} />} />
                   </Box>
 
-                  <Box
-                    sx={{
-                      mt: 3,
-                      px: 3,
-                      py: 2,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      borderRadius: 2
-                    }}
-                  >
+                  <Box sx={{ mt: 3, px: 3, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', borderRadius: 2 }}>
                     <Typography variant='h6' color='inherit' fontWeight={600}>Total</Typography>
                     <Typography variant='h6' color='inherit' fontWeight={700}>{formatCurrency(data.grossAmount)}</Typography>
                   </Box>
@@ -235,18 +258,7 @@ const RegistrationStatusPage = () => {
               ) : (
                 <>
                   <Box sx={{ textAlign: 'center', mb: 4 }}>
-                    <Box
-                      sx={{
-                        width: 72,
-                        height: 72,
-                        mx: 'auto',
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: '50%',
-                        bgcolor: data.status === 'PendingPayment' ? 'warning.lighter' : 'action.hover',
-                        color: data.status === 'PendingPayment' ? 'warning.main' : 'text.secondary'
-                      }}
-                    >
+                    <Box sx={{ width: 72, height: 72, mx: 'auto', display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: data.status === 'PendingPayment' ? 'warning.lighter' : 'action.hover', color: data.status === 'PendingPayment' ? 'warning.main' : 'text.secondary' }}>
                       <i className={`${data.status === 'PendingPayment' ? 'tabler-clock' : 'tabler-alert-circle'} text-3xl`} />
                     </Box>
                     <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>

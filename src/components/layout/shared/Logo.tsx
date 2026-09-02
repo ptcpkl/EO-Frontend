@@ -1,44 +1,47 @@
 'use client'
 
-// React Imports
-import { useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 
-// Hook Imports
 import useVerticalNav from '@menu/hooks/useVerticalNav'
 import { useSettings } from '@core/hooks/useSettings'
 
 const Logo = (_props: { color?: CSSProperties['color'] }) => {
   void _props
 
-  // Refs
-  const logoTextRef = useRef<HTMLSpanElement>(null)
-
-  // Hooks
   const { isHovered, isBreakpointReached } = useVerticalNav()
   const { settings } = useSettings()
 
-  // Vars
-  const { layout } = settings
-
-  useEffect(() => {
-    if (layout !== 'collapsed') {
-      return
-    }
-
-    if (logoTextRef && logoTextRef.current) {
-      if (!isBreakpointReached && layout === 'collapsed' && !isHovered) {
-        logoTextRef.current?.classList.add('hidden')
-      } else {
-        logoTextRef.current.classList.remove('hidden')
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHovered, layout, isBreakpointReached])
+  const compact = settings.layout === 'collapsed' && !isHovered && !isBreakpointReached
 
   return (
-    <div className='flex items-center'>
-      <img src='/EO Navbar.png' alt='Pertamina' className='h-8 w-auto object-contain' />
+    <div
+      className='relative flex h-10 items-center justify-center overflow-hidden'
+      style={{
+        width: compact ? 40 : 132,
+        transition: 'width 260ms cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+      aria-label='Pertamina Event'
+    >
+      <img
+        src='/EO Navbar.png'
+        alt='Pertamina Event'
+        className='absolute h-8 w-auto object-contain'
+        style={{
+          opacity: compact ? 0 : 1,
+          transform: compact ? 'scale(0.82) translateX(-6px)' : 'scale(1) translateX(0)',
+          transition: 'opacity 200ms ease, transform 260ms cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      />
+      <img
+        src='/EO apk.png'
+        alt='Pertamina Event app icon'
+        className='absolute h-9 w-9 object-contain'
+        style={{
+          opacity: compact ? 1 : 0,
+          transform: compact ? 'scale(1)' : 'scale(0.72)',
+          transition: 'opacity 200ms ease, transform 260ms cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      />
     </div>
   )
 }
