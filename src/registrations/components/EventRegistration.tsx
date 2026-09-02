@@ -1,30 +1,26 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+import { styled, useColorScheme, useTheme } from '@mui/material/styles'
+import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardActionArea from '@mui/material/CardActionArea'
-import CardContent from '@mui/material/CardContent'
 import Checkbox from '@mui/material/Checkbox'
 import Chip from '@mui/material/Chip'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
-import { styled, useColorScheme, useTheme } from '@mui/material/styles'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { useSettings } from '@core/hooks/useSettings'
 
 import { getEventPackages, getPublicEventBySlug, type EventPackage, type PublicEvent } from '@/lib/api'
 import { openMidtransSnap } from '../lib/midtrans'
-import {
-  createExternalRegistrationPayment,
-  type RegistrationPaymentResponse
-} from '../services/registration.service'
+import { createExternalRegistrationPayment, type RegistrationPaymentResponse } from '../services/registration.service'
 
 type AttendeeType = 'STUDENT' | 'PROFESSIONAL' | 'GENERAL'
 
@@ -41,14 +37,13 @@ type RegistrationFormData = {
 
 type RegistrationErrors = Partial<Record<keyof RegistrationFormData, string>>
 
-type Props = {
-  slug: string
-}
+type Props = { slug: string }
 
 const RegistrationPage = styled('main')({
   position: 'relative',
   minHeight: '100dvh',
-  overflowX: 'hidden'
+  overflowX: 'hidden',
+  overflowY: 'auto'
 })
 
 const RegistrationBackground = styled('div')(({ theme }) => ({
@@ -67,21 +62,21 @@ const RegistrationCard = styled('section')(({ theme }) => ({
   width: 'min(100%, 620px)',
   boxSizing: 'border-box',
   margin: '0 auto',
-  padding: theme.spacing(5),
+  padding: theme.spacing(4),
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: theme.shape.borderRadius * 2,
   backgroundColor: theme.palette.background.paper,
   boxShadow: theme.shadows[12],
-  '@media (max-width: 600px)': {
-    padding: theme.spacing(3),
-    borderRadius: theme.shape.borderRadius * 1.5
-  }
+  '@media (max-width: 600px)': { padding: theme.spacing(2.5) }
 }))
 
 const fieldStyles = {
-  '& .MuiInputBase-root': {
-    minHeight: 50,
-    borderRadius: '10px !important'
+  '& .MuiInputBase-root': { minHeight: 50 },
+  '& .MuiInputBase-input': {
+    '&:-webkit-autofill': {
+      WebkitBoxShadow: '0 0 0 1000px transparent inset',
+      WebkitTextFillColor: 'var(--mui-palette-text-primary)'
+    }
   }
 }
 
@@ -101,23 +96,11 @@ const validate = (form: RegistrationFormData): RegistrationErrors => {
 
   if (!form.attendeeType) errors.attendeeType = 'Please select an attendee type.'
   if (!form.fullName.trim()) errors.fullName = 'Full Name is required.'
-
-  if (!form.email.trim()) {
-    errors.email = 'Email is required.'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    errors.email = 'Please enter a valid email address.'
-  }
-
+  if (!form.email.trim()) errors.email = 'Email is required.'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'Please enter a valid email address.'
   if (!form.whatsappNumber.trim()) errors.whatsappNumber = 'WhatsApp Number is required.'
-
-  if (['STUDENT', 'PROFESSIONAL'].includes(form.attendeeType) && !form.institution.trim()) {
-    errors.institution = 'Institution / Company is required.'
-  }
-
-  if (form.attendeeType === 'PROFESSIONAL' && !form.position.trim()) {
-    errors.position = 'Position / Role is required.'
-  }
-
+  if (['STUDENT', 'PROFESSIONAL'].includes(form.attendeeType) && !form.institution.trim()) errors.institution = 'Institution / Company is required.'
+  if (form.attendeeType === 'PROFESSIONAL' && !form.position.trim()) errors.position = 'Position / Role is required.'
   if (!form.eventPackageId) errors.eventPackageId = 'Please select a package.'
   if (!form.consent) errors.consent = 'You must agree to the personal data consent.'
 
@@ -125,18 +108,9 @@ const validate = (form: RegistrationFormData): RegistrationErrors => {
 }
 
 const isPackageSoldOut = (eventPackage: EventPackage) =>
-  !eventPackage.isUnlimited &&
-  typeof eventPackage.remainingQuota === 'number' &&
-  eventPackage.remainingQuota <= 0
+  !eventPackage.isUnlimited && typeof eventPackage.remainingQuota === 'number' && eventPackage.remainingQuota <= 0
 
-const formatPrice = (price: number) =>
-  price <= 0
-    ? 'Free'
-    : new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0
-      }).format(price)
+const legacyFfws = (slug: string) => slug.toLowerCase().includes('ffws')
 
 const EventRegistration = ({ slug }: Props) => {
   const theme = useTheme()
@@ -153,16 +127,9 @@ const EventRegistration = ({ slug }: Props) => {
   const [packages, setPackages] = useState<EventPackage[]>([])
   const [paymentSession, setPaymentSession] = useState<RegistrationPaymentResponse | null>(null)
 
-  const paymentLocked = paymentSession !== null
-  const selectedPackage = useMemo(
-    () => packages.find(item => item.id === form.eventPackageId) ?? null,
-    [form.eventPackageId, packages]
-  )
-
-  const legacyFfws = Boolean(eventData?.name.toLowerCase().includes('ffws'))
-  const eventLogoUrl = eventData?.logoUrl ?? (legacyFfws ? '/logoo.png' : '/EO%20Navbar.png')
-  const guideImageUrl = eventData?.registrationImageUrl ?? (legacyFfws ? '/denahh.png' : undefined)
-  const guideTitle = eventData?.registrationImageTitle ?? (legacyFfws ? 'Seminar Area Map' : undefined)
+  const paymentLocked = paymentSession?.paymentRequired === true
+  const selectedPackage = useMemo(() => packages.find(item => item.id === form.eventPackageId) ?? null, [packages, form.eventPackageId])
+  const isFreePackage = selectedPackage?.price === 0
 
   useEffect(() => {
     let mounted = true
@@ -174,24 +141,15 @@ const EventRegistration = ({ slug }: Props) => {
 
         const loadedEvent = await getPublicEventBySlug(slug)
         const loadedPackages = await getEventPackages(loadedEvent.id)
-
         if (!mounted) return
 
-        const activePackages = loadedPackages
-          .filter(item => item.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-
+        const activePackages = loadedPackages.filter(item => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
         setEventData(loadedEvent)
         setPackages(activePackages)
 
         const availablePackages = activePackages.filter(item => !isPackageSoldOut(item))
-
-        if (availablePackages.length === 1) {
-          setForm(current => ({ ...current, eventPackageId: availablePackages[0].id }))
-        }
+        if (availablePackages.length === 1) setForm(current => ({ ...current, eventPackageId: availablePackages[0].id }))
       } catch (error) {
-        console.error('Failed to load registration data:', error)
-
         if (mounted) {
           setEventData(null)
           setPackages([])
@@ -203,15 +161,11 @@ const EventRegistration = ({ slug }: Props) => {
     }
 
     void loadRegistrationData()
-
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [slug])
 
   const updateField = <K extends keyof RegistrationFormData>(field: K, value: RegistrationFormData[K]) => {
     if (paymentLocked) return
-
     setForm(current => ({ ...current, [field]: value }))
     setErrors(current => ({ ...current, [field]: undefined }))
     setFormMessage('')
@@ -219,45 +173,29 @@ const EventRegistration = ({ slug }: Props) => {
 
   const handleAttendeeTypeChange = (value: AttendeeType) => {
     if (paymentLocked) return
-
-    setForm(current => ({
-      ...current,
-      attendeeType: value,
-      position: value === 'STUDENT' ? '' : current.position
-    }))
-
-    setErrors(current => ({
-      ...current,
-      attendeeType: undefined,
-      position: undefined,
-      institution: undefined
-    }))
+    setForm(current => ({ ...current, attendeeType: value, position: value === 'STUDENT' ? '' : current.position }))
+    setErrors(current => ({ ...current, attendeeType: undefined, position: undefined, institution: undefined }))
     setFormMessage('')
   }
 
   const handleToggleMode = () => {
     const nextMode = theme.palette.mode === 'dark' ? 'light' : 'dark'
-
     setMode(nextMode)
     updateSettings({ mode: nextMode })
   }
 
-  const redirectToPaymentResult = (status: 'success' | 'pending', session: RegistrationPaymentResponse) => {
-    const query = new URLSearchParams({
-      registrationId: session.registrationId,
-      bookingCode: session.bookingCode
-    })
-
-    router.push(`/events/${encodeURIComponent(slug)}/payment-${status}?${query.toString()}`)
+  const redirectToStatus = (session: RegistrationPaymentResponse) => {
+    router.push(`/registration/${encodeURIComponent(session.bookingCode)}/status`)
   }
 
-  const redirectToRegistrationSuccess = (session: RegistrationPaymentResponse) => {
-    router.push(`/registration/${encodeURIComponent(session.bookingCode)}/status`)
+  const redirectToPaymentResult = (status: 'success' | 'pending', session: RegistrationPaymentResponse) => {
+    const query = new URLSearchParams({ registrationId: session.registrationId, bookingCode: session.bookingCode })
+    router.push(`/events/${encodeURIComponent(slug)}/payment-${status}?${query.toString()}`)
   }
 
   const openPayment = async (session: RegistrationPaymentResponse) => {
     if (!session.paymentRequired || !session.snapToken) {
-      redirectToRegistrationSuccess(session)
+      redirectToStatus(session)
       return
     }
 
@@ -268,16 +206,10 @@ const EventRegistration = ({ slug }: Props) => {
       await openMidtransSnap(session.snapToken, {
         onSuccess: () => redirectToPaymentResult('success', session),
         onPending: () => redirectToPaymentResult('pending', session),
-        onError: error => {
-          console.error('Midtrans payment error:', error)
-          setFormMessage('Payment failed. Your registration is still available to retry from this page.')
-        },
-        onClose: () => {
-          setFormMessage('Payment window was closed. Click Continue Payment to reopen the same payment session.')
-        }
+        onError: () => setFormMessage('Payment failed. Your registration is still available to retry from this page.'),
+        onClose: () => setFormMessage('Payment window was closed. Click Continue Payment to reopen the same payment session.')
       })
     } catch (error) {
-      console.error('Failed to open Midtrans Snap:', error)
       setFormMessage(error instanceof Error ? error.message : 'Unable to open payment. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -287,36 +219,27 @@ const EventRegistration = ({ slug }: Props) => {
   const handleSubmit = async (submitEvent: React.FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault()
 
-    if (paymentSession) {
+    if (paymentSession?.paymentRequired) {
       await openPayment(paymentSession)
       return
     }
 
     const nextErrors = validate(form)
     setErrors(nextErrors)
-
     if (Object.keys(nextErrors).length > 0) return
 
-    if (!eventData) {
-      setFormMessage('Event information is not ready. Please refresh the page.')
+    if (!eventData || !selectedPackage) {
+      setFormMessage('Event or package information is no longer available. Please refresh the page.')
       return
     }
 
-    const packageToRegister = packages.find(item => item.id === form.eventPackageId)
-
-    if (!packageToRegister) {
-      setFormMessage('The selected package is no longer available. Please refresh the page.')
-      return
-    }
-
-    if (isPackageSoldOut(packageToRegister)) {
+    if (isPackageSoldOut(selectedPackage)) {
       setErrors(current => ({ ...current, eventPackageId: 'This package is sold out.' }))
-      setFormMessage('The selected package is sold out. Please choose another package.')
       return
     }
 
     setIsSubmitting(true)
-    setFormMessage(packageToRegister.price <= 0 ? 'Completing your registration...' : 'Creating your secure payment session...')
+    setFormMessage(isFreePackage ? 'Confirming your free registration...' : 'Creating your registration and secure payment session...')
 
     try {
       const result = await createExternalRegistrationPayment(eventData.id, {
@@ -329,14 +252,13 @@ const EventRegistration = ({ slug }: Props) => {
       })
 
       if (!result.paymentRequired) {
-        redirectToRegistrationSuccess(result)
+        redirectToStatus(result)
         return
       }
 
       setPaymentSession(result)
       await openPayment(result)
     } catch (error) {
-      console.error('Registration failed:', error)
       setFormMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -347,104 +269,49 @@ const EventRegistration = ({ slug }: Props) => {
   const isProfessional = form.attendeeType === 'PROFESSIONAL'
   const hasAvailablePackage = packages.some(item => !isPackageSoldOut(item))
   const messageLower = formMessage.toLowerCase()
-  const messageIsError = ['failed', 'error', 'invalid', 'sold out', 'unavailable', 'unable'].some(word =>
-    messageLower.includes(word)
-  )
+  const messageIsError = ['failed', 'error', 'invalid', 'sold out', 'unavailable', 'unable'].some(word => messageLower.includes(word))
 
-  const submitLabel = isSubmitting
-    ? selectedPackage?.price === 0
-      ? 'Completing Registration...'
-      : 'Opening Payment...'
-    : paymentSession
-      ? 'Continue Payment'
-      : selectedPackage?.price === 0
-        ? 'Register for Free'
-        : 'Register & Pay'
+  const logoUrl = eventData?.logoUrl || (legacyFfws(slug) ? '/logoo.png' : '/EO%20Navbar.png')
+  const registrationImageUrl = eventData?.registrationImageUrl || (legacyFfws(slug) ? '/denahh.png' : undefined)
+  const registrationImageTitle = eventData?.registrationImageTitle || (legacyFfws(slug) ? 'Seminar Area Map' : undefined)
 
   return (
     <RegistrationPage>
       <RegistrationBackground aria-hidden='true' />
 
       <Button
-        variant='outlined'
         aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         onClick={handleToggleMode}
-        sx={{
-          position: 'fixed',
-          right: { xs: 16, sm: 20 },
-          top: { xs: 16, sm: 20 },
-          zIndex: 20,
-          minWidth: 44,
-          width: 44,
-          height: 44,
-          p: 0,
-          bgcolor: 'background.paper'
-        }}
+        variant='contained'
+        sx={{ position: 'fixed', right: 20, top: 20, zIndex: 20, minWidth: 44, width: 44, height: 44, p: 0, borderRadius: 2 }}
       >
         <i className={theme.palette.mode === 'dark' ? 'tabler-sun' : 'tabler-moon'} />
       </Button>
 
-      <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100dvh', alignItems: 'center', justifyContent: 'center', px: { xs: 2, sm: 3 }, py: { xs: 4, md: 7 } }}>
+      <Box sx={{ position: 'relative', zIndex: 1, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: { xs: 2, sm: 3 }, py: 5 }}>
         <RegistrationCard>
-          <Box sx={{ mx: 'auto', width: '100%', maxWidth: 500 }}>
-            <Button
-              component={Link}
-              href={`/events/${encodeURIComponent(slug)}`}
-              variant='text'
-              startIcon={<i className='tabler-arrow-left' />}
-              sx={{ mb: 3, color: 'text.secondary', px: 0 }}
-            >
+          <Box sx={{ maxWidth: 500, mx: 'auto' }}>
+            <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} variant='text' startIcon={<i className='tabler-arrow-left' />} sx={{ mb: 2, px: 0, color: 'text.secondary' }}>
               Back to event
             </Button>
 
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-              <Box
-                component='img'
-                src={eventLogoUrl}
-                alt={eventData ? `${eventData.name} logo` : 'Pertamina Event'}
-                sx={{ maxWidth: { xs: 190, sm: 230 }, maxHeight: 120, width: 'auto', height: 'auto', objectFit: 'contain' }}
-              />
-            </Box>
+            <Box component='img' src={logoUrl} alt={`${eventData?.name ?? 'Event'} logo`} sx={{ display: 'block', maxWidth: 230, maxHeight: 150, width: 'auto', height: 'auto', objectFit: 'contain', mx: 'auto', mb: 4 }} />
 
-            <Typography
-              variant='h3'
-              sx={{
-                color: 'text.primary',
-                fontWeight: 700,
-                lineHeight: 1.18,
-                fontSize: { xs: '1.75rem', sm: '2rem' }
-              }}
-            >
+            <Typography variant='h4' sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: { xs: '1.5rem', sm: '1.8rem' } }}>
               Register for {eventData?.name ?? 'Event'}
             </Typography>
-
-            <Typography sx={{ mt: 1.25, color: 'text.secondary', lineHeight: 1.65 }}>
-              {eventData?.description ?? 'Complete your information and choose the registration package that suits you.'}
+            <Typography color='text.secondary' sx={{ mt: 1, lineHeight: 1.6 }}>
+              {eventData?.description ?? 'Complete your information and choose an available package.'}
             </Typography>
 
-            {paymentSession && (
-              <Card variant='outlined' sx={{ mt: 4 }}>
-                <CardContent>
-                  <Typography variant='body2' fontWeight={700}>Registration created</Typography>
-                  <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-                    Booking code: {paymentSession.bookingCode}. Your form is locked to prevent duplicate registrations.
-                  </Typography>
-                </CardContent>
-              </Card>
+            {paymentSession?.paymentRequired && (
+              <Alert severity='info' sx={{ mt: 4 }}>
+                Registration {paymentSession.bookingCode} has been created. Continue the same payment session to avoid duplicate reservations.
+              </Alert>
             )}
 
             <Box component='form' noValidate onSubmit={handleSubmit} sx={{ mt: 5, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <CustomTextField
-                select
-                label='Attendee Type'
-                required
-                disabled={paymentLocked}
-                value={form.attendeeType}
-                onChange={event => handleAttendeeTypeChange(event.target.value as AttendeeType)}
-                error={Boolean(errors.attendeeType)}
-                helperText={errors.attendeeType}
-                sx={fieldStyles}
-              >
+              <CustomTextField select label='Attendee Type' required disabled={paymentLocked} value={form.attendeeType} onChange={event => handleAttendeeTypeChange(event.target.value as AttendeeType)} error={Boolean(errors.attendeeType)} helperText={errors.attendeeType} sx={fieldStyles}>
                 <MenuItem value='STUDENT'>Student</MenuItem>
                 <MenuItem value='PROFESSIONAL'>Professional</MenuItem>
                 <MenuItem value='GENERAL'>General</MenuItem>
@@ -457,93 +324,53 @@ const EventRegistration = ({ slug }: Props) => {
               <CustomTextField label='Position / Role' required={isProfessional} disabled={isStudent || paymentLocked} placeholder={isStudent ? 'Not applicable for Student' : 'Enter your position or role'} value={form.position} onChange={event => updateField('position', event.target.value)} error={Boolean(errors.position)} helperText={errors.position || (isStudent ? 'Not required for Student.' : form.attendeeType === 'GENERAL' ? 'Optional for General.' : undefined)} sx={fieldStyles} />
 
               <Box>
-                <Typography fontWeight={600}>
-                  Choose Your Package <Box component='span' color='error.main'>*</Box>
-                </Typography>
-                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75, mb: 2 }}>
-                  Free packages complete registration immediately. Paid packages continue through the secure payment gateway.
-                </Typography>
+                <Typography fontWeight={600}>Choose Your Package *</Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, mb: 2 }}>Free packages register immediately. Paid packages continue to secure Midtrans payment.</Typography>
 
                 {isLoadingPackages ? (
-                  <Card variant='outlined'><CardContent><Typography variant='body2' color='text.secondary' textAlign='center'>Loading available packages...</Typography></CardContent></Card>
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 3, textAlign: 'center' }}><Typography color='text.secondary'>Loading available packages...</Typography></Box>
                 ) : packages.length === 0 ? (
-                  <Card variant='outlined'><CardContent><Typography variant='body2' color='text.secondary' textAlign='center'>No package is currently available.</Typography></CardContent></Card>
+                  <Alert severity='warning'>No package is currently available.</Alert>
                 ) : (
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                     {packages.map(item => {
-                      const isSelected = form.eventPackageId === item.id
+                      const selected = form.eventPackageId === item.id
                       const soldOut = isPackageSoldOut(item)
-
                       return (
-                        <Card
-                          key={item.id}
-                          variant='outlined'
-                          sx={{
-                            height: '100%',
-                            borderColor: isSelected ? 'primary.main' : 'divider',
-                            boxShadow: isSelected ? theme.shadows[4] : 'none'
-                          }}
-                        >
-                          <CardActionArea disabled={soldOut || paymentLocked} onClick={() => updateField('eventPackageId', item.id)} sx={{ height: '100%' }}>
-                            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'flex-start' }}>
-                                <Typography variant='h6' fontWeight={700}>{item.name}</Typography>
-                                {soldOut ? <Chip label='Sold Out' color='error' size='small' /> : item.price <= 0 ? <Chip label='Free' color='success' variant='tonal' size='small' /> : isSelected ? <Chip label='Selected' color='primary' variant='tonal' size='small' /> : null}
-                              </Box>
-                              <Typography color={item.price <= 0 ? 'success.main' : 'primary.main'} fontWeight={700} fontSize='1.05rem'>
-                                {formatPrice(item.price)}
-                              </Typography>
-                              {item.benefits?.trim() && <Typography variant='body2' color='text.secondary' sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>{item.benefits}</Typography>}
-                              <Typography variant='caption' color='text.secondary' sx={{ mt: 'auto', pt: 1 }}>
-                                {item.isUnlimited ? 'Package quota unlimited' : soldOut ? 'Package sold out' : `${item.remainingQuota ?? 0} slot(s) remaining`}
-                              </Typography>
-                            </CardContent>
-                          </CardActionArea>
-                        </Card>
+                        <Button key={item.id} type='button' disabled={soldOut || paymentLocked} onClick={() => updateField('eventPackageId', item.id)} variant={selected ? 'contained' : 'outlined'} color={item.price === 0 ? 'success' : 'primary'} sx={{ p: 2.5, justifyContent: 'flex-start', textAlign: 'left', alignItems: 'stretch', flexDirection: 'column', minHeight: 170 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, width: '100%' }}>
+                            <Typography color='inherit' fontWeight={700}>{item.name}</Typography>
+                            {item.price === 0 && <Chip label='Free' size='small' color='success' variant='tonal' />}
+                          </Box>
+                          <Typography color='inherit' fontWeight={700} sx={{ mt: 1 }}>{item.price === 0 ? 'Free' : `Rp ${item.price.toLocaleString('id-ID')}`}</Typography>
+                          <Typography variant='body2' color='inherit' sx={{ mt: 2, opacity: 0.85, whiteSpace: 'normal' }}>{item.benefits?.trim() || 'Package benefits will be announced.'}</Typography>
+                          <Typography variant='caption' color='inherit' sx={{ mt: 'auto', pt: 2, opacity: 0.75 }}>{item.isUnlimited ? 'Unlimited quota' : soldOut ? 'Sold out' : `${item.remainingQuota ?? 0} slot(s) remaining`}</Typography>
+                        </Button>
                       )
                     })}
                   </Box>
                 )}
-
-                {errors.eventPackageId && <Typography variant='caption' color='error' sx={{ mt: 1, display: 'block' }}>{errors.eventPackageId}</Typography>}
+                {errors.eventPackageId && <Typography variant='caption' color='error'>{errors.eventPackageId}</Typography>}
               </Box>
 
-              {guideImageUrl && (
-                <Box>
-                  <Typography variant='h6' fontWeight={600} sx={{ mb: 2 }}>
-                    {guideTitle || 'Event Guide'}
-                  </Typography>
-                  <Card variant='outlined' sx={{ overflow: 'hidden' }}>
-                    <CardActionArea onClick={() => window.open(guideImageUrl, '_blank', 'noopener,noreferrer')}>
-                      <Box component='img' src={guideImageUrl} alt={guideTitle || `${eventData?.name ?? 'Event'} guide`} sx={{ display: 'block', width: '100%', maxHeight: 560, objectFit: 'contain', bgcolor: 'background.default' }} />
-                    </CardActionArea>
-                  </Card>
-                  <Typography variant='caption' color='text.secondary' sx={{ mt: 1, display: 'block' }}>
-                    Click the image to open the full-size guide.
-                  </Typography>
+              {registrationImageUrl && (
+                <Box sx={{ mt: 1 }}>
+                  {registrationImageTitle && <Typography fontWeight={600} sx={{ mb: 1.5 }}>{registrationImageTitle}</Typography>}
+                  <Box component='a' href={registrationImageUrl} target='_blank' rel='noreferrer' sx={{ display: 'block', overflow: 'hidden', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Box component='img' src={registrationImageUrl} alt={registrationImageTitle || `${eventData?.name ?? 'Event'} registration guide`} sx={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} />
+                  </Box>
                 </Box>
               )}
 
               <Box>
-                <FormControlLabel
-                  control={<Checkbox disabled={paymentLocked} checked={form.consent} onChange={event => updateField('consent', event.target.checked)} />}
-                  label='I agree to the processing of my personal data for the purposes of this event.'
-                  sx={{ alignItems: 'flex-start', color: 'text.secondary', '& .MuiFormControlLabel-label': { fontSize: '0.875rem', lineHeight: 1.45, pt: 0.8 } }}
-                />
+                <FormControlLabel control={<Checkbox disabled={paymentLocked} checked={form.consent} onChange={event => updateField('consent', event.target.checked)} />} label='I agree to the processing of my personal data for the purposes of this event.' sx={{ alignItems: 'flex-start', color: 'text.secondary' }} />
                 {errors.consent && <Typography color='error' variant='caption'>{errors.consent}</Typography>}
               </Box>
 
-              {formMessage && <Typography color={messageIsError ? 'error' : 'text.secondary'} variant='body2'>{formMessage}</Typography>}
+              {formMessage && <Alert severity={messageIsError ? 'error' : 'info'}>{formMessage}</Alert>}
 
-              <Button
-                fullWidth
-                type='submit'
-                variant='contained'
-                size='large'
-                disabled={isSubmitting || isLoadingPackages || !eventData || (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))}
-                sx={{ minHeight: 50, mt: 1 }}
-              >
-                {submitLabel}
+              <Button fullWidth type='submit' variant='contained' size='large' color={isFreePackage && !paymentSession ? 'success' : 'primary'} disabled={isSubmitting || isLoadingPackages || !eventData || (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))}>
+                {isSubmitting ? (isFreePackage ? 'Confirming Registration...' : 'Opening Payment...') : paymentSession?.paymentRequired ? 'Continue Payment' : isFreePackage ? 'Register Free' : 'Register & Pay'}
               </Button>
             </Box>
           </Box>
