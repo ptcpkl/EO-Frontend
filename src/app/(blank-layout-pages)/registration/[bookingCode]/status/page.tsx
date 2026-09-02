@@ -11,6 +11,7 @@ import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 
+import { openMidtransSnap } from '@/registrations/lib/midtrans'
 import {
   getPublicRegistrationStatus,
   resolveRegistrationAccessToken,
@@ -26,6 +27,7 @@ const RegistrationStatusPage = ({ params }: Props) => {
   const [data, setData] = useState<PublicRegistrationStatusResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [openingPayment, setOpeningPayment] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -71,6 +73,26 @@ const RegistrationStatusPage = ({ params }: Props) => {
 
   const paymentConfirmed = data?.paymentStatus.toLowerCase() === 'paid'
 
+  const handleContinuePayment = async () => {
+    if (!data?.snapToken || data.status !== 'PendingPayment') return
+
+    setOpeningPayment(true)
+    setError('')
+
+    try {
+      await openMidtransSnap(data.snapToken, {
+        onSuccess: () => window.location.reload(),
+        onPending: () => window.location.reload(),
+        onError: () => setError('Payment could not be completed. You can try again while the payment is still active.'),
+        onClose: () => setOpeningPayment(false)
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to open secure payment.')
+    } finally {
+      setOpeningPayment(false)
+    }
+  }
+
   return (
     <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, py: 6, bgcolor: 'background.default' }}>
       <Card elevation={0} sx={{ width: '100%', maxWidth: 600, border: theme => `1px solid ${theme.palette.divider}` }}>
@@ -98,7 +120,7 @@ const RegistrationStatusPage = ({ params }: Props) => {
 
               {data.status === 'PendingPayment' && (
                 <Alert severity='info' sx={{ mt: 2 }}>
-                  Payment is still pending. This page checks the backend automatically every few seconds.
+                  Payment is still pending. Continue the payment below before the transaction expires.
                 </Alert>
               )}
 
@@ -113,6 +135,15 @@ const RegistrationStatusPage = ({ params }: Props) => {
               )}
 
               <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
+                {data.status === 'PendingPayment' && data.snapToken && (
+                  <Button
+                    variant='contained'
+                    disabled={openingPayment}
+                    onClick={() => void handleContinuePayment()}
+                  >
+                    {openingPayment ? 'Opening Payment...' : 'Continue Payment'}
+                  </Button>
+                )}
                 {data.ticketAvailable && (
                   <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/ticket`} variant='contained'>View Ticket</Button>
                 )}
