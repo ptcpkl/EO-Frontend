@@ -22,6 +22,15 @@ export type PublicEvent = {
   registrationStatus?: string
   published?: boolean
   imageUrl?: string
+  logoUrl?: string
+  heroImageUrl?: string
+  registrationImageUrl?: string
+  registrationImageTitle?: string
+  venueAddress?: string
+  mapsUrl?: string
+  about?: string
+  benefits?: string
+  additionalInformation?: string
 }
 
 export type EventPackage = {
@@ -128,7 +137,16 @@ const normalizeEvent = (value: unknown): PublicEvent | null => {
     accessMode: firstString(record, 'accessMode', 'mode', 'AccessMode'),
     registrationStatus: firstString(record, 'registrationStatus', 'status', 'RegistrationStatus', 'Status'),
     published: typeof record.published === 'boolean' ? record.published : undefined,
-    imageUrl: firstString(record, 'imageUrl', 'coverImageUrl', 'ImageUrl', 'CoverImageUrl')
+    imageUrl: firstString(record, 'imageUrl', 'coverImageUrl', 'ImageUrl', 'CoverImageUrl'),
+    logoUrl: firstString(record, 'logoUrl', 'LogoUrl'),
+    heroImageUrl: firstString(record, 'heroImageUrl', 'HeroImageUrl'),
+    registrationImageUrl: firstString(record, 'registrationImageUrl', 'RegistrationImageUrl'),
+    registrationImageTitle: firstString(record, 'registrationImageTitle', 'RegistrationImageTitle'),
+    venueAddress: firstString(record, 'venueAddress', 'VenueAddress'),
+    mapsUrl: firstString(record, 'mapsUrl', 'MapsUrl'),
+    about: firstString(record, 'about', 'About'),
+    benefits: firstString(record, 'benefits', 'Benefits'),
+    additionalInformation: firstString(record, 'additionalInformation', 'AdditionalInformation')
   }
 }
 
@@ -152,11 +170,9 @@ export const parseError = async (response: Response, fallback: string) => {
   return body?.detail ?? body?.message ?? body?.title ?? fallback
 }
 
-export async function getPublicEvents(accessToken?: string): Promise<PublicEvent[]> {
-  const response = await fetch(`${apiUrl}/events`, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    cache: 'no-store'
-  })
+export async function getPublicEvents(kind?: string): Promise<PublicEvent[]> {
+  const query = kind ? `?kind=${encodeURIComponent(kind)}` : ''
+  const response = await fetch(`${apiUrl}/events${query}`, { cache: 'no-store' })
 
   if (!response.ok) {
     throw new Error(await parseError(response, `Unable to load events (${response.status}).`))
