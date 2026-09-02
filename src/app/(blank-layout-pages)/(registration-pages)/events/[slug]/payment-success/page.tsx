@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -11,32 +11,37 @@ import CircularProgress from '@mui/material/CircularProgress'
 
 const PaymentSuccessPage = () => {
   const params = useParams<{ slug: string }>()
-  const query = useSearchParams()
   const router = useRouter()
-  const bookingCode = query.get('bookingCode')
+  const [bookingCode, setBookingCode] = useState<string | null>(null)
+  const [resolved, setResolved] = useState(false)
 
   useEffect(() => {
-    if (bookingCode) {
-      router.replace(`/registration/${encodeURIComponent(bookingCode)}/status`)
-    }
-  }, [bookingCode, router])
+    const code = new URLSearchParams(window.location.search).get('bookingCode')
 
-  if (!bookingCode) {
+    setBookingCode(code)
+    setResolved(true)
+
+    if (code) {
+      router.replace(`/registration/${encodeURIComponent(code)}/status`)
+    }
+  }, [router])
+
+  if (!resolved || bookingCode) {
     return (
-      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, bgcolor: 'background.default' }}>
-        <Box sx={{ width: '100%', maxWidth: 560 }}>
-          <Alert severity='warning'>Booking code is missing, so registration status cannot be loaded.</Alert>
-          <Button component={Link} href={`/events/${encodeURIComponent(params.slug)}`} variant='outlined' sx={{ mt: 2 }}>
-            Back to Event
-          </Button>
-        </Box>
+      <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
+        <CircularProgress />
       </Box>
     )
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
-      <CircularProgress />
+    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, bgcolor: 'background.default' }}>
+      <Box sx={{ width: '100%', maxWidth: 560 }}>
+        <Alert severity='warning'>Booking code is missing, so registration status cannot be loaded.</Alert>
+        <Button component={Link} href={`/events/${encodeURIComponent(params.slug)}`} variant='outlined' sx={{ mt: 2 }}>
+          Back to Event
+        </Button>
+      </Box>
     </Box>
   )
 }
