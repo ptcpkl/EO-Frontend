@@ -4,10 +4,12 @@ import { authFetch } from '@/lib/auth'
 export const EVENT_KINDS = ['Seminar', 'Workshop', 'Running', 'Other'] as const
 export const EVENT_STATUSES = ['Draft', 'Published', 'Archived'] as const
 export const EVENT_ACCESS_MODES = ['Public', 'InvitationCode', 'EmailDomain'] as const
+export const EVENT_ASSET_TYPES = ['logo', 'hero', 'registration'] as const
 
 export type EventKind = (typeof EVENT_KINDS)[number]
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 export type EventAccessMode = (typeof EVENT_ACCESS_MODES)[number]
+export type EventAssetType = (typeof EVENT_ASSET_TYPES)[number]
 
 export type AdminEvent = {
   id: string
@@ -27,6 +29,15 @@ export type AdminEvent = {
   price: number
   accessMode: EventAccessMode
   accessValue: string | null
+  logoUrl: string | null
+  heroImageUrl: string | null
+  registrationImageUrl: string | null
+  registrationImageTitle: string | null
+  venueAddress: string | null
+  mapsUrl: string | null
+  about: string | null
+  benefits: string | null
+  additionalInformation: string | null
 }
 
 export type EventUpsertRequest = {
@@ -41,6 +52,17 @@ export type EventUpsertRequest = {
   capacity: number
   accessMode: EventAccessMode
   accessValue?: string | null
+  registrationImageTitle?: string | null
+  venueAddress?: string | null
+  mapsUrl?: string | null
+  about?: string | null
+  benefits?: string | null
+  additionalInformation?: string | null
+}
+
+export type EventAssetUploadResponse = {
+  assetType: EventAssetType
+  url: string
 }
 
 const ensureOk = async (response: Response, fallback: string) => {
@@ -88,6 +110,28 @@ export async function updateAdminEvent(eventId: string, request: EventUpsertRequ
   await ensureOk(response, 'Unable to update event.')
 
   return (await response.json()) as AdminEvent
+}
+
+export async function uploadAdminEventAsset(
+  eventId: string,
+  assetType: EventAssetType,
+  file: File
+): Promise<EventAssetUploadResponse> {
+  const form = new FormData()
+
+  form.append('file', file)
+
+  const response = await authFetch(
+    `/admin/events/${encodeURIComponent(eventId)}/assets/${encodeURIComponent(assetType)}`,
+    {
+      method: 'POST',
+      body: form
+    }
+  )
+
+  await ensureOk(response, `Unable to upload event ${assetType} image.`)
+
+  return (await response.json()) as EventAssetUploadResponse
 }
 
 export async function publishAdminEvent(eventId: string): Promise<AdminEvent> {

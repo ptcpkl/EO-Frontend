@@ -13,8 +13,13 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
 
-import EventForm from '../../components/EventForm'
-import { getAdminEvent, updateAdminEvent, type AdminEvent, type EventUpsertRequest } from '@/lib/admin-events'
+import EventForm, { type EventFormSubmission } from '../../components/EventForm'
+import {
+  getAdminEvent,
+  updateAdminEvent,
+  uploadAdminEventAsset,
+  type AdminEvent
+} from '@/lib/admin-events'
 
 const EditEventPage = () => {
   const params = useParams<{ eventSlug: string }>()
@@ -25,39 +30,45 @@ const EditEventPage = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const loadEvent = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      setEvent(await getAdminEvent(eventSlug))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load event.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let active = true
-
-    const load = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const loaded = await getAdminEvent(eventSlug)
-        if (active) setEvent(loaded)
-      } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load event.')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      active = false
-    }
+    void loadEvent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventSlug])
 
-  const handleSubmit = async (request: EventUpsertRequest) => {
+  const handleSubmit = async ({ request, assets }: EventFormSubmission) => {
     if (!event) return
 
     try {
       setSubmitting(true)
       setError(null)
+
       await updateAdminEvent(event.id, request)
+
+      if (assets.logo) await uploadAdminEventAsset(event.id, 'logo', assets.logo)
+      if (assets.hero) await uploadAdminEventAsset(event.id, 'hero', assets.hero)
+      if (assets.registration) await uploadAdminEventAsset(event.id, 'registration', assets.registration)
+
       router.push(`/admin/events/${encodeURIComponent(event.id)}`)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to update event.')
+
+      try {
+        setEvent(await getAdminEvent(event.id))
+      } catch {
+        // Keep the already loaded event so the edit form remains usable.
+      }
     } finally {
       setSubmitting(false)
     }
@@ -89,30 +100,29 @@ const EditEventPage = () => {
     )
   }
 
+  const mediaComplete = Boolean(event.logoUrl && event.heroImageUrl && event.registrationImageUrl && event.registrationImageTitle)
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
         <Breadcrumbs sx={{ mb: 3 }}>
-          <Link component={NextLink} href='/admin/events' color='inherit' underline='hover'>
-            Events
-          </Link>
-          <Link
-            component={NextLink}
-            href={`/admin/events/${encodeURIComponent(event.id)}`}
-            color='inherit'
-            underline='hover'
-          >
+          <Link component={NextLink} href='/admin/events' color='inherit' underline='hover'>Events</Link>
+          <Link component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}`} color='inherit' underline='hover'>
             {event.name}
           </Link>
           <Typography color='text.primary'>Edit</Typography>
         </Breadcrumbs>
 
-        <Typography variant='h4' fontWeight={700}>
-          Edit Event
-        </Typography>
+        <Typography variant='h4' fontWeight={700}>Edit Event</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Update event information. Publishing status is managed separately from event details.
+          Update event information, public landing content, and event-specific visual assets.
         </Typography>
+
+        {!mediaComplete && (
+          <Alert severity='warning' sx={{ mt: 3 }}>
+            Complete the event logo, hero image, registration visual, and visual title before publishing this Draft event.
+          </Alert>
+        )}
       </Box>
 
       <EventForm
