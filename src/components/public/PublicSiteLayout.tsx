@@ -11,7 +11,7 @@ import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 
-import EventAwarePublicFooter from './EventAwarePublicFooter'
+import PublicFooter from './PublicFooter'
 
 const categories = [
   { label: 'Running', href: '/events/category/running', icon: 'tabler-run' },
@@ -105,7 +105,7 @@ const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
     <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <PublicNavbar />
       <Box component='main' sx={{ flex: 1, pt: eventDetailRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
-      <EventAwarePublicFooter />
+      <PublicFooter />
     </Box>
   )
 }
