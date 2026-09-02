@@ -1,12 +1,20 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import NextLink from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
+
+import { getPublicEventBySlug } from '@/lib/api'
+import {
+  getPublicRegistrationStatus,
+  resolveRegistrationAccessToken
+} from '@/registrations/services/registration-public.service'
 
 const categories = [
   ['Running', '/events/category/running', 'tabler-run'],
@@ -18,6 +26,11 @@ const categories = [
 type Props = {
   eventLogoUrl?: string | null
   eventName?: string | null
+}
+
+type EventBrand = {
+  logoUrl?: string | null
+  name?: string | null
 }
 
 const FooterLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -67,7 +80,70 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
 )
 
 const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
+  const pathname = usePathname()
+  const [routeBrand, setRouteBrand] = useState<EventBrand>({})
   const year = new Date().getFullYear()
+
+  const eventSlug = useMemo(() => {
+    const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
+    return match?.[1] ? decodeURIComponent(match[1]) : null
+  }, [pathname])
+
+  const bookingCode = useMemo(() => {
+    const match = pathname.match(/^\/registration\/([^/]+)/)
+    return match?.[1] ? decodeURIComponent(match[1]) : null
+  }, [pathname])
+
+  useEffect(() => {
+    let active = true
+
+    if (eventLogoUrl !== undefined || eventName !== undefined) {
+      setRouteBrand({})
+      return () => {
+        active = false
+      }
+    }
+
+    const loadBrand = async () => {
+      if (eventSlug) {
+        try {
+          const event = await getPublicEventBySlug(eventSlug)
+          if (active) setRouteBrand({ logoUrl: event.logoUrl, name: event.name })
+        } catch {
+          if (active) setRouteBrand({})
+        }
+        return
+      }
+
+      if (bookingCode) {
+        const accessToken = resolveRegistrationAccessToken(bookingCode)
+
+        if (!accessToken) {
+          if (active) setRouteBrand({})
+          return
+        }
+
+        try {
+          const registration = await getPublicRegistrationStatus(bookingCode, accessToken)
+          if (active) setRouteBrand({ logoUrl: registration.eventLogoUrl, name: registration.eventName })
+        } catch {
+          if (active) setRouteBrand({})
+        }
+        return
+      }
+
+      setRouteBrand({})
+    }
+
+    void loadBrand()
+
+    return () => {
+      active = false
+    }
+  }, [bookingCode, eventLogoUrl, eventName, eventSlug])
+
+  const resolvedLogoUrl = eventLogoUrl ?? routeBrand.logoUrl
+  const resolvedEventName = eventName ?? routeBrand.name
 
   return (
     <Box
@@ -141,7 +217,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                 alt='Pertamina Event'
                 sx={{ width: 'auto', height: { xs: 48, md: 58 }, maxWidth: 230, objectFit: 'contain' }}
               />
-              {eventLogoUrl && (
+              {resolvedLogoUrl && (
                 <>
                   <Divider
                     orientation='vertical'
@@ -150,8 +226,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                   />
                   <Box
                     component='img'
-                    src={eventLogoUrl}
-                    alt={`${eventName || 'Event'} logo`}
+                    src={resolvedLogoUrl}
+                    alt={`${resolvedEventName || 'Event'} logo`}
                     sx={{
                       width: 'auto',
                       maxWidth: { xs: 170, md: 205 },
