@@ -1,8 +1,8 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import NextLink from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -24,8 +24,6 @@ import {
   type AdminEvent
 } from '@/lib/admin-events'
 
-type Props = { params: Promise<{ eventSlug: string }> }
-
 const formatDateTime = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -39,8 +37,9 @@ const formatPrice = (value: number) =>
     style: 'currency', currency: 'IDR', maximumFractionDigits: 0
   }).format(value)
 
-const EventOverviewPage = ({ params }: Props) => {
-  const { eventSlug: eventId } = use(params)
+const EventOverviewPage = () => {
+  const params = useParams<{ eventSlug: string }>()
+  const eventId = params.eventSlug
   const router = useRouter()
   const [event, setEvent] = useState<AdminEvent | null>(null)
   const [loading, setLoading] = useState(true)
