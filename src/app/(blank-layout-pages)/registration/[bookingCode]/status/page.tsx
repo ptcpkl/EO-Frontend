@@ -1,30 +1,64 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
 
 import { openMidtransSnap } from '@/registrations/lib/midtrans'
 import {
+  getPublicRegistrationReceipt,
   getPublicRegistrationStatus,
   resolveRegistrationAccessToken,
+  type PublicRegistrationReceiptResponse,
   type PublicRegistrationStatusResponse
 } from '@/registrations/services/registration-public.service'
 
-type Props = {
-  params: Promise<{ bookingCode: string }>
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  }).format(value)
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date)
 }
 
-const RegistrationStatusPage = ({ params }: Props) => {
-  const { bookingCode } = use(params)
+const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 1.5 }}>
+    <Typography variant='body2' color='text.secondary'>{label}</Typography>
+    <Typography variant='body2' fontWeight={600} sx={{ textAlign: 'right', overflowWrap: 'anywhere' }}>{value}</Typography>
+  </Box>
+)
+
+const RegistrationStatusPage = () => {
+  const params = useParams<{ bookingCode: string }>()
+  const bookingCode = params.bookingCode
   const [data, setData] = useState<PublicRegistrationStatusResponse | null>(null)
+  const [receipt, setReceipt] = useState<PublicRegistrationReceiptResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [openingPayment, setOpeningPayment] = useState(false)
@@ -52,6 +86,15 @@ const RegistrationStatusPage = ({ params }: Props) => {
         setError('')
         setLoading(false)
 
+        if (result.paymentStatus.toLowerCase() === 'paid' && result.receiptAvailable) {
+          try {
+            const receiptResult = await getPublicRegistrationReceipt(bookingCode, token)
+            if (!cancelled) setReceipt(receiptResult)
+          } catch {
+            if (!cancelled) setReceipt(null)
+          }
+        }
+
         if (result.status === 'PendingPayment') {
           timer = setTimeout(load, 3000)
         }
@@ -72,6 +115,7 @@ const RegistrationStatusPage = ({ params }: Props) => {
   }, [bookingCode])
 
   const paymentConfirmed = data?.paymentStatus.toLowerCase() === 'paid'
+  const successful = Boolean(data && ['Registered', 'CheckedIn'].includes(data.status) && paymentConfirmed)
 
   const handleContinuePayment = async () => {
     if (!data?.snapToken || data.status !== 'PendingPayment') return
@@ -94,68 +138,156 @@ const RegistrationStatusPage = ({ params }: Props) => {
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, py: 6, bgcolor: 'background.default' }}>
-      <Card elevation={0} sx={{ width: '100%', maxWidth: 600, border: theme => `1px solid ${theme.palette.divider}` }}>
-        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-          <Typography variant='h4' fontWeight={700}>Registration Status</Typography>
-          <Typography color='text.secondary' sx={{ mt: 1 }}>Booking code: {bookingCode}</Typography>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', px: 2, py: { xs: 4, md: 8 } }}>
+      <Box sx={{ width: '100%', maxWidth: 560, mx: 'auto' }}>
+        {loading && (
+          <Card>
+            <CardContent sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </CardContent>
+          </Card>
+        )}
 
-          {loading && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 4 }}>
-              <CircularProgress size={24} />
-              <Typography>Checking payment status...</Typography>
-            </Box>
-          )}
+        {error && !data && <Alert severity='error'>{error}</Alert>}
 
-          {error && <Alert severity='error' sx={{ mt: 4 }}>{error}</Alert>}
+        {data && (
+          <Card>
+            <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+              {successful ? (
+                <>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Box
+                      sx={{
+                        width: 88,
+                        height: 88,
+                        mx: 'auto',
+                        display: 'grid',
+                        placeItems: 'center',
+                        borderRadius: '50%',
+                        bgcolor: 'success.lighter',
+                        color: 'success.main'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 52,
+                          height: 52,
+                          display: 'grid',
+                          placeItems: 'center',
+                          borderRadius: '50%',
+                          bgcolor: 'success.main',
+                          color: 'success.contrastText'
+                        }}
+                      >
+                        <i className='tabler-check text-3xl' />
+                      </Box>
+                    </Box>
 
-          {data && (
-            <Box sx={{ mt: 4, display: 'grid', gap: 1.25 }}>
-              <Typography><strong>Name:</strong> {data.fullName}</Typography>
-              <Typography><strong>Event:</strong> {data.eventName}</Typography>
-              <Typography><strong>Package:</strong> {data.eventPackageName ?? '-'}</Typography>
-              <Typography><strong>Registration:</strong> {data.status}</Typography>
-              <Typography><strong>Payment:</strong> {data.paymentStatus}</Typography>
-              <Typography><strong>Total:</strong> Rp{data.grossAmount.toLocaleString('id-ID')}</Typography>
+                    <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>
+                      Payment successful
+                    </Typography>
+                    <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
+                      Successfully paid {formatCurrency(data.grossAmount)}
+                    </Typography>
+                  </Box>
 
-              {data.status === 'PendingPayment' && (
-                <Alert severity='info' sx={{ mt: 2 }}>
-                  Payment is still pending. Continue the payment below before the transaction expires.
-                </Alert>
-              )}
+                  <Typography variant='h6' fontWeight={600} sx={{ mt: 6, mb: 2 }}>
+                    Payment details
+                  </Typography>
 
-              {['Registered', 'CheckedIn'].includes(data.status) && paymentConfirmed && (
-                <Alert severity='success' sx={{ mt: 2 }}>Payment confirmed. Your registration is active and your ticket is ready.</Alert>
-              )}
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 3, py: 1 }}>
+                    <DetailRow label='Transaction ID' value={receipt?.transactionId ?? data.registrationId} />
+                    <Divider />
+                    <DetailRow label='Date' value={formatDate(receipt?.paidAtUtc ?? data.paidAtUtc ?? data.registeredAtUtc)} />
+                    <Divider />
+                    <DetailRow label='Type of Transaction' value={receipt?.paymentType ?? data.paymentStatus} />
+                    <Divider />
+                    <DetailRow label='Package' value={data.eventPackageName ?? '-'} />
+                    <Divider />
+                    <DetailRow label='Nominal' value={formatCurrency(data.grossAmount)} />
+                    <Divider />
+                    <DetailRow label='Admin' value={formatCurrency(0)} />
+                    <Divider />
+                    <DetailRow label='Status' value={<Chip label='Success' color='success' variant='tonal' size='small' icon={<i className='tabler-circle-check' />} />} />
+                  </Box>
 
-              {['Failed', 'Expired', 'Cancelled'].includes(data.status) && (
-                <Alert severity='warning' sx={{ mt: 2 }}>
-                  This registration is no longer active. Any reserved quota has been released by the backend.
-                </Alert>
-              )}
-
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
-                {data.status === 'PendingPayment' && data.snapToken && (
-                  <Button
-                    variant='contained'
-                    disabled={openingPayment}
-                    onClick={() => void handleContinuePayment()}
+                  <Box
+                    sx={{
+                      mt: 3,
+                      px: 3,
+                      py: 2,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      borderRadius: 2
+                    }}
                   >
-                    {openingPayment ? 'Opening Payment...' : 'Continue Payment'}
+                    <Typography variant='h6' color='inherit' fontWeight={600}>Total</Typography>
+                    <Typography variant='h6' color='inherit' fontWeight={700}>{formatCurrency(data.grossAmount)}</Typography>
+                  </Box>
+
+                  <Button component={Link} href='/home' fullWidth variant='contained' size='large' sx={{ mt: 4 }}>
+                    Back To Home Screen
                   </Button>
-                )}
-                {data.ticketAvailable && (
-                  <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/ticket`} variant='contained'>View Ticket</Button>
-                )}
-                {data.receiptAvailable && (
-                  <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/receipt`} variant='outlined'>View Receipt</Button>
-                )}
-                <Button component={Link} href='/home' variant='text'>Home</Button>
-              </Box>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+                </>
+              ) : (
+                <>
+                  <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <Box
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        mx: 'auto',
+                        display: 'grid',
+                        placeItems: 'center',
+                        borderRadius: '50%',
+                        bgcolor: data.status === 'PendingPayment' ? 'warning.lighter' : 'action.hover',
+                        color: data.status === 'PendingPayment' ? 'warning.main' : 'text.secondary'
+                      }}
+                    >
+                      <i className={`${data.status === 'PendingPayment' ? 'tabler-clock' : 'tabler-alert-circle'} text-3xl`} />
+                    </Box>
+                    <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>
+                      {data.status === 'PendingPayment' ? 'Payment pending' : 'Registration status'}
+                    </Typography>
+                    <Typography color='text.secondary' sx={{ mt: 1 }}>{data.eventName}</Typography>
+                  </Box>
+
+                  {error && <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>}
+
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 3, py: 1 }}>
+                    <DetailRow label='Booking Code' value={bookingCode} />
+                    <Divider />
+                    <DetailRow label='Package' value={data.eventPackageName ?? '-'} />
+                    <Divider />
+                    <DetailRow label='Payment' value={data.paymentStatus} />
+                    <Divider />
+                    <DetailRow label='Total' value={formatCurrency(data.grossAmount)} />
+                  </Box>
+
+                  {data.status === 'PendingPayment' && data.snapToken && (
+                    <Button fullWidth variant='contained' size='large' sx={{ mt: 4 }} disabled={openingPayment} onClick={() => void handleContinuePayment()}>
+                      {openingPayment ? 'Opening Payment...' : 'Continue Payment'}
+                    </Button>
+                  )}
+
+                  {['Failed', 'Expired', 'Cancelled'].includes(data.status) && (
+                    <Alert severity='warning' sx={{ mt: 3 }}>
+                      This registration is no longer active. Any reserved quota has been released by the backend.
+                    </Alert>
+                  )}
+
+                  <Button component={Link} href='/home' fullWidth variant='outlined' sx={{ mt: 2 }}>
+                    Back To Home Screen
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </Box>
     </Box>
   )
 }
