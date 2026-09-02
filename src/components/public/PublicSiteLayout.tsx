@@ -29,30 +29,44 @@ const PublicNavbar = () => {
   const openMobile = (event: MouseEvent<HTMLElement>) => setMobileAnchor(event.currentTarget)
 
   return (
-    <Box component='header' sx={{ position: 'sticky', top: { xs: 10, md: 16 }, zIndex: theme => theme.zIndex.appBar, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
+    <Box
+      component='header'
+      sx={{
+        position: 'fixed',
+        insetInline: 0,
+        top: 0,
+        zIndex: theme => theme.zIndex.appBar,
+        px: { xs: 2, md: 3 },
+        pt: { xs: 1.5, md: 2 },
+        pointerEvents: 'none'
+      }}
+    >
       <Paper
-        elevation={8}
+        elevation={10}
         sx={{
           maxWidth: 1180,
+          minHeight: { xs: 60, md: 68 },
           mx: 'auto',
-          px: { xs: 2, md: 3 },
-          py: 1.25,
+          px: { xs: 2.25, md: 3.25 },
+          py: { xs: 1.35, md: 1.65 },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 2,
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: 4,
+          borderRadius: 999,
           bgcolor: 'background.paper',
-          backdropFilter: 'blur(16px)'
+          boxShadow: '0 10px 32px rgba(15, 23, 42, .18)',
+          backdropFilter: 'blur(18px)',
+          pointerEvents: 'auto'
         }}
       >
         <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
           <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 32, md: 38 }, width: 'auto', objectFit: 'contain' }} />
         </Box>
 
-        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.75 }}>
           <Button component={NextLink} href='/home' color='inherit' variant='text'>Home</Button>
           <Button color='inherit' variant='text' endIcon={<i className='tabler-chevron-down' />} onClick={openEvents}>Events</Button>
           <Button component={NextLink} href='/about' color='inherit' variant='text'>About</Button>
@@ -87,6 +101,7 @@ const PublicNavbar = () => {
 const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname()
   const [eventBrand, setEventBrand] = useState<{ logoUrl?: string; name?: string }>({})
+  const eventDetailRoute = /^\/events\/(?!category\/)[^/]+\/?$/.test(pathname)
 
   const eventSlug = useMemo(() => {
     const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
@@ -115,7 +130,7 @@ const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   return (
     <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <PublicNavbar />
-      <Box component='main' sx={{ flex: 1 }}>{children}</Box>
+      <Box component='main' sx={{ flex: 1, pt: eventDetailRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
       <PublicFooter eventLogoUrl={eventBrand.logoUrl} eventName={eventBrand.name} />
     </Box>
   )

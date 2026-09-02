@@ -40,13 +40,12 @@ const Layout = async (props: ChildrenType) => {
                 mode={mode}
                 showCreateEvent
                 showEventManagement
-                showRegistrations
                 showCheckIns
                 showUsers
                 showArchivedEvents
                 showAbout
                 homeHref='/admin/home'
-                aboutHref='/about'
+                aboutHref='/admin/about'
               />
             }
             navbar={<Navbar />}
@@ -57,7 +56,7 @@ const Layout = async (props: ChildrenType) => {
         }
         horizontalLayout={
           <HorizontalLayout
-            header={<Header homeHref='/admin/home' aboutHref='/about' showEventManagement showAbout />}
+            header={<Header homeHref='/admin/home' aboutHref='/admin/about' showEventManagement showAbout />}
             footer={<HorizontalFooter />}
           >
             <AdminSessionGuard>{children}</AdminSessionGuard>

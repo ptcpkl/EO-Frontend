@@ -36,7 +36,18 @@ const formatDate = (value?: string | null) => {
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 1.5 }}>
     <Typography variant='body2' color='text.secondary'>{label}</Typography>
-    <Typography variant='body2' fontWeight={600} sx={{ textAlign: 'right', overflowWrap: 'anywhere' }}>{value}</Typography>
+    <Box
+      component='div'
+      sx={{
+        textAlign: 'right',
+        overflowWrap: 'anywhere',
+        fontSize: theme => theme.typography.body2.fontSize,
+        lineHeight: theme => theme.typography.body2.lineHeight,
+        fontWeight: 600
+      }}
+    >
+      {value}
+    </Box>
   </Box>
 )
 
