@@ -5,6 +5,7 @@ export type PublicRegistrationStatusResponse = {
   bookingCode: string
   fullName: string
   eventName: string
+  eventLogoUrl?: string | null
   eventPackageName?: string | null
   status: string
   paymentStatus: string

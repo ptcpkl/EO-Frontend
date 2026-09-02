@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff5ff"/>
+      <stop offset="0.58" stop-color="#c8ebfb"/>
+      <stop offset="1" stop-color="#bde4f7"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#05396d"/>
+      <stop offset="1" stop-color="#002f60"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00b6a6"/>
+      <stop offset="1" stop-color="#0095aa"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc62d"/>
+      <stop offset="1" stop-color="#ff9f1c"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2" fill="#1599d1" opacity="0.18"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="760" fill="url(#sky)"/>
+  <circle cx="132" cy="98" r="115" fill="#fff" opacity="0.36" filter="url(#soft)"/>
+  <circle cx="1450" cy="104" r="135" fill="#fff" opacity="0.28" filter="url(#soft)"/>
+  <path d="M0 150 C150 75 305 165 452 105 C600 45 705 102 860 70 C1030 35 1200 75 1350 40 C1460 14 1540 44 1600 18 V0 H0Z" fill="#fff" opacity="0.28"/>
+  <path d="M0 234 C120 177 220 218 330 185 C490 136 585 198 720 168 C870 134 950 182 1095 142 C1270 94 1410 165 1600 108" fill="none" stroke="#fff" stroke-width="42" opacity="0.13" stroke-linecap="round"/>
+
+  <!-- left microphone -->
+  <g transform="translate(28 75) rotate(-18)">
+    <ellipse cx="45" cy="30" rx="29" ry="36" fill="#0a5e97" stroke="#023b69" stroke-width="5"/>
+    <path d="M23 19 L68 45 M22 32 L62 55 M35 8 L76 34" stroke="#7bd6ed" stroke-width="3" opacity="0.75"/>
+    <rect x="37" y="60" width="17" height="115" rx="8" fill="#1478a8" stroke="#023b69" stroke-width="5"/>
+    <path d="M46 174 C40 215 8 225 0 253" fill="none" stroke="#023b69" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- top drone with parcel -->
+  <g transform="translate(1000 70)">
+    <g fill="none" stroke="#054c7c" stroke-width="6">
+      <ellipse cx="-42" cy="0" rx="58" ry="18"/><ellipse cx="150" cy="0" rx="58" ry="18"/>
+      <path d="M12 22 L-24 8 M92 22 L134 8"/>
+    </g>
+    <path d="M10 8 L85 8 L112 44 L68 78 L18 58Z" fill="#0b74a7" stroke="#03436d" stroke-width="6"/>
+    <circle cx="60" cy="40" r="13" fill="#0dd0c2" stroke="#03436d" stroke-width="5"/>
+    <path d="M45 78 L45 120 M78 75 L78 120" stroke="#03436d" stroke-width="5"/>
+    <g transform="translate(35 118)">
+      <rect x="0" y="0" width="62" height="58" rx="6" fill="url(#orange)" stroke="#03436d" stroke-width="5"/>
+      <path d="M0 20 H62 M20 0 V58" stroke="#0c6da0" stroke-width="5"/>
+    </g>
+  </g>
+
+  <!-- stage lights -->
+  <g transform="translate(1325 30)">
+    <path d="M0 0 H240 M28 0 L50 80 M212 0 L190 80" stroke="#0c4f79" stroke-width="7"/>
+    <path d="M20 0 L60 30 L100 0 L140 30 L180 0 L220 30" fill="none" stroke="#0c4f79" stroke-width="4"/>
+    <g>
+      <circle cx="64" cy="45" r="19" fill="#58b87c" stroke="#073f69" stroke-width="5"/>
+      <circle cx="112" cy="45" r="19" fill="#18a6c8" stroke="#073f69" stroke-width="5"/>
+      <circle cx="160" cy="45" r="19" fill="#f35b68" stroke="#073f69" stroke-width="5"/>
+      <circle cx="208" cy="45" r="19" fill="#ffcb3c" stroke="#073f69" stroke-width="5"/>
+    </g>
+  </g>
+
+  <!-- headphones -->
+  <g transform="translate(1450 190) rotate(12)">
+    <path d="M0 72 C0 8 98 8 98 72" fill="none" stroke="#064b7b" stroke-width="15" stroke-linecap="round"/>
+    <rect x="-10" y="60" width="28" height="58" rx="13" fill="#0b88b5" stroke="#064b7b" stroke-width="5"/>
+    <rect x="80" y="60" width="28" height="58" rx="13" fill="#ffb520" stroke="#064b7b" stroke-width="5"/>
+  </g>
+
+  <!-- playful accents -->
+  <g fill="none" stroke-linecap="round" stroke-width="6">
+    <path d="M176 80 l18 -24 l10 20 l18 -23" stroke="#ff4a61"/>
+    <path d="M545 78 l0 28 M531 92 h28" stroke="#20a67f"/>
+    <path d="M705 110 q12 -18 24 0 q12 18 24 0" stroke="#ff8e24"/>
+    <path d="M1180 118 l0 32 M1164 134 h32" stroke="#1398d0"/>
+    <path d="M1495 345 l34 -14 l-15 30" stroke="#ffc22f"/>
+  </g>
+  <g fill="#ff4a61"><circle cx="842" cy="72" r="7"/><circle cx="1230" cy="210" r="6"/></g>
+  <g fill="#0baea4"><circle cx="1368" cy="163" r="7"/><circle cx="280" cy="160" r="5"/></g>
+
+  <!-- side dotted textures -->
+  <path d="M0 250 H170 V470 H0Z" fill="url(#dots)"/>
+  <path d="M1435 205 H1600 V430 H1435Z" fill="url(#dots)"/>
+
+  <!-- bottom scenic layers -->
+  <path d="M0 586 C140 532 245 622 386 576 C545 524 648 612 792 568 C944 522 1075 617 1230 563 C1368 514 1480 573 1600 535 V760 H0Z" fill="#0c73a1" opacity="0.96"/>
+  <path d="M0 632 C160 570 270 666 440 610 C590 560 715 666 880 607 C1045 548 1170 661 1322 604 C1435 562 1528 592 1600 570 V760 H0Z" fill="#00558b"/>
+  <path d="M0 676 C155 627 310 705 474 656 C650 605 790 708 960 654 C1134 600 1270 705 1435 645 C1504 620 1552 626 1600 620 V760 H0Z" fill="url(#navy)"/>
+
+  <!-- runner left -->
+  <g transform="translate(55 465)">
+    <circle cx="50" cy="0" r="19" fill="#ffd1ad" stroke="#073e68" stroke-width="5"/>
+    <path d="M31 -13 Q51 -34 72 -13 L61 -7 Q44 -17 31 -7Z" fill="#ff7b24" stroke="#073e68" stroke-width="5"/>
+    <path d="M45 24 L84 56 L56 92 L18 64Z" fill="#fff" stroke="#073e68" stroke-width="5"/>
+    <path d="M28 66 L-7 104 M70 62 L103 30 M54 91 L95 125 M39 92 L8 132" fill="none" stroke="#073e68" stroke-width="9" stroke-linecap="round"/>
+    <path d="M7 103 L-25 113 M97 126 L124 131 M3 134 L-19 142" stroke="#073e68" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- race car -->
+  <g transform="translate(120 620)">
+    <path d="M0 40 L45 8 H168 L215 40 L198 73 H20Z" fill="url(#orange)" stroke="#053c69" stroke-width="6"/>
+    <path d="M58 8 L85 -20 H142 L166 8" fill="#e5f7ff" stroke="#053c69" stroke-width="6"/>
+    <circle cx="54" cy="73" r="25" fill="#073e68"/><circle cx="164" cy="73" r="25" fill="#073e68"/>
+    <circle cx="54" cy="73" r="10" fill="#b8e6f7"/><circle cx="164" cy="73" r="10" fill="#b8e6f7"/>
+    <circle cx="112" cy="42" r="21" fill="#fff" stroke="#073e68" stroke-width="4"/>
+    <text x="112" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#073e68">01</text>
+  </g>
+
+  <!-- music performers -->
+  <g transform="translate(680 565)">
+    <circle cx="20" cy="0" r="18" fill="#ffcfaa" stroke="#073e68" stroke-width="5"/>
+    <path d="M5 -12 Q20 -29 39 -10 L30 -5 Q16 -13 5 -5Z" fill="#f34e6a" stroke="#073e68" stroke-width="4"/>
+    <path d="M6 26 L37 25 L49 88 L-5 88Z" fill="#18aaa1" stroke="#073e68" stroke-width="5"/>
+    <path d="M38 43 L93 20" stroke="#073e68" stroke-width="7"/>
+    <ellipse cx="101" cy="16" rx="33" ry="20" fill="#ff8b2a" stroke="#073e68" stroke-width="5" transform="rotate(-12 101 16)"/>
+    <path d="M-1 88 L-18 128 M38 88 L52 128" stroke="#073e68" stroke-width="8"/>
+  </g>
+  <g transform="translate(845 552)">
+    <circle cx="20" cy="0" r="18" fill="#ffd0ab" stroke="#073e68" stroke-width="5"/>
+    <path d="M2 -10 Q22 -28 41 -8 L29 -4 Q17 -10 2 -3Z" fill="#1699cb" stroke="#073e68" stroke-width="4"/>
+    <path d="M6 27 L38 27 L49 94 L-7 94Z" fill="#fff7df" stroke="#073e68" stroke-width="5"/>
+    <path d="M10 48 L-19 83 M40 42 L71 10" stroke="#073e68" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="-26" cy="90" r="6" fill="#ff4d67"/>
+    <path d="M0 94 L-14 134 M39 94 L51 134" stroke="#073e68" stroke-width="8"/>
+  </g>
+
+  <!-- game controller -->
+  <g transform="translate(1115 615) rotate(8)">
+    <path d="M10 25 Q20 0 52 8 L102 8 Q134 0 144 25 L157 66 Q164 92 141 98 Q126 101 113 77 L100 58 H54 L40 78 Q25 101 10 98 Q-13 92 -5 66Z" fill="#67c7ba" stroke="#053f6b" stroke-width="6"/>
+    <path d="M38 33 v24 M26 45 h24" stroke="#053f6b" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="119" cy="37" r="6" fill="#ffcf2e"/><circle cx="134" cy="52" r="6" fill="#ff5267"/>
+  </g>
+
+  <!-- trophy -->
+  <g transform="translate(1355 585)">
+    <path d="M25 0 H85 L77 62 Q55 82 33 62Z" fill="url(#orange)" stroke="#053f6b" stroke-width="6"/>
+    <path d="M25 10 H5 Q2 45 33 49 M85 10 H105 Q108 45 77 49" fill="none" stroke="#053f6b" stroke-width="6"/>
+    <path d="M55 74 V100 M28 100 H82" stroke="#053f6b" stroke-width="7"/>
+    <path d="M55 14 l7 14 l16 2 l-12 11 l3 16 l-14 -8 l-14 8 l3 -16 l-12 -11 l16 -2Z" fill="#fff4b4" stroke="#d38400" stroke-width="2"/>
+  </g>
+
+  <!-- decorative lightning -->
+  <g fill="#ffc42e">
+    <path d="M330 590 l28 -38 l-8 28 h26 l-38 42 l10 -32Z"/>
+    <path d="M1495 520 l30 -44 l-8 31 h28 l-41 44 l11 -31Z"/>
+  </g>
+  <g fill="#ff4d66">
+    <path d="M500 650 l18 -16 l-6 18 l18 -6 l-24 23 l7 -17Z"/>
+    <path d="M1220 590 l18 -16 l-6 18 l18 -6 l-24 23 l7 -17Z"/>
+  </g>
+</svg>
