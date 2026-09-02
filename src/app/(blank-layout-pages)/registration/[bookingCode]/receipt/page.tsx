@@ -1,7 +1,8 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -20,9 +21,12 @@ import {
   type PublicRegistrationReceiptResponse
 } from '@/registrations/services/registration-public.service'
 
-type Props = {
-  params: Promise<{ bookingCode: string }>
-}
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  }).format(value)
 
 const formatWib = (value: string) =>
   `${new Intl.DateTimeFormat('id-ID', {
@@ -47,8 +51,16 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   URL.revokeObjectURL(url)
 }
 
-const RegistrationReceiptPage = ({ params }: Props) => {
-  const { bookingCode } = use(params)
+const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, py: 1.5 }}>
+    <Typography variant='body2' color='text.secondary'>{label}</Typography>
+    <Typography variant='body2' fontWeight={600} sx={{ textAlign: 'right', overflowWrap: 'anywhere' }}>{value}</Typography>
+  </Box>
+)
+
+const RegistrationReceiptPage = () => {
+  const params = useParams<{ bookingCode: string }>()
+  const bookingCode = params.bookingCode
   const [data, setData] = useState<PublicRegistrationReceiptResponse | null>(null)
   const [error, setError] = useState('')
   const [downloadError, setDownloadError] = useState('')
@@ -99,99 +111,100 @@ const RegistrationReceiptPage = ({ params }: Props) => {
   }
 
   return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: '#eef2f5', px: 2, py: { xs: 3, md: 6 } }}>
-      <Box sx={{ width: '100%', maxWidth: 760, mx: 'auto' }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', px: 2, py: { xs: 4, md: 8 } }}>
+      <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto' }}>
         {!data && !error && (
-          <Box sx={{ minHeight: 420, display: 'grid', placeItems: 'center' }}>
-            <CircularProgress size={30} />
-          </Box>
+          <Card>
+            <CardContent sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </CardContent>
+          </Card>
         )}
 
         {error && <Alert severity='error'>{error}</Alert>}
 
         {data && (
-          <Card elevation={0} sx={{ overflow: 'hidden', border: '1px solid #dfe6ec', borderRadius: 3 }}>
-            <Box sx={{ bgcolor: '#0b5cab', color: 'white', px: { xs: 3, sm: 4 }, py: 3.5 }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.8, opacity: 0.88 }}>
-                PTC EVENT ORGANIZER
-              </Typography>
-              <Typography variant='h4' sx={{ mt: 1, fontWeight: 800, lineHeight: 1.2 }}>
-                Bukti Pembayaran
-              </Typography>
-              <Typography sx={{ mt: 1, opacity: 0.92 }}>{data.eventName}</Typography>
-            </Box>
-
-            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <Box>
-                  <Typography variant='overline' color='text.secondary'>No. Pesanan</Typography>
-                  <Typography fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>{data.bookingCode}</Typography>
-                  <Typography variant='body2' color='text.secondary' sx={{ mt: 0.8 }}>{formatWib(data.paidAtUtc)}</Typography>
+          <Card>
+            <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Box
+                  sx={{
+                    width: 72,
+                    height: 72,
+                    mx: 'auto',
+                    display: 'grid',
+                    placeItems: 'center',
+                    borderRadius: '50%',
+                    bgcolor: 'action.hover',
+                    color: 'success.main'
+                  }}
+                >
+                  <i className='tabler-receipt-2 text-3xl' />
                 </Box>
-                <Chip label='LUNAS / PAID' color='success' sx={{ fontWeight: 800 }} />
+                <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>Payment Receipt</Typography>
+                <Typography color='text.secondary' sx={{ mt: 1 }}>{data.eventName}</Typography>
               </Box>
 
-              <Divider sx={{ my: 3 }} />
-
-              <Typography variant='h6' fontWeight={800}>Informasi Pembeli</Typography>
-              <Box sx={{ mt: 2, display: 'grid', gap: 1.1 }}>
-                <Typography><strong>Nama:</strong> {data.fullName}</Typography>
-                <Typography><strong>Email:</strong> {data.email}</Typography>
-                <Typography><strong>Telepon:</strong> {data.phone}</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Chip label='Paid' color='success' variant='tonal' icon={<i className='tabler-circle-check' />} />
               </Box>
 
-              <Box sx={{ mt: 3, p: 2.2, bgcolor: '#f4f7f9', borderRadius: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                <Box>
-                  <Typography variant='caption' color='text.secondary'>Metode Pembayaran</Typography>
-                  <Typography fontWeight={800}>{data.paymentType ?? '-'}</Typography>
-                </Box>
-                <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                  <Typography variant='caption' color='text.secondary'>Transaction ID</Typography>
-                  <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{data.transactionId ?? '-'}</Typography>
-                </Box>
-              </Box>
+              <Typography variant='h6' fontWeight={600} sx={{ mt: 5, mb: 2 }}>Transaction details</Typography>
 
-              <Box sx={{ mt: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-                <Box sx={{ px: 2, py: 1.4, bgcolor: '#f4f7f9', display: 'grid', gridTemplateColumns: '1fr auto', gap: 2 }}>
-                  <Typography variant='caption' fontWeight={800}>ITEM</Typography>
-                  <Typography variant='caption' fontWeight={800}>SUBTOTAL</Typography>
-                </Box>
-                <Box sx={{ px: 2, py: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 2, alignItems: 'start' }}>
-                  <Box>
-                    <Typography fontWeight={700}>{data.eventPackageName ?? data.eventName}</Typography>
-                    <Typography variant='caption' color='text.secondary'>Qty 1</Typography>
-                  </Box>
-                  <Typography fontWeight={700}>Rp{data.grossAmount.toLocaleString('id-ID')}</Typography>
-                </Box>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 3, py: 1 }}>
+                <DetailRow label='Transaction ID' value={data.transactionId ?? '-'} />
                 <Divider />
-                <Box sx={{ px: 2, py: 2, display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                  <Typography fontWeight={800}>Total</Typography>
-                  <Typography variant='h6' fontWeight={900}>Rp{data.grossAmount.toLocaleString('id-ID')}</Typography>
-                </Box>
+                <DetailRow label='Booking Code' value={data.bookingCode} />
+                <Divider />
+                <DetailRow label='Date' value={formatWib(data.paidAtUtc)} />
+                <Divider />
+                <DetailRow label='Payment Method' value={data.paymentType ?? '-'} />
+                <Divider />
+                <DetailRow label='Package' value={data.eventPackageName ?? '-'} />
+                <Divider />
+                <DetailRow label='Participant' value={data.fullName} />
+                <Divider />
+                <DetailRow label='Email' value={data.email} />
+                <Divider />
+                <DetailRow label='Nominal' value={formatCurrency(data.grossAmount)} />
+                <Divider />
+                <DetailRow label='Admin' value={formatCurrency(0)} />
               </Box>
 
-              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1.5, lineHeight: 1.5 }}>
-                Total mengikuti nilai transaksi yang tercatat di sistem. Tidak ada rincian biaya tambahan yang ditampilkan jika memang tidak dicatat oleh aplikasi.
-              </Typography>
+              <Box
+                sx={{
+                  mt: 3,
+                  px: 3,
+                  py: 2,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant='h6' color='inherit' fontWeight={600}>Total</Typography>
+                <Typography variant='h6' color='inherit' fontWeight={700}>{formatCurrency(data.grossAmount)}</Typography>
+              </Box>
 
-              {downloadError && <Alert severity='error' sx={{ mt: 2 }}>{downloadError}</Alert>}
+              {downloadError && <Alert severity='error' sx={{ mt: 3 }}>{downloadError}</Alert>}
 
               <Button
                 fullWidth
                 variant='contained'
                 size='large'
-                onClick={handleDownload}
+                onClick={() => void handleDownload()}
                 disabled={isDownloading}
                 startIcon={isDownloading ? <CircularProgress size={17} color='inherit' /> : <i className='tabler-download' />}
-                sx={{ mt: 3, py: 1.4, fontWeight: 800 }}
+                sx={{ mt: 4 }}
               >
-                {isDownloading ? 'Menyiapkan PDF...' : 'Download Receipt PDF'}
+                {isDownloading ? 'Preparing PDF...' : 'Download Receipt PDF'}
               </Button>
 
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
-                <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/status`} variant='text'>Back to Status</Button>
-                <Button component={Link} href={`/registration/${encodeURIComponent(bookingCode)}/ticket`} variant='outlined'>Lihat Ticket</Button>
-              </Box>
+              <Button component={Link} href='/home' fullWidth variant='outlined' sx={{ mt: 2 }}>
+                Back To Home Screen
+              </Button>
             </CardContent>
           </Card>
         )}
