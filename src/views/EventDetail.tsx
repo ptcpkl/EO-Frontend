@@ -14,6 +14,7 @@ import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
 import { alpha } from '@mui/material/styles'
 
+import GoogleMapPreview from '@/components/public/GoogleMapPreview'
 import { getEventPackages, type EventPackage, type PublicEvent } from '@/lib/api'
 
 type Props = { event: PublicEvent }
@@ -36,21 +37,11 @@ const formatPrice = (value: number) => value <= 0
 
 const splitLines = (value?: string) => (value ?? '').split(/\r?\n/).map(item => item.trim().replace(/^[-•]\s*/, '')).filter(Boolean)
 
-const buildMapPreviewUrl = (event: PublicEvent) => {
-  if (event.mapsUrl?.includes('/maps/embed') || event.mapsUrl?.includes('output=embed')) return event.mapsUrl
-
-  const coords = event.mapsUrl?.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/)
-  if (coords) return `https://www.google.com/maps?q=${encodeURIComponent(`${coords[1]},${coords[2]}`)}&z=16&output=embed`
-
-  const query = event.venueAddress || event.location
-  return query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : null
-}
-
 const PackageCard = ({ event, eventPackage }: { event: PublicEvent; eventPackage: EventPackage }) => (
-  <Card variant='outlined' sx={{ height: '100%' }}>
+  <Card variant='outlined' sx={{ height: '100%', borderRadius: 3 }}>
     <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 3.5 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant='h6' fontWeight={700}>{eventPackage.name}</Typography>
           <Typography variant='h5' color='primary.main' fontWeight={700} sx={{ mt: 1 }}>{formatPrice(eventPackage.price)}</Typography>
         </Box>
@@ -89,10 +80,10 @@ const EventDetail = ({ event }: Props) => {
   const heroUrl = event.heroImageUrl ?? (legacyFfws ? '/ffws.png' : '/back.png')
   const logoUrl = event.logoUrl ?? (legacyFfws ? '/logoo.png' : undefined)
   const benefits = useMemo(() => splitLines(event.benefits), [event.benefits])
-  const mapPreviewUrl = useMemo(() => buildMapPreviewUrl(event), [event])
 
   useEffect(() => {
     let active = true
+
     const load = async () => {
       try {
         setLoadingPackages(true)
@@ -105,6 +96,7 @@ const EventDetail = ({ event }: Props) => {
         if (active) setLoadingPackages(false)
       }
     }
+
     void load()
     return () => { active = false }
   }, [event.id])
@@ -113,15 +105,15 @@ const EventDetail = ({ event }: Props) => {
     <Box>
       <Box component='section' sx={{ position: 'relative', minHeight: { xs: 560, md: 680 }, display: 'flex', alignItems: 'flex-end', overflow: 'hidden', bgcolor: 'background.paper' }}>
         <Box component='img' src={heroUrl} alt={event.name} sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        <Box sx={theme => ({ position: 'absolute', inset: 0, background: `linear-gradient(180deg, ${alpha(theme.palette.common.black, 0.08)} 15%, ${alpha(theme.palette.common.black, 0.84)} 100%)` })} />
+        <Box sx={theme => ({ position: 'absolute', inset: 0, background: `linear-gradient(180deg, ${alpha(theme.palette.common.black, 0.08)} 15%, ${alpha(theme.palette.common.black, 0.86)} 100%)` })} />
 
-        <Box sx={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 1180, mx: 'auto', px: 3, pb: { xs: 6, md: 8 }, color: 'common.white' }}>
+        <Box sx={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 1180, mx: 'auto', px: 3, pt: { xs: 14, md: 16 }, pb: { xs: 6, md: 8 }, color: 'common.white' }}>
           {logoUrl && <Box component='img' src={logoUrl} alt={`${event.name} logo`} sx={{ display: 'block', maxWidth: { xs: 180, md: 250 }, maxHeight: 120, width: 'auto', height: 'auto', objectFit: 'contain', objectPosition: 'left center', mb: 2.5 }} />}
           <Box sx={{ display: 'block' }}><Chip label={event.type ?? 'Event'} color='primary' variant='filled' size='small' /></Box>
           <Typography component='h1' sx={{ mt: 2, fontWeight: 800, fontSize: { xs: '2.25rem', sm: '3rem', md: '3.65rem' }, lineHeight: 1.08, letterSpacing: '-0.025em', maxWidth: 880, color: 'inherit' }}>
             {event.name}
           </Typography>
-          <Typography sx={{ mt: 1.75, maxWidth: 700, color: 'inherit', opacity: 0.92, fontSize: { xs: '1rem', md: '1.08rem' }, lineHeight: 1.65 }}>
+          <Typography sx={{ mt: 1.75, maxWidth: 720, color: 'inherit', opacity: 0.92, fontSize: { xs: '1rem', md: '1.08rem' }, lineHeight: 1.65 }}>
             {event.description || event.about || 'Discover the event details and secure your registration.'}
           </Typography>
 
@@ -136,27 +128,25 @@ const EventDetail = ({ event }: Props) => {
         </Box>
       </Box>
 
-      <Box sx={{ px: 3, py: { xs: 7, md: 9 } }}>
-        <Box sx={{ width: '100%', maxWidth: 1180, mx: 'auto', display: 'grid', gap: { xs: 7, md: 9 } }}>
-          <Box component='section' sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.7fr 1.3fr' }, gap: { xs: 2.5, md: 6 }, alignItems: 'start' }}>
-            <Box>
-              <Chip label='About' color='primary' variant='tonal' size='small' />
-              <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>About the event</Typography>
-            </Box>
-            <Typography variant='body1' color='text.secondary' sx={{ whiteSpace: 'pre-line', lineHeight: 1.85, fontSize: '1rem', maxWidth: 760 }}>
+      <Box sx={{ px: 3, py: { xs: 6, md: 8 } }}>
+        <Box sx={{ width: '100%', maxWidth: 1180, mx: 'auto', display: 'grid', gap: { xs: 6, md: 8 } }}>
+          <Box component='section' sx={{ maxWidth: 900 }}>
+            <Chip label='About' color='primary' variant='tonal' size='small' />
+            <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>About the event</Typography>
+            <Typography variant='body1' color='text.secondary' sx={{ mt: 2, whiteSpace: 'pre-line', lineHeight: 1.85, fontSize: '1rem', maxWidth: 820 }}>
               {event.about || event.description || 'More information about this event will be available soon.'}
             </Typography>
           </Box>
 
           {benefits.length > 0 && (
             <Box component='section'>
-              <Box sx={{ mb: 4 }}>
+              <Box sx={{ mb: 3 }}>
                 <Chip label='Benefits' color='primary' variant='tonal' size='small' />
                 <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>What you&apos;ll get</Typography>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2.5 }}>
                 {benefits.map((benefit, index) => (
-                  <Card key={`${benefit}-${index}`} variant='outlined'>
+                  <Card key={`${benefit}-${index}`} variant='outlined' sx={{ borderRadius: 3 }}>
                     <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                       <Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center', flexShrink: 0 }}><i className='tabler-sparkles' /></Box>
                       <Typography fontWeight={600} sx={{ pt: 1 }}>{benefit}</Typography>
@@ -168,7 +158,7 @@ const EventDetail = ({ event }: Props) => {
           )}
 
           <Box component='section'>
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
               <Chip label='Packages' color='primary' variant='tonal' size='small' />
               <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>Choose your experience</Typography>
               <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>Choose a package below. Free packages register immediately without payment.</Typography>
@@ -177,7 +167,7 @@ const EventDetail = ({ event }: Props) => {
             {packageError && <Alert severity='error'>{packageError}</Alert>}
             {!loadingPackages && !packageError && packages.length === 0 && <Alert severity='info'>No active registration packages are currently available.</Alert>}
             {!loadingPackages && packages.length > 0 && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2.5 }}>
                 {packages.map(eventPackage => <PackageCard key={eventPackage.id} event={event} eventPackage={eventPackage} />)}
               </Box>
             )}
@@ -189,7 +179,7 @@ const EventDetail = ({ event }: Props) => {
                 <Chip label='Event Guide' color='primary' variant='tonal' size='small' />
                 <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>{event.registrationImageTitle || (legacyFfws ? 'Seminar Arena Map' : 'Event Guide')}</Typography>
               </Box>
-              <Card variant='outlined' sx={{ overflow: 'hidden' }}>
+              <Card variant='outlined' sx={{ overflow: 'hidden', borderRadius: 3 }}>
                 <Box component='img' src={event.registrationImageUrl ?? '/denahh.png'} alt={event.registrationImageTitle || 'Event guide'} sx={{ width: '100%', maxHeight: 680, display: 'block', objectFit: 'contain', bgcolor: 'background.paper' }} />
               </Card>
             </Box>
@@ -201,27 +191,32 @@ const EventDetail = ({ event }: Props) => {
                 <Chip label='Location' color='primary' variant='tonal' size='small' />
                 <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>Event venue</Typography>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: mapPreviewUrl ? '0.8fr 1.2fr' : '1fr' }, gap: 3, alignItems: 'stretch' }}>
-                <Card variant='outlined'>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, .8fr) minmax(0, 1.2fr)' }, gap: 3, alignItems: 'stretch' }}>
+                <Card variant='outlined' sx={{ borderRadius: 3 }}>
                   <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-                    <Typography variant='h5' fontWeight={700}>{event.location || 'Venue information'}</Typography>
+                    <Box sx={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main' }}>
+                      <i className='tabler-map-pin text-2xl' />
+                    </Box>
+                    <Typography variant='h5' fontWeight={700} sx={{ mt: 2.5 }}>{event.location || 'Venue information'}</Typography>
                     {event.venueAddress && <Typography variant='body1' color='text.secondary' sx={{ mt: 1.5, lineHeight: 1.75 }}>{event.venueAddress}</Typography>}
-                    {event.mapsUrl && <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='contained' startIcon={<i className='tabler-map-pin' />} sx={{ mt: 3 }}>Open Exact Location</Button>}
+                    {event.mapsUrl && <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='contained' startIcon={<i className='tabler-external-link' />} sx={{ mt: 3 }}>Open Exact Location</Button>}
                   </CardContent>
                 </Card>
 
-                {mapPreviewUrl && (
-                  <Card variant='outlined' sx={{ minHeight: 330, overflow: 'hidden' }}>
-                    <Box component='iframe' src={mapPreviewUrl} title={`${event.name} map`} loading='lazy' referrerPolicy='no-referrer-when-downgrade' sx={{ width: '100%', height: '100%', minHeight: 360, border: 0, display: 'block' }} />
-                  </Card>
-                )}
+                <Card variant='outlined' sx={{ minHeight: 400, overflow: 'hidden', borderRadius: 3 }}>
+                  <GoogleMapPreview
+                    mapsUrl={event.mapsUrl}
+                    fallbackQuery={event.venueAddress || event.location}
+                    title={`${event.name} map`}
+                  />
+                </Card>
               </Box>
             </Box>
           )}
 
           {event.additionalInformation && (
             <Box component='section'>
-              <Card variant='outlined'>
+              <Card variant='outlined' sx={{ borderRadius: 3 }}>
                 <CardContent sx={{ p: { xs: 3, md: 4 } }}>
                   <Chip label='Additional Information' color='primary' variant='tonal' size='small' />
                   <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>Before you join</Typography>
