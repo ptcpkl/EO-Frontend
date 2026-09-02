@@ -25,7 +25,6 @@ import { getMode, getSystemMode } from '@core/utils/serverHelpers'
 const Layout = async (props: ChildrenType) => {
   const { children } = props
 
-  // Vars
   const direction = 'ltr'
   const mode = await getMode()
   const systemMode = await getSystemMode()
@@ -41,6 +40,7 @@ const Layout = async (props: ChildrenType) => {
                 mode={mode}
                 showCreateEvent
                 showEventManagement
+                showArchivedEvents
                 showAbout
                 homeHref='/admin/home'
                 aboutHref='/about'

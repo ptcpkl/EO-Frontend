@@ -1,15 +1,16 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
+import NextLink from 'next/link'
 
-import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
-import Button from '@mui/material/Button'
-import Breadcrumbs from '@mui/material/Breadcrumbs'
-import Link from '@mui/material/Link'
 import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
+import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import Link from '@mui/material/Link'
+import Typography from '@mui/material/Typography'
 
 import RegistrationStats from './components/RegistrationStats'
 import RegistrationToolbar from './components/RegistrationToolbar'
@@ -17,230 +18,114 @@ import RegistrationTable from './components/RegistrationTable'
 import ImportExcelDialog from './components/ImportExcelDialog'
 
 import { cancelRegistration, getRegistrationStats, getRegistrations } from './services/registration.service'
-import { getPublicEvents } from '@/lib/api'
 import { getEventPackages } from './services/event-package.service'
 import type { EventPackage } from './services/types/event-package'
-
 import type { Registration, RegistrationFilters, RegistrationStatsData } from './types'
+import { getAdminEvent, type AdminEvent } from '@/lib/admin-events'
 
-type Props = {
-  params: Promise<{
-    eventSlug: string
-  }>
-}
-
-const EVENT_NAME = 'Seminar FFWS Edit'
+type Props = { params: Promise<{ eventSlug: string }> }
 
 const Page = ({ params }: Props) => {
-  const { eventSlug } = use(params)
+  const { eventSlug: eventId } = use(params)
+  const [event, setEvent] = useState<AdminEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-
   const [filters, setFilters] = useState<RegistrationFilters>({
-    search: '',
-    participantType: 'ALL',
-    status: 'ALL',
-    eventPackageId: ''
+    search: '', participantType: 'ALL', status: 'ALL', eventPackageId: ''
   })
-
   const [eventPackages, setEventPackages] = useState<EventPackage[]>([])
-
-  const [stats, setStats] = useState<RegistrationStatsData>({
-    total: 0,
-    internal: 0,
-    external: 0,
-    registered: 0
-  })
-
+  const [stats, setStats] = useState<RegistrationStatsData>({ total: 0, internal: 0, external: 0, registered: 0 })
   const [registrations, setRegistrations] = useState<Registration[]>([])
-
   const [loading, setLoading] = useState(true)
-
   const [error, setError] = useState<string | null>(null)
-
-  const [eventQuota, setEventQuota] = useState<{
-    capacity?: number
-    registeredCount?: number
-    remainingQuota?: number
-  } | null>(null)
 
   const loadRegistrations = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const [statsData, registrationData, packageData] = await Promise.all([
-        getRegistrationStats(eventSlug),
-        getRegistrations(eventSlug, filters),
-        getEventPackages(eventSlug)
+      const [eventData, statsData, registrationData, packageData] = await Promise.all([
+        getAdminEvent(eventId),
+        getRegistrationStats(eventId),
+        getRegistrations(eventId, filters),
+        getEventPackages(eventId)
       ])
 
+      setEvent(eventData)
       setStats(statsData)
-      setRegistrations(
-        filters.status === 'ALL' ? registrationData : registrationData.filter(item => item.status === filters.status)
-      )
+      setRegistrations(filters.status === 'ALL' ? registrationData : registrationData.filter(item => item.status === filters.status))
       setEventPackages(packageData)
-
-      const rawSession = window.localStorage.getItem('eo-auth')
-      const accessToken = rawSession ? (JSON.parse(rawSession) as { accessToken?: string }).accessToken : undefined
-
-      if (accessToken) {
-        const eventData = (await getPublicEvents(accessToken)).find(
-          item => item.slug === eventSlug || item.id === eventSlug
-        )
-
-        if (eventData) {
-          setEventQuota(eventData)
-        }
-      }
-    } catch (error) {
-      console.error(error)
-
-      setError(error instanceof Error ? error.message : 'Unable to load registrations.')
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load registrations.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleCancelRegistration = async (registrationId: string) => {
+    if (event?.status === 'Archived') return
     try {
       setError(null)
       await cancelRegistration(registrationId)
       await loadRegistrations()
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to cancel registration.')
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to cancel registration.')
     }
   }
 
   useEffect(() => {
     loadRegistrations()
-  }, [eventSlug, filters.search, filters.participantType, filters.status, filters.eventPackageId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, filters.search, filters.participantType, filters.status, filters.eventPackageId])
+
+  const archived = event?.status === 'Archived'
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6
-      }}
-    >
-      {/* Header */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <Box>
         <Breadcrumbs sx={{ mb: 3 }}>
-          <Link href='/admin/home' color='inherit' underline='hover'>
-            Home
+          <Link component={NextLink} href='/admin/events' color='inherit' underline='hover'>Events</Link>
+          <Link component={NextLink} href={`/admin/events/${encodeURIComponent(eventId)}`} color='inherit' underline='hover'>
+            {event?.name ?? 'Event'}
           </Link>
-
-          <Link href='/admin/events' color='inherit' underline='hover'>
-            Events
-          </Link>
-
           <Typography color='text.primary'>Registrations</Typography>
         </Breadcrumbs>
 
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: {
-              xs: 'column',
-              md: 'row'
-            },
-            alignItems: {
-              md: 'center'
-            },
-            justifyContent: 'space-between',
-            gap: 4
-          }}
-        >
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 4 }}>
           <Box>
-            <Typography variant='h4' fontWeight={700}>
-              Registration Management
-            </Typography>
-
+            <Typography variant='h4' fontWeight={700}>Registration Management</Typography>
             <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-              Manage participants registered for <strong>{EVENT_NAME}</strong>.
+              {archived ? 'Review participant history for ' : 'Manage participants registered for '}<strong>{event?.name ?? 'this event'}</strong>.
             </Typography>
           </Box>
-
-          <Button
-            variant='outlined'
-            startIcon={<i className='tabler-arrow-left' />}
-            href='/admin/home'
-            sx={{
-              borderRadius: 0,
-              alignSelf: {
-                xs: 'flex-start',
-                md: 'auto'
-              }
-            }}
-          >
-            Back to dashboard
+          <Button component={NextLink} variant='outlined' startIcon={<i className='tabler-arrow-left' />} href={`/admin/events/${encodeURIComponent(eventId)}`}>
+            Back to event
           </Button>
         </Box>
       </Box>
 
       {error && <Alert severity='error'>{error}</Alert>}
+      {archived && <Alert severity='info'>Archived event registrations are read-only. Search and filters remain available for history review.</Alert>}
 
-      {eventQuota && (eventQuota.capacity !== undefined || eventQuota.registeredCount !== undefined) && (
+      {event && (
         <Card elevation={0}>
           <CardContent>
-            <Typography variant='h6' fontWeight={600}>
-              Event quota
-            </Typography>
-            <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-              Quota is shared across all packages for this event.
-            </Typography>
+            <Typography variant='h6' fontWeight={600}>Event quota</Typography>
+            <Typography variant='body2' color='text.secondary' sx={{ mt: .5 }}>Quota is shared across all packages for this event.</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 3, mt: 3 }}>
-              <Box>
-                <Typography variant='body2' color='text.secondary'>
-                  Event capacity
-                </Typography>
-                <Typography variant='h6' fontWeight={700} sx={{ mt: 0.5 }}>
-                  {eventQuota.capacity?.toLocaleString() ?? 'Not set'}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant='body2' color='text.secondary'>
-                  Registered count
-                </Typography>
-                <Typography variant='h6' fontWeight={700} sx={{ mt: 0.5 }}>
-                  {eventQuota.registeredCount?.toLocaleString() ?? 'Not available'}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant='body2' color='text.secondary'>
-                  Remaining quota
-                </Typography>
-                <Typography variant='h6' fontWeight={700} sx={{ mt: 0.5 }}>
-                  {eventQuota.remainingQuota?.toLocaleString() ??
-                    (eventQuota.capacity !== undefined && eventQuota.registeredCount !== undefined
-                      ? Math.max(0, eventQuota.capacity - eventQuota.registeredCount).toLocaleString()
-                      : 'Not available')}
-                </Typography>
-              </Box>
+              <Box><Typography variant='body2' color='text.secondary'>Event capacity</Typography><Typography variant='h6' fontWeight={700}>{event.capacity.toLocaleString()}</Typography></Box>
+              <Box><Typography variant='body2' color='text.secondary'>Registered count</Typography><Typography variant='h6' fontWeight={700}>{event.registeredCount.toLocaleString()}</Typography></Box>
+              <Box><Typography variant='body2' color='text.secondary'>Remaining quota</Typography><Typography variant='h6' fontWeight={700}>{event.remainingQuota.toLocaleString()}</Typography></Box>
             </Box>
           </CardContent>
         </Card>
       )}
 
-      {/* Statistics */}
       <RegistrationStats stats={stats} />
 
-      {/* Registration table section */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4
-        }}
-      >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Box>
-          <Typography variant='h5' fontWeight={600}>
-            Participants
-          </Typography>
-
-          <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-            View and manage all participants for this event.
-          </Typography>
+          <Typography variant='h5' fontWeight={600}>Participants</Typography>
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>View participant records and filter by type, package, or status.</Typography>
         </Box>
 
         <RegistrationToolbar
@@ -248,17 +133,24 @@ const Page = ({ params }: Props) => {
           packages={eventPackages}
           onFiltersChange={setFilters}
           onImport={() => setImportOpen(true)}
+          allowImport={!archived}
         />
 
-        <RegistrationTable registrations={registrations} loading={loading} onCancel={handleCancelRegistration} />
+        <RegistrationTable
+          registrations={registrations}
+          loading={loading}
+          onCancel={archived ? undefined : handleCancelRegistration}
+        />
       </Box>
 
-      <ImportExcelDialog
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        eventSlug={eventSlug}
-        onImported={loadRegistrations}
-      />
+      {!archived && (
+        <ImportExcelDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          eventSlug={eventId}
+          onImported={loadRegistrations}
+        />
+      )}
     </Box>
   )
 }
