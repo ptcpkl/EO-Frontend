@@ -1,28 +1,20 @@
 'use client'
 
-// React Imports
 import { useEffect, useRef } from 'react'
-
-// Next Imports
 import Link from 'next/link'
 
-// MUI Imports
 import { styled, useColorScheme, useTheme } from '@mui/material/styles'
 import Button from '@mui/material/Button'
 
-// Type Imports
 import type { Mode } from '@core/types'
 
-// Component Imports
 import VerticalNav, { NavHeader, NavCollapseIcons } from '@menu/vertical-menu'
 import VerticalMenu from './VerticalMenu'
 import Logo from '@components/layout/shared/Logo'
 
-// Hook Imports
 import useVerticalNav from '@menu/hooks/useVerticalNav'
 import { useSettings } from '@core/hooks/useSettings'
 
-// Style Imports
 import navigationCustomStyles from '@core/styles/vertical/navigationCustomStyles'
 
 type Props = {
@@ -30,6 +22,7 @@ type Props = {
   showCreateEvent?: boolean
   showEventCategories?: boolean
   showEventManagement?: boolean
+  showArchivedEvents?: boolean
   showAbout?: boolean
   homeHref?: string
   aboutHref?: string
@@ -48,38 +41,30 @@ const StyledBoxForShadow = styled('div')(({ theme }) => ({
   background: `linear-gradient(var(--mui-palette-background-paper) ${
     theme.direction === 'rtl' ? '95%' : '5%'
   }, rgb(var(--mui-palette-background-paperChannel) / 0.85) 30%, rgb(var(--mui-palette-background-paperChannel) / 0.5) 65%, rgb(var(--mui-palette-background-paperChannel) / 0.3) 75%, transparent)`,
-  '&.scrolled': {
-    opacity: 1
-  }
+  '&.scrolled': { opacity: 1 }
 }))
 
 const Navigation = (props: Props) => {
-  // Props
   const {
     mode,
     showCreateEvent = false,
     showEventCategories = false,
     showEventManagement = false,
+    showArchivedEvents = false,
     showAbout = true,
     homeHref = '/home',
     aboutHref = '/about'
   } = props
 
-  // Hooks
   const verticalNavOptions = useVerticalNav()
   const { updateSettings, settings } = useSettings()
   const { mode: muiMode, systemMode: muiSystemMode } = useColorScheme()
   const theme = useTheme()
-
-  // Refs
   const shadowRef = useRef(null)
 
-  // Vars
   const { isCollapsed, isHovered, collapseVerticalNav, isBreakpointReached } = verticalNavOptions
   const isSemiDark = settings.semiDark
-
   const currentMode = muiMode === 'system' ? muiSystemMode : muiMode || mode
-
   const isDark = currentMode === 'dark'
 
   const scrollMenu = (container: any, isPerfectScrollbar: boolean) => {
@@ -98,30 +83,17 @@ const Navigation = (props: Props) => {
   }
 
   useEffect(() => {
-    if (settings.layout === 'collapsed') {
-      collapseVerticalNav(true)
-    } else {
-      collapseVerticalNav(false)
-    }
+    collapseVerticalNav(settings.layout === 'collapsed')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.layout])
 
   return (
-    // eslint-disable-next-line lines-around-comment
-    // Sidebar Vertical Menu
     <VerticalNav
       customStyles={navigationCustomStyles(verticalNavOptions, theme)}
       collapsedWidth={71}
       backgroundColor='var(--mui-palette-background-paper)'
-      // eslint-disable-next-line lines-around-comment
-      // The following condition adds the data-dark attribute to the VerticalNav component
-      // when semiDark is enabled and the mode or systemMode is light
-      {...(isSemiDark &&
-        !isDark && {
-          'data-dark': ''
-        })}
+      {...(isSemiDark && !isDark && { 'data-dark': '' })}
     >
-      {/* Nav Header including Logo & nav toggle icons  */}
       <NavHeader>
         <Link href={homeHref}>
           <Logo />
@@ -138,6 +110,8 @@ const Navigation = (props: Props) => {
       <StyledBoxForShadow ref={shadowRef} />
       {showCreateEvent && !(isCollapsed && !isHovered) && (
         <Button
+          component={Link}
+          href='/admin/events/create'
           fullWidth
           variant='contained'
           startIcon={<i className='tabler-plus' />}
@@ -150,6 +124,7 @@ const Navigation = (props: Props) => {
         scrollMenu={scrollMenu}
         showEventCategories={showEventCategories}
         showEventManagement={showEventManagement}
+        showArchivedEvents={showArchivedEvents}
         showAbout={showAbout}
         homeHref={homeHref}
         aboutHref={aboutHref}
