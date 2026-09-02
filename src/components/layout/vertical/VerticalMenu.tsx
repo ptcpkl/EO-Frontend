@@ -18,6 +18,9 @@ type Props = {
   scrollMenu: (container: any, isPerfectScrollbar: boolean) => void
   showEventCategories?: boolean
   showEventManagement?: boolean
+  showRegistrations?: boolean
+  showCheckIns?: boolean
+  showUsers?: boolean
   showArchivedEvents?: boolean
   showAbout?: boolean
   homeHref?: string
@@ -34,6 +37,9 @@ const VerticalMenu = ({
   scrollMenu,
   showEventCategories = false,
   showEventManagement = false,
+  showRegistrations = false,
+  showCheckIns = false,
+  showUsers = false,
   showArchivedEvents = false,
   showAbout = true,
   homeHref = '/home',
@@ -67,13 +73,23 @@ const VerticalMenu = ({
           Home
         </MenuItem>
         {showEventManagement && (
-          <MenuItem
-            href='/admin/events'
-            activeUrl='/admin/events'
-            exactMatch
-            icon={<i className='tabler-calendar-event' />}
-          >
+          <MenuItem href='/admin/events' activeUrl='/admin/events' exactMatch icon={<i className='tabler-calendar-event' />}>
             Event Management
+          </MenuItem>
+        )}
+        {showRegistrations && (
+          <MenuItem href='/admin/registrations' icon={<i className='tabler-users-group' />}>
+            Registrations
+          </MenuItem>
+        )}
+        {showCheckIns && (
+          <MenuItem href='/admin/check-ins' icon={<i className='tabler-qrcode' />}>
+            Check-ins
+          </MenuItem>
+        )}
+        {showUsers && (
+          <MenuItem href='/admin/users' icon={<i className='tabler-user-cog' />}>
+            Users
           </MenuItem>
         )}
         {showArchivedEvents && (
