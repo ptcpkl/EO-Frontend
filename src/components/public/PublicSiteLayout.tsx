@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import NextLink from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -25,6 +25,7 @@ const categories = [
 const PublicNavbar = () => {
   const [eventsAnchor, setEventsAnchor] = useState<HTMLElement | null>(null)
   const [mobileAnchor, setMobileAnchor] = useState<HTMLElement | null>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
   const theme = useTheme()
   const { setMode } = useColorScheme()
   const { updateSettings } = useSettings()
@@ -32,6 +33,15 @@ const PublicNavbar = () => {
   const isDark = theme.palette.mode === 'dark'
   const openEvents = (event: MouseEvent<HTMLElement>) => setEventsAnchor(event.currentTarget)
   const openMobile = (event: MouseEvent<HTMLElement>) => setMobileAnchor(event.currentTarget)
+
+  useEffect(() => {
+    const updateScrollState = () => setIsScrolled(window.scrollY > 28)
+
+    updateScrollState()
+    window.addEventListener('scroll', updateScrollState, { passive: true })
+
+    return () => window.removeEventListener('scroll', updateScrollState)
+  }, [])
 
   const handleToggleMode = () => {
     const nextMode = isDark ? 'light' : 'dark'
@@ -66,15 +76,23 @@ const PublicNavbar = () => {
           justifyContent: 'space-between',
           gap: { xs: 1, sm: 2 },
           border: '1px solid',
-          borderColor: 'divider',
+          borderColor: isScrolled
+            ? alpha(theme.palette.common.white, isDark ? 0.12 : 0.42)
+            : 'divider',
           borderRadius: 999,
-          bgcolor: alpha(theme.palette.background.paper, isDark ? 0.9 : 0.92),
+          bgcolor: isScrolled
+            ? alpha(theme.palette.background.paper, isDark ? 0.58 : 0.64)
+            : alpha(theme.palette.background.paper, isDark ? 0.9 : 0.92),
           color: 'text.primary',
-          boxShadow: isDark
-            ? `0 12px 34px ${alpha(theme.palette.common.black, 0.34)}`
-            : `0 12px 34px ${alpha(theme.palette.common.black, 0.14)}`,
-          backdropFilter: 'blur(18px)',
-          WebkitBackdropFilter: 'blur(18px)',
+          boxShadow: isScrolled
+            ? isDark
+              ? `0 16px 42px ${alpha(theme.palette.common.black, 0.38)}`
+              : `0 16px 42px ${alpha(theme.palette.common.black, 0.16)}`
+            : isDark
+              ? `0 12px 34px ${alpha(theme.palette.common.black, 0.34)}`
+              : `0 12px 34px ${alpha(theme.palette.common.black, 0.14)}`,
+          backdropFilter: isScrolled ? 'blur(24px) saturate(180%)' : 'blur(18px)',
+          WebkitBackdropFilter: isScrolled ? 'blur(24px) saturate(180%)' : 'blur(18px)',
           pointerEvents: 'auto',
           transition: theme.transitions.create(['background-color', 'border-color', 'box-shadow'], {
             duration: theme.transitions.duration.shorter
@@ -116,9 +134,9 @@ const PublicNavbar = () => {
               width: { xs: 38, md: 40 },
               height: { xs: 38, md: 40 },
               color: 'text.primary',
-              bgcolor: 'action.hover',
+              bgcolor: isScrolled ? alpha(theme.palette.background.paper, isDark ? 0.36 : 0.48) : 'action.hover',
               border: '1px solid',
-              borderColor: 'divider',
+              borderColor: isScrolled ? alpha(theme.palette.divider, 0.8) : 'divider',
               '&:hover': { bgcolor: 'action.selected' }
             }}
           >
