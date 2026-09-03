@@ -41,7 +41,7 @@ const FooterLink = ({ href, children }: { href: string; children: React.ReactNod
     sx={{
       color: '#073d69',
       fontSize: 15,
-      fontWeight: 600,
+      fontWeight: 650,
       width: 'fit-content',
       transition: 'color .18s ease, transform .18s ease',
       '&:hover': { color: '#00a6a6', transform: 'translateX(3px)' }
@@ -56,7 +56,7 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <Typography sx={{ color: '#073d69', fontWeight: 900, fontSize: 17, letterSpacing: '.01em' }}>
       {children}
     </Typography>
-    <Box sx={{ width: 28, height: 3, bgcolor: '#06aaa3', mt: 1.25, borderRadius: 999 }} />
+    <Box sx={{ width: 30, height: 3, bgcolor: '#06aaa3', mt: 1.25, borderRadius: 999 }} />
   </Box>
 )
 
@@ -65,14 +65,16 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
     aria-label={label}
     title={label}
     sx={{
-      width: 38,
-      height: 38,
+      width: 39,
+      height: 39,
       display: 'grid',
       placeItems: 'center',
       borderRadius: '50%',
       bgcolor: '#07548a',
       color: '#fff',
-      boxShadow: '0 6px 14px rgba(3, 61, 105, .16)'
+      boxShadow: '0 6px 14px rgba(3, 61, 105, .18)',
+      transition: 'transform .18s ease, background-color .18s ease',
+      '&:hover': { transform: 'translateY(-2px)', bgcolor: '#006f9d' }
     }}
   >
     <i className={`${icon} text-xl`} />
@@ -82,7 +84,6 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
 const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
   const pathname = usePathname()
   const [routeBrand, setRouteBrand] = useState<EventBrand>({})
-  const year = new Date().getFullYear()
 
   const eventSlug = useMemo(() => {
     const match = pathname.match(/^\/events\/(?!category\/)([^/]+)/)
@@ -154,12 +155,13 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
         overflow: 'hidden',
         color: '#073d69',
         isolation: 'isolate',
-        bgcolor: '#ccecff'
+        bgcolor: '#ccecff',
+        minHeight: { xs: 760, sm: 680, lg: 620 }
       }}
     >
       <Box
         component='img'
-        src='/pertamina-event-footer.svg'
+        src='/pertamina-event-footer-final.svg'
         alt=''
         aria-hidden='true'
         sx={{
@@ -171,18 +173,19 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           objectPosition: 'center bottom',
           pointerEvents: 'none',
           userSelect: 'none',
-          zIndex: -2
+          zIndex: -3
         }}
       />
+
       <Box
         aria-hidden='true'
         sx={{
           position: 'absolute',
           inset: 0,
-          zIndex: -1,
+          zIndex: -2,
           background: {
-            xs: 'linear-gradient(180deg, rgba(220,246,255,.92) 0%, rgba(205,238,252,.9) 67%, rgba(1,54,102,.12) 100%)',
-            md: 'linear-gradient(90deg, rgba(220,246,255,.83) 0%, rgba(214,243,255,.7) 47%, rgba(210,240,253,.8) 100%)'
+            xs: 'linear-gradient(180deg, rgba(222,246,255,.96) 0%, rgba(214,242,255,.9) 56%, rgba(214,242,255,.38) 72%, rgba(0,48,94,0) 88%)',
+            md: 'linear-gradient(180deg, rgba(222,246,255,.86) 0%, rgba(214,242,255,.76) 51%, rgba(214,242,255,.26) 70%, rgba(0,48,94,0) 86%)'
           }
         }}
       />
@@ -193,8 +196,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           maxWidth: 1360,
           mx: 'auto',
           px: { xs: 3, sm: 4, md: 5 },
-          pt: { xs: 8, md: 10 },
-          pb: { xs: 12, md: 17 }
+          pt: { xs: 7, md: 9 },
+          pb: { xs: 28, sm: 25, md: 23 }
         }}
       >
         <Box
@@ -296,52 +299,15 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                   sx={{
                     color: '#073d69',
                     borderColor: 'rgba(7,61,105,.35)',
-                    bgcolor: 'rgba(255,255,255,.3)',
+                    bgcolor: 'rgba(255,255,255,.38)',
                     backdropFilter: 'blur(6px)',
-                    '&:hover': { borderColor: '#06aaa3', bgcolor: 'rgba(255,255,255,.55)' }
+                    '&:hover': { borderColor: '#06aaa3', bgcolor: 'rgba(255,255,255,.6)' }
                   }}
                 >
                   {label}
                 </Button>
               ))}
             </Box>
-          </Box>
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          position: 'relative',
-          bgcolor: 'rgba(0, 48, 94, .96)',
-          color: '#fff',
-          minHeight: 88,
-          display: 'flex',
-          alignItems: 'center',
-          borderTop: '1px solid rgba(255,255,255,.08)'
-        }}
-      >
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: 1440,
-            mx: 'auto',
-            px: { xs: 3, md: 5 },
-            py: 3,
-            display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-            gap: 2
-          }}
-        >
-          <Typography sx={{ color: 'rgba(255,255,255,.9)', fontSize: 14, fontWeight: 500 }}>
-            © {year} PT Pertamina (Persero). All rights reserved.
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-            <Typography sx={{ color: '#fff', fontWeight: 900, fontStyle: 'italic', letterSpacing: '.025em', fontSize: { xs: 17, md: 20 } }}>
-              ENERGIZING <Box component='span' sx={{ color: '#12b5ad' }}>YOU</Box>
-            </Typography>
-            <Box sx={{ width: 26, height: 4, bgcolor: '#ffbf2f', transform: 'skewX(-24deg)', borderRadius: 99 }} />
           </Box>
         </Box>
       </Box>
