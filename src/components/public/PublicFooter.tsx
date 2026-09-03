@@ -27,21 +27,21 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
   <Box
     aria-label={label}
     title={label}
-    sx={{
+    sx={theme => ({
       width: { xs: 38, md: 42 },
       height: { xs: 38, md: 42 },
       display: 'grid',
       placeItems: 'center',
       borderRadius: '50%',
-      bgcolor: 'rgba(5, 79, 132, .94)',
+      bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,105,172,.92)' : 'rgba(5, 79, 132, .94)',
       color: '#fff',
-      boxShadow: '0 9px 20px rgba(3,61,105,.2)',
+      boxShadow: theme.palette.mode === 'dark' ? '0 9px 22px rgba(0,0,0,.28)' : '0 9px 20px rgba(3,61,105,.2)',
       transition: 'transform .2s ease, box-shadow .2s ease',
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: '0 12px 24px rgba(3,61,105,.24)'
+        boxShadow: theme.palette.mode === 'dark' ? '0 12px 28px rgba(0,0,0,.34)' : '0 12px 24px rgba(3,61,105,.24)'
       }
-    }}
+    })}
   >
     <i className={`${icon} text-xl`} />
   </Box>
@@ -115,19 +115,19 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
   return (
     <Box
       component='footer'
-      sx={{
+      sx={theme => ({
         mt: 'auto',
         position: 'relative',
         overflow: 'hidden',
-        color: '#073d69',
-        bgcolor: '#d8f1ff',
+        color: theme.palette.mode === 'dark' ? '#d9eeff' : '#073d69',
+        bgcolor: theme.palette.mode === 'dark' ? '#020b20' : '#d8f1ff',
         minHeight: {
           xs: 760,
           sm: 690,
           md: 630,
           lg: 'clamp(570px, 33.3vw, 700px)'
         },
-        backgroundImage: 'url(/footer.png)',
+        backgroundImage: `url('${theme.palette.mode === 'dark' ? '/footer%20sark.png' : '/footer.png'}')`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center center',
         backgroundSize: {
@@ -135,20 +135,28 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           sm: 'auto 100%',
           md: 'cover',
           lg: '100% 100%'
-        }
-      }}
+        },
+        transition: theme.transitions.create(['background-color', 'color'], {
+          duration: theme.transitions.duration.shorter
+        })
+      })}
     >
       <Box
         aria-hidden='true'
-        sx={{
+        sx={theme => ({
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          background: {
-            xs: 'linear-gradient(180deg, rgba(225,247,255,.82) 0%, rgba(225,247,255,.5) 40%, rgba(225,247,255,.04) 70%, rgba(225,247,255,0) 100%)',
-            md: 'radial-gradient(ellipse at 50% 34%, rgba(229,248,255,.66) 0%, rgba(229,248,255,.38) 35%, rgba(229,248,255,.04) 62%, rgba(229,248,255,0) 76%)'
-          }
-        }}
+          background: theme.palette.mode === 'dark'
+            ? {
+                xs: 'linear-gradient(180deg, rgba(2,11,32,.72) 0%, rgba(2,11,32,.42) 42%, rgba(2,11,32,.05) 74%, rgba(2,11,32,0) 100%)',
+                md: 'radial-gradient(ellipse at 50% 34%, rgba(5,25,58,.62) 0%, rgba(3,16,40,.34) 38%, rgba(2,11,32,.04) 65%, rgba(2,11,32,0) 78%)'
+              }
+            : {
+                xs: 'linear-gradient(180deg, rgba(225,247,255,.82) 0%, rgba(225,247,255,.5) 40%, rgba(225,247,255,.04) 70%, rgba(225,247,255,0) 100%)',
+                md: 'radial-gradient(ellipse at 50% 34%, rgba(229,248,255,.66) 0%, rgba(229,248,255,.38) 35%, rgba(229,248,255,.04) 62%, rgba(229,248,255,0) 76%)'
+              }
+        })}
       />
 
       <Box
@@ -164,7 +172,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
         }}
       >
         <Box
-          sx={{
+          sx={theme => ({
             mx: 'auto',
             maxWidth: 700,
             display: 'flex',
@@ -174,10 +182,12 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
             px: { xs: 2.5, sm: 4.5 },
             py: { xs: 2.75, sm: 3.5 },
             borderRadius: 5,
-            bgcolor: 'rgba(230,248,255,.34)',
-            backdropFilter: 'blur(3px)',
-            boxShadow: '0 16px 44px rgba(7,61,105,.06)'
-          }}
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(2,14,38,.44)' : 'rgba(230,248,255,.34)',
+            border: theme.palette.mode === 'dark' ? '1px solid rgba(118,190,255,.12)' : '1px solid transparent',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            boxShadow: theme.palette.mode === 'dark' ? '0 18px 48px rgba(0,0,0,.16)' : '0 16px 44px rgba(7,61,105,.06)'
+          })}
         >
           <Box
             sx={{
@@ -205,11 +215,11 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                 <Divider
                   orientation='vertical'
                   flexItem
-                  sx={{
-                    borderColor: 'rgba(7,61,105,.28)',
+                  sx={theme => ({
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(196,229,255,.3)' : 'rgba(7,61,105,.28)',
                     minHeight: 56,
                     display: { xs: 'none', sm: 'block' }
-                  }}
+                  })}
                 />
                 <Box
                   component='img'
@@ -228,15 +238,15 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           </Box>
 
           <Typography
-            sx={{
+            sx={theme => ({
               mx: 'auto',
               maxWidth: 590,
-              color: '#0b456f',
+              color: theme.palette.mode === 'dark' ? '#d8edff' : '#0b456f',
               lineHeight: 1.75,
               fontSize: { xs: 14.5, sm: 15.75 },
               fontWeight: 600,
-              textShadow: '0 1px 0 rgba(255,255,255,.7)'
-            }}
+              textShadow: theme.palette.mode === 'dark' ? '0 1px 8px rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.7)'
+            })}
           >
             Energizing every event, inspiring every moment. Together, we create experiences that connect people, ideas, and communities.
           </Typography>
@@ -248,7 +258,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
             <SocialMark icon='tabler-brand-discord' label='Community' />
           </Box>
 
-          <Typography sx={{ color: '#073d69', fontWeight: 850, fontSize: 14.5 }}>
+          <Typography sx={theme => ({ color: theme.palette.mode === 'dark' ? '#d8edff' : '#073d69', fontWeight: 850, fontSize: 14.5 })}>
             @pertaminaevent
           </Typography>
         </Box>
