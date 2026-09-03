@@ -37,6 +37,18 @@ const formatPrice = (value: number) => value <= 0
 
 const splitLines = (value?: string) => (value ?? '').split(/\r?\n/).map(item => item.trim().replace(/^[-•]\s*/, '')).filter(Boolean)
 
+const LocationDetailRow = ({ icon, label, value }: { icon: string; label: string; value: React.ReactNode }) => (
+  <Box sx={{ display: 'grid', gridTemplateColumns: '36px minmax(0, 1fr)', gap: 1.5, alignItems: 'start' }}>
+    <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
+      <i className={icon} />
+    </Box>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant='caption' color='text.secondary' fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '.045em' }}>{label}</Typography>
+      <Typography variant='body2' sx={{ mt: .45, lineHeight: 1.7, overflowWrap: 'anywhere' }}>{value}</Typography>
+    </Box>
+  </Box>
+)
+
 const PackageCard = ({ event, eventPackage }: { event: PublicEvent; eventPackage: EventPackage }) => (
   <Card variant='outlined' sx={{ height: '100%', borderRadius: 3 }}>
     <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 3.5 }}>
@@ -190,25 +202,80 @@ const EventDetail = ({ event }: Props) => {
               <Box sx={{ mb: 3 }}>
                 <Chip label='Location' color='primary' variant='tonal' size='small' />
                 <Typography variant='h4' fontWeight={700} sx={{ mt: 1.5 }}>Event venue</Typography>
+                <Typography variant='body1' color='text.secondary' sx={{ mt: 1, maxWidth: 760 }}>
+                  The map follows the exact Google Maps pin provided by the organizer. Venue details are shown alongside it so participants can verify the destination before travelling.
+                </Typography>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, .8fr) minmax(0, 1.2fr)' }, gap: 3, alignItems: 'stretch' }}>
-                <Card variant='outlined' sx={{ borderRadius: 3 }}>
-                  <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-                    <Box sx={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 2, bgcolor: 'action.hover', color: 'primary.main' }}>
-                      <i className='tabler-map-pin text-2xl' />
-                    </Box>
-                    <Typography variant='h5' fontWeight={700} sx={{ mt: 2.5 }}>{event.location || 'Venue information'}</Typography>
-                    {event.venueAddress && <Typography variant='body1' color='text.secondary' sx={{ mt: 1.5, lineHeight: 1.75 }}>{event.venueAddress}</Typography>}
-                    {event.mapsUrl && <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='contained' startIcon={<i className='tabler-external-link' />} sx={{ mt: 3 }}>Open Exact Location</Button>}
-                  </CardContent>
-                </Card>
 
-                <Card variant='outlined' sx={{ minHeight: 400, overflow: 'hidden', borderRadius: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.35fr) minmax(320px, .65fr)' }, gap: 3, alignItems: 'stretch' }}>
+                <Card variant='outlined' sx={{ minHeight: 460, overflow: 'hidden', borderRadius: 3, position: 'relative' }}>
+                  <Box sx={{ position: 'absolute', zIndex: 2, top: 16, left: 16, pointerEvents: 'none' }}>
+                    <Chip
+                      label={event.mapsUrl ? 'Exact organizer pin' : 'Address-based preview'}
+                      color={event.mapsUrl ? 'success' : 'default'}
+                      variant='filled'
+                      size='small'
+                      icon={<i className={event.mapsUrl ? 'tabler-map-pin-check' : 'tabler-map-pin'} />}
+                      sx={{ boxShadow: 2 }}
+                    />
+                  </Box>
                   <GoogleMapPreview
                     mapsUrl={event.mapsUrl}
-                    fallbackQuery={event.venueAddress || event.location}
-                    title={`${event.name} map`}
+                    fallbackQuery={event.mapsUrl ? null : (event.venueAddress || event.location)}
+                    title={`${event.name} exact venue map`}
                   />
+                </Card>
+
+                <Card variant='outlined' sx={{ borderRadius: 3, height: '100%' }}>
+                  <CardContent sx={{ p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', borderRadius: 2.5, bgcolor: 'primary.main', color: 'primary.contrastText', flexShrink: 0 }}>
+                        <i className='tabler-building-community text-2xl' />
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant='overline' color='primary.main' fontWeight={800}>Venue details</Typography>
+                        <Typography variant='h5' fontWeight={700} sx={{ mt: -.25 }}>{event.location || 'Event venue'}</Typography>
+                      </Box>
+                    </Box>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Box sx={{ display: 'grid', gap: 2.5 }}>
+                      <LocationDetailRow
+                        icon='tabler-map-pin'
+                        label='Venue name'
+                        value={event.location || 'Venue name has not been specified yet.'}
+                      />
+                      <LocationDetailRow
+                        icon='tabler-map-search'
+                        label='Full address'
+                        value={event.venueAddress || event.location || 'Full street address has not been provided by the organizer yet.'}
+                      />
+                      <LocationDetailRow
+                        icon='tabler-calendar-clock'
+                        label='Event time'
+                        value={formatDateTime(event.startDate)}
+                      />
+                      <LocationDetailRow
+                        icon={event.mapsUrl ? 'tabler-map-pin-check' : 'tabler-info-circle'}
+                        label='Map source'
+                        value={event.mapsUrl ? 'Exact Google Maps URL saved by the organizer.' : 'No Google Maps URL supplied; preview uses the venue address above.'}
+                      />
+                    </Box>
+
+                    {event.mapsUrl ? (
+                      <>
+                        <Alert severity='success' sx={{ mt: 3 }}>
+                          The embedded map does not replace this pin with another address search. If Google cannot resolve the exact pin safely, the preview is hidden instead.
+                        </Alert>
+                        <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='contained' size='large' startIcon={<i className='tabler-external-link' />} sx={{ mt: 'auto', pt: 1.25, pb: 1.25 }}>
+                          Open Exact Location
+                        </Button>
+                      </>
+                    ) : (
+                      <Alert severity='info' sx={{ mt: 3 }}>Add a Google Maps URL in the event settings to lock this preview to an exact organizer pin.</Alert>
+                    )}
+                  </CardContent>
                 </Card>
               </Box>
             </Box>
