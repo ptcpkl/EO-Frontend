@@ -28,14 +28,19 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
     aria-label={label}
     title={label}
     sx={{
-      width: { xs: 36, md: 40 },
-      height: { xs: 36, md: 40 },
+      width: { xs: 38, md: 42 },
+      height: { xs: 38, md: 42 },
       display: 'grid',
       placeItems: 'center',
       borderRadius: '50%',
       bgcolor: 'rgba(5, 79, 132, .94)',
       color: '#fff',
-      boxShadow: '0 8px 18px rgba(3,61,105,.18)'
+      boxShadow: '0 9px 20px rgba(3,61,105,.2)',
+      transition: 'transform .2s ease, box-shadow .2s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 12px 24px rgba(3,61,105,.24)'
+      }
     }}
   >
     <i className={`${icon} text-xl`} />
@@ -118,9 +123,9 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
         bgcolor: '#d8f1ff',
         minHeight: {
           xs: 760,
-          sm: 680,
-          md: 610,
-          lg: 'clamp(540px, 33.3vw, 690px)'
+          sm: 690,
+          md: 630,
+          lg: 'clamp(570px, 33.3vw, 700px)'
         },
         backgroundImage: 'url(/footer.png)',
         backgroundRepeat: 'no-repeat',
@@ -140,8 +145,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           inset: 0,
           pointerEvents: 'none',
           background: {
-            xs: 'linear-gradient(180deg, rgba(225,247,255,.9) 0%, rgba(225,247,255,.58) 38%, rgba(225,247,255,.06) 68%, rgba(225,247,255,0) 100%)',
-            md: 'radial-gradient(ellipse at 50% 22%, rgba(229,248,255,.74) 0%, rgba(229,248,255,.48) 34%, rgba(229,248,255,.06) 61%, rgba(229,248,255,0) 74%)'
+            xs: 'linear-gradient(180deg, rgba(225,247,255,.82) 0%, rgba(225,247,255,.5) 40%, rgba(225,247,255,.04) 70%, rgba(225,247,255,0) 100%)',
+            md: 'radial-gradient(ellipse at 50% 34%, rgba(229,248,255,.66) 0%, rgba(229,248,255,.38) 35%, rgba(229,248,255,.04) 62%, rgba(229,248,255,0) 76%)'
           }
         }}
       />
@@ -152,90 +157,101 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           zIndex: 1,
           mx: 'auto',
           width: '100%',
-          maxWidth: 760,
+          maxWidth: 780,
           px: { xs: 3, sm: 4 },
-          pt: { xs: 5, sm: 5.5, md: 6 },
+          pt: { xs: 11, sm: 12, md: 13, lg: 14 },
           textAlign: 'center'
         }}
       >
         <Box
           sx={{
-            display: 'inline-flex',
+            mx: 'auto',
+            maxWidth: 700,
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: { xs: 1.75, sm: 2.25 },
-            px: { xs: 2.5, sm: 3 },
-            py: { xs: 1.75, sm: 2 },
-            borderRadius: 4,
-            bgcolor: 'rgba(230,248,255,.48)',
-            backdropFilter: 'blur(2px)'
+            gap: { xs: 2.5, sm: 3 },
+            px: { xs: 2.5, sm: 4.5 },
+            py: { xs: 2.75, sm: 3.5 },
+            borderRadius: 5,
+            bgcolor: 'rgba(230,248,255,.34)',
+            backdropFilter: 'blur(3px)',
+            boxShadow: '0 16px 44px rgba(7,61,105,.06)'
           }}
         >
           <Box
-            component='img'
-            src='/EO%20Navbar.png'
-            alt='Pertamina Event'
             sx={{
-              width: 'auto',
-              height: { xs: 46, md: 56 },
-              maxWidth: 220,
-              objectFit: 'contain'
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: { xs: 1.75, sm: 2.5 }
             }}
-          />
+          >
+            <Box
+              component='img'
+              src='/EO%20Navbar.png'
+              alt='Pertamina Event'
+              sx={{
+                width: 'auto',
+                height: { xs: 48, md: 58 },
+                maxWidth: 225,
+                objectFit: 'contain'
+              }}
+            />
 
-          {resolvedLogoUrl && (
-            <>
-              <Divider
-                orientation='vertical'
-                flexItem
-                sx={{
-                  borderColor: 'rgba(7,61,105,.28)',
-                  minHeight: 54,
-                  display: { xs: 'none', sm: 'block' }
-                }}
-              />
-              <Box
-                component='img'
-                src={resolvedLogoUrl}
-                alt={`${resolvedEventName || 'Event'} logo`}
-                sx={{
-                  width: 'auto',
-                  maxWidth: { xs: 155, sm: 185 },
-                  maxHeight: { xs: 54, sm: 64 },
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 4px 8px rgba(6,61,105,.08))'
-                }}
-              />
-            </>
-          )}
+            {resolvedLogoUrl && (
+              <>
+                <Divider
+                  orientation='vertical'
+                  flexItem
+                  sx={{
+                    borderColor: 'rgba(7,61,105,.28)',
+                    minHeight: 56,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                />
+                <Box
+                  component='img'
+                  src={resolvedLogoUrl}
+                  alt={`${resolvedEventName || 'Event'} logo`}
+                  sx={{
+                    width: 'auto',
+                    maxWidth: { xs: 160, sm: 190 },
+                    maxHeight: { xs: 56, sm: 66 },
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 4px 8px rgba(6,61,105,.08))'
+                  }}
+                />
+              </>
+            )}
+          </Box>
+
+          <Typography
+            sx={{
+              mx: 'auto',
+              maxWidth: 590,
+              color: '#0b456f',
+              lineHeight: 1.75,
+              fontSize: { xs: 14.5, sm: 15.75 },
+              fontWeight: 600,
+              textShadow: '0 1px 0 rgba(255,255,255,.7)'
+            }}
+          >
+            Energizing every event, inspiring every moment. Together, we create experiences that connect people, ideas, and communities.
+          </Typography>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: { xs: 1.1, sm: 1.35 } }}>
+            <SocialMark icon='tabler-brand-instagram' label='Instagram' />
+            <SocialMark icon='tabler-brand-youtube' label='YouTube' />
+            <SocialMark icon='tabler-brand-tiktok' label='TikTok' />
+            <SocialMark icon='tabler-brand-discord' label='Community' />
+          </Box>
+
+          <Typography sx={{ color: '#073d69', fontWeight: 850, fontSize: 14.5 }}>
+            @pertaminaevent
+          </Typography>
         </Box>
-
-        <Typography
-          sx={{
-            mt: 2.5,
-            mx: 'auto',
-            maxWidth: 600,
-            color: '#0b456f',
-            lineHeight: 1.7,
-            fontSize: { xs: 14.5, sm: 15.5 },
-            fontWeight: 600,
-            textShadow: '0 1px 0 rgba(255,255,255,.7)'
-          }}
-        >
-          Energizing every event, inspiring every moment. Together, we create experiences that connect people, ideas, and communities.
-        </Typography>
-
-        <Box sx={{ mt: 2.4, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1.1 }}>
-          <SocialMark icon='tabler-brand-instagram' label='Instagram' />
-          <SocialMark icon='tabler-brand-youtube' label='YouTube' />
-          <SocialMark icon='tabler-brand-tiktok' label='TikTok' />
-          <SocialMark icon='tabler-brand-discord' label='Community' />
-        </Box>
-
-        <Typography sx={{ mt: 1.1, color: '#073d69', fontWeight: 850, fontSize: 14.5 }}>
-          @pertaminaevent
-        </Typography>
       </Box>
 
       <Box

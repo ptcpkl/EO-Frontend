@@ -12,6 +12,7 @@ export type PublicRegistrationStatusResponse = {
   grossAmount: number
   registeredAtUtc: string
   paidAtUtc?: string | null
+  paymentDeadlineUtc?: string | null
   ticketAvailable: boolean
   receiptAvailable: boolean
   snapToken?: string | null

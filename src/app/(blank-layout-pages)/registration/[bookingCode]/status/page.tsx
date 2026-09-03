@@ -33,6 +33,20 @@ const formatDate = (value?: string | null) => {
   return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
 }
 
+const secondsUntil = (value?: string | null) => {
+  if (!value) return null
+  const deadline = new Date(value).getTime()
+  if (Number.isNaN(deadline)) return null
+  return Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+}
+
+const formatCountdown = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  return [hours, minutes, secs].map(value => String(value).padStart(2, '0')).join(':')
+}
+
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 1.5 }}>
     <Typography variant='body2' color='text.secondary'>{label}</Typography>
@@ -67,6 +81,7 @@ const RegistrationStatusPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [openingPayment, setOpeningPayment] = useState(false)
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -114,15 +129,29 @@ const RegistrationStatusPage = () => {
     }
   }, [bookingCode])
 
+  useEffect(() => {
+    if (data?.status !== 'PendingPayment' || !data.paymentDeadlineUtc) {
+      setRemainingSeconds(null)
+      return
+    }
+
+    const updateCountdown = () => setRemainingSeconds(secondsUntil(data.paymentDeadlineUtc))
+    updateCountdown()
+    const timer = window.setInterval(updateCountdown, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [data?.paymentDeadlineUtc, data?.status])
+
   const paymentStatus = data?.paymentStatus.toLowerCase()
   const paymentConfirmed = paymentStatus === 'paid'
   const paymentNotRequired = paymentStatus === 'notrequired' || paymentStatus === 'not_required' || paymentStatus === 'not required'
   const registrationActive = Boolean(data && ['Registered', 'CheckedIn'].includes(data.status))
   const successfulPaid = registrationActive && paymentConfirmed
   const successfulFree = registrationActive && paymentNotRequired
+  const deadlineReached = data?.status === 'PendingPayment' && remainingSeconds === 0
 
   const handleContinuePayment = async () => {
-    if (!data?.snapToken || data.status !== 'PendingPayment') return
+    if (!data?.snapToken || data.status !== 'PendingPayment' || deadlineReached) return
     setOpeningPayment(true)
     setError('')
 
@@ -200,18 +229,60 @@ const RegistrationStatusPage = () => {
                       <Box sx={{ width: 72, height: 72, mx: 'auto', display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: data.status === 'PendingPayment' ? 'warning.lighter' : 'action.hover', color: data.status === 'PendingPayment' ? 'warning.main' : 'text.secondary' }}>
                         <i className={`${data.status === 'PendingPayment' ? 'tabler-clock' : 'tabler-alert-circle'} text-3xl`} />
                       </Box>
-                      <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>{data.status === 'PendingPayment' ? 'Payment pending' : 'Registration status'}</Typography>
+                      <Typography variant='h4' fontWeight={700} sx={{ mt: 3 }}>{data.status === 'PendingPayment' ? 'Payment pending' : data.status === 'Expired' ? 'Payment expired' : 'Registration status'}</Typography>
                       <Typography color='text.secondary' sx={{ mt: 1 }}>{data.eventName}</Typography>
                     </Box>
+
+                    {data.status === 'PendingPayment' && data.paymentDeadlineUtc && (
+                      <Box
+                        sx={{
+                          mb: 3,
+                          p: 2.5,
+                          borderRadius: 3,
+                          textAlign: 'center',
+                          border: '1px solid',
+                          borderColor: deadlineReached ? 'error.light' : 'warning.light',
+                          bgcolor: deadlineReached ? 'error.lighter' : 'warning.lighter'
+                        }}
+                      >
+                        <Typography variant='body2' fontWeight={700} color={deadlineReached ? 'error.main' : 'warning.dark'}>
+                          {deadlineReached ? 'Payment deadline reached' : 'Complete payment within'}
+                        </Typography>
+                        <Typography variant='h3' fontWeight={800} sx={{ my: 1, letterSpacing: '.04em', fontVariantNumeric: 'tabular-nums' }}>
+                          {remainingSeconds === null ? '--:--:--' : formatCountdown(remainingSeconds)}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Deadline: {formatDate(data.paymentDeadlineUtc)} WIB
+                        </Typography>
+                        {deadlineReached && (
+                          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                            Checking the final payment status. This page will update automatically.
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
                     {error && <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>}
                     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 3, py: 1 }}>
                       <DetailRow label='Booking Code' value={bookingCode} />
                       <Divider /><DetailRow label='Package' value={data.eventPackageName ?? '-'} />
                       <Divider /><DetailRow label='Payment' value={data.paymentStatus} />
                       <Divider /><DetailRow label='Total' value={formatCurrency(data.grossAmount)} />
+                      {data.paymentDeadlineUtc && <><Divider /><DetailRow label='Payment Deadline' value={`${formatDate(data.paymentDeadlineUtc)} WIB`} /></>}
                     </Box>
-                    {data.status === 'PendingPayment' && data.snapToken && <Button fullWidth variant='contained' size='large' sx={{ mt: 4 }} disabled={openingPayment} onClick={() => void handleContinuePayment()}>{openingPayment ? 'Opening Payment...' : 'Continue Payment'}</Button>}
-                    {['Failed', 'Expired', 'Cancelled'].includes(data.status) && <Alert severity='warning' sx={{ mt: 3 }}>This registration is no longer active. Any reserved quota has been released by the backend.</Alert>}
+
+                    {data.status === 'PendingPayment' && data.snapToken && (
+                      <Button fullWidth variant='contained' size='large' sx={{ mt: 4 }} disabled={openingPayment || deadlineReached} onClick={() => void handleContinuePayment()}>
+                        {deadlineReached ? 'Payment Window Ended' : openingPayment ? 'Opening Payment...' : 'Continue Payment'}
+                      </Button>
+                    )}
+
+                    {data.status === 'Expired' && (
+                      <Alert severity='warning' sx={{ mt: 3 }}>
+                        This payment window has expired and the reserved quota has been released. You can register again using the same email address.
+                      </Alert>
+                    )}
+                    {['Failed', 'Cancelled'].includes(data.status) && <Alert severity='warning' sx={{ mt: 3 }}>This registration is no longer active. Any reserved quota has been released by the backend.</Alert>}
                     <Button component={Link} href='/home' fullWidth variant='outlined' sx={{ mt: 2 }}>Back To Home Screen</Button>
                   </>
                 )}
