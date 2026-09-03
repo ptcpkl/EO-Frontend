@@ -166,7 +166,7 @@ const PublicEventHome = () => (
         overflow: 'hidden',
         px: { xs: 2, sm: 3 },
         py: { xs: 8, sm: 9, md: 11 },
-        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.08 : 0.04)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.08 : 0.04)}), url('${theme.palette.mode === 'dark' ? '/category-bg-dark.webp' : '/category-bg-light.webp'}')`,
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.08 : 0.04)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.08 : 0.04)}), url('${theme.palette.mode === 'dark' ? '/gelap.png' : '/cahaya.png'}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -194,8 +194,7 @@ const PublicEventHome = () => (
               maxWidth: 720,
               fontSize: { xs: '0.95rem', sm: '1rem', md: '1.06rem' },
               lineHeight: 1.7,
-              px: { xs: 1, sm: 0 },
-   
+              px: { xs: 1, sm: 0 }
             }}
           >
             Published events live inside the category selected by the event organizer.
