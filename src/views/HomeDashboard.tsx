@@ -142,7 +142,7 @@ const PublicEventHome = () => (
             href='/about'
             size='large'
             variant='outlined'
-            sx={{ minWidth: { xs: 'min(100%, 210px)', sm: 220 }, bgcolor: 'background.paper' }}
+            sx={{ minWidth: { xs: 'min(100%, 210px)', sm: 220 }, bgcolor: 'background.papers' }}
           >
             About Pertamina Event
           </Button>
@@ -184,7 +184,7 @@ const PublicEventHome = () => (
         overflow: 'hidden',
         px: { xs: 2, sm: 3 },
         py: { xs: 8, sm: 10, md: 13 },
-        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.76 : 0.58)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.9 : 0.78)}), url('${theme.palette.mode === 'dark' ? '/home-intro-dark.webp' : '/home-intro-light.webp'}')`,
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.76 : 0.58)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.9 : 0.78)}), url('${theme.palette.mode === 'dark' ? '/home-intro-dark.webp' : '/circle.png'}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -205,16 +205,14 @@ const PublicEventHome = () => (
           sx={theme => ({
             position: 'relative',
             minHeight: { xs: 300, sm: 390, md: 470 },
-            borderRadius: { xs: 4, md: 5 },
-            border: '1px dashed',
-            borderColor: alpha(theme.palette.text.primary, 0.2),
-            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.82),
+
+
+
             display: 'grid',
             placeItems: 'center',
             overflow: 'hidden',
             boxShadow: theme.shadows[3],
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)'
+
           })}
         >
           <Box sx={{ textAlign: 'center', px: 3, color: 'text.secondary' }}>
@@ -228,7 +226,7 @@ const PublicEventHome = () => (
                 bgcolor: 'action.hover',
                 display: 'grid',
                 placeItems: 'center',
-                color: 'primary.main'
+
               }}
             >
               <i className='tabler-photo text-3xl' />
@@ -243,15 +241,12 @@ const PublicEventHome = () => (
         </Box>
 
         <Box
-          sx={theme => ({
+          sx={{
             p: { xs: 2.5, sm: 3, md: 3.5 },
             borderRadius: 4,
-            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.8),
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '1px solid',
-            borderColor: alpha(theme.palette.divider, 0.65)
-          })}
+
+
+          }}
         >
           <Box
             component='img'
@@ -290,9 +285,7 @@ const PublicEventHome = () => (
                     width: 38,
                     height: 38,
                     flexShrink: 0,
-                    borderRadius: 2,
-                    bgcolor: 'action.hover',
-                    color: 'primary.main',
+
                     display: 'grid',
                     placeItems: 'center'
                   }}
@@ -440,18 +433,17 @@ const PublicEventHome = () => (
       aria-label='Event partners'
       sx={theme => ({
         position: 'relative',
-        overflow: 'hidden',
+
         py: { xs: 7, sm: 8, md: 9 },
         backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.72 : 0.56)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.88 : 0.76)}), url('${theme.palette.mode === 'dark' ? '/home-partners-dark.webp' : '/home-partners-light.webp'}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        borderTop: '1px solid',
-        borderColor: alpha(theme.palette.divider, 0.7)
+
       })}
     >
       <Box
-        sx={theme => ({
+        sx={{
           width: 'fit-content',
           maxWidth: 'calc(100% - 32px)',
           mx: 'auto',
@@ -459,13 +451,9 @@ const PublicEventHome = () => (
           px: { xs: 2.5, sm: 4 },
           py: 2.5,
           mb: { xs: 4, md: 5 },
-          borderRadius: 3,
-          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.8),
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid',
-          borderColor: alpha(theme.palette.divider, 0.65)
-        })}
+
+
+        }}
       >
         <Chip label='Presented by' color='primary' variant='tonal' />
         <Typography
