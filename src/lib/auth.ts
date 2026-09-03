@@ -2,6 +2,10 @@
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api').replace(/\/$/, '')
 const storageKey = 'eo-auth'
+const adminSessionHintCookie = 'eo-admin-session'
+const lastAdminPathKey = 'eo-last-admin-path'
+const lastAdminPathCookie = 'eo-last-admin-path'
+const sessionCookieMaxAgeSeconds = 60 * 60 * 24 * 30
 
 export type AdminSession = {
   accessToken: string
@@ -16,6 +20,55 @@ const parseError = async (response: Response, fallback: string) => {
   const body = await response.json().catch(() => null)
 
   return body?.detail ?? body?.message ?? body?.title ?? fallback
+}
+
+const writeCookie = (name: string, value: string, maxAge = sessionCookieMaxAgeSeconds) => {
+  if (typeof document === 'undefined') return
+
+  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
+
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`
+}
+
+const deleteCookie = (name: string) => writeCookie(name, '', 0)
+
+export const isSafeAdminPath = (path: string | null | undefined): path is string => {
+  if (!path) return false
+
+  const value = path.trim()
+
+  if (!value.startsWith('/admin')) return false
+  if (value.startsWith('//')) return false
+
+  return value === '/admin' || value.startsWith('/admin/') || value.startsWith('/admin?')
+}
+
+export function rememberAdminPath(path: string) {
+  if (typeof window === 'undefined' || !isSafeAdminPath(path)) return
+
+  window.localStorage.setItem(lastAdminPathKey, path)
+  writeCookie(lastAdminPathCookie, path)
+}
+
+export function getLastAdminPath(): string | null {
+  if (typeof window === 'undefined') return null
+
+  const value = window.localStorage.getItem(lastAdminPathKey)
+
+  return isSafeAdminPath(value) ? value : null
+}
+
+export function clearLastAdminPath() {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(lastAdminPathKey)
+  deleteCookie(lastAdminPathCookie)
+}
+
+export function getSafeAdminReturnTo(searchParams?: URLSearchParams | null): string | null {
+  if (!searchParams) return null
+
+  const value = searchParams.get('returnTo')
+
+  return isSafeAdminPath(value) ? value : null
 }
 
 export function getStoredSession(): AdminSession | null {
@@ -40,12 +93,20 @@ export function saveSession(session: AdminSession) {
   if (typeof window === 'undefined') return
 
   window.localStorage.setItem(storageKey, JSON.stringify(session))
+
+  if (session.role?.toLowerCase() === 'admin') {
+    writeCookie(adminSessionHintCookie, '1')
+  } else {
+    deleteCookie(adminSessionHintCookie)
+  }
 }
 
-export function clearSession() {
-  if (typeof window === 'undefined') return
+export function clearSession(options: { clearLastPath?: boolean } = {}) {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(storageKey)
 
-  window.localStorage.removeItem(storageKey)
+  deleteCookie(adminSessionHintCookie)
+
+  if (options.clearLastPath) clearLastAdminPath()
 }
 
 const isAccessTokenUsable = (session: AdminSession) => {
@@ -75,31 +136,47 @@ export async function login(email: string, password: string): Promise<AdminSessi
 
 let refreshPromise: Promise<AdminSession | null> | null = null
 
+const fetchRefresh = () =>
+  fetch(`${apiUrl}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include'
+  })
+
+const wait = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
+
 export async function refreshSession(): Promise<AdminSession | null> {
   if (refreshPromise) return refreshPromise
 
   refreshPromise = (async () => {
-    try {
-      const response = await fetch(`${apiUrl}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include'
-      })
+    let response: Response
 
-      if (!response.ok) {
-        clearSession()
+    try {
+      response = await fetchRefresh()
+    } catch {
+      // A brief local/network interruption should not immediately destroy a
+      // still-valid refresh session. Retry once before giving up this restore.
+      await wait(350)
+
+      try {
+        response = await fetchRefresh()
+      } catch {
         return null
       }
-
-      const session = (await response.json()) as AdminSession
-
-      saveSession(session)
-      return session
-    } catch {
-      return null
-    } finally {
-      refreshPromise = null
     }
-  })()
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) clearSession()
+
+      return null
+    }
+
+    const session = (await response.json()) as AdminSession
+
+    saveSession(session)
+    return session
+  })().finally(() => {
+    refreshPromise = null
+  })
 
   return refreshPromise
 }
@@ -107,7 +184,13 @@ export async function refreshSession(): Promise<AdminSession | null> {
 export async function restoreSession(): Promise<AdminSession | null> {
   const session = getStoredSession()
 
-  if (session && isAccessTokenUsable(session)) return session
+  if (session && isAccessTokenUsable(session)) {
+    // Backfill the routing hint for sessions created before this middleware
+    // existed. This cookie contains no credential or authorization data.
+    if (session.role?.toLowerCase() === 'admin') writeCookie(adminSessionHintCookie, '1')
+
+    return session
+  }
 
   return refreshSession()
 }
@@ -142,7 +225,7 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
 
   response = await request()
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     clearSession()
     throw new Error('Your session has expired. Please login again.')
   }
@@ -157,6 +240,6 @@ export async function logout() {
       credentials: 'include'
     })
   } finally {
-    clearSession()
+    clearSession({ clearLastPath: true })
   }
 }

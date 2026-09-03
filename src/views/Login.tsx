@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
@@ -13,7 +13,7 @@ import Button from '@mui/material/Button'
 import type { SystemMode } from '@core/types'
 
 import CustomTextField from '@core/components/mui/TextField'
-import { login, saveSession } from '@/lib/api'
+import { getLastAdminPath, getSafeAdminReturnTo, login, rememberAdminPath, restoreSession } from '@/lib/auth'
 import { useSettings } from '@core/hooks/useSettings'
 
 /* -------------------------------------------------------------------------- */
@@ -133,6 +133,14 @@ const LoginCard = styled('div')(({ theme }) => ({
   }
 }))
 
+const getAdminDestination = () => {
+  if (typeof window === 'undefined') return '/admin/home'
+
+  const returnTo = getSafeAdminReturnTo(new URLSearchParams(window.location.search))
+
+  return returnTo ?? getLastAdminPath() ?? '/admin/home'
+}
+
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -146,11 +154,43 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(true)
 
   // Hooks
   const router = useRouter()
   const theme = useTheme()
   const { updateSettings } = useSettings()
+
+  useEffect(() => {
+    let active = true
+
+    const restoreExistingSession = async () => {
+      const session = await restoreSession()
+
+      if (!active) return
+
+      if (!session) {
+        setIsRestoring(false)
+        return
+      }
+
+      if (session.role?.toLowerCase() === 'admin') {
+        const destination = getAdminDestination()
+
+        rememberAdminPath(destination)
+        router.replace(destination)
+        return
+      }
+
+      router.replace('/home')
+    }
+
+    void restoreExistingSession()
+
+    return () => {
+      active = false
+    }
+  }, [router])
 
   /* ------------------------------------------------------------------------ */
   /* Password visibility                                                      */
@@ -179,7 +219,7 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (isSubmitting) return
+    if (isSubmitting || isRestoring) return
 
     setError('')
     setIsSubmitting(true)
@@ -187,9 +227,14 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
     try {
       const session = await login(email, password)
 
-      saveSession(session)
+      if (session.role?.toLowerCase() === 'admin') {
+        const destination = getAdminDestination()
 
-      router.push(session.role?.toLowerCase() === 'admin' ? '/admin/home' : '/home')
+        rememberAdminPath(destination)
+        router.replace(destination)
+      } else {
+        router.replace('/home')
+      }
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Login gagal.')
     } finally {
@@ -387,6 +432,7 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
               <CustomTextField
                 autoFocus
                 fullWidth
+                disabled={isRestoring}
                 label='Email or Username'
                 placeholder='Enter your email or username'
                 value={email}
@@ -400,6 +446,7 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
 
               <CustomTextField
                 fullWidth
+                disabled={isRestoring}
                 label='Password'
                 placeholder='············'
                 value={password}
@@ -456,7 +503,7 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
                 fullWidth
                 variant='contained'
                 type='submit'
-                disabled={isSubmitting}
+                disabled={isSubmitting || isRestoring}
                 sx={{
                   minHeight: 50,
 
@@ -476,7 +523,7 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
                   }
                 }}
               >
-                {isSubmitting ? 'Signing in...' : 'Login'}
+                {isRestoring ? 'Checking session...' : isSubmitting ? 'Signing in...' : 'Login'}
               </Button>
             </form>
           </div>

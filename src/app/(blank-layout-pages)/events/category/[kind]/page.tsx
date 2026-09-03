@@ -13,14 +13,39 @@ import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/material/styles'
 
 import { getPublicEvents, type PublicEvent } from '@/lib/api'
 
 const categoryMap = {
-  running: { backend: 'Running', title: 'Running Events', icon: 'tabler-run', description: 'Find races, fun runs, and active community experiences.' },
-  seminar: { backend: 'Seminar', title: 'Seminar Events', icon: 'tabler-microphone', description: 'Explore talks, learning sessions, and knowledge-sharing events.' },
-  workshop: { backend: 'Workshop', title: 'Workshop Events', icon: 'tabler-tool', description: 'Join practical workshops and hands-on learning sessions.' },
-  other: { backend: 'Other', title: 'Other Events', icon: 'tabler-calendar-event', description: 'Discover special programs and other Pertamina Event experiences.' }
+  running: {
+    backend: 'Running',
+    title: 'Running Events',
+    icon: 'tabler-run',
+    background: '/runn.png',
+    description: 'Find races, fun runs, and active community experiences.'
+  },
+  seminar: {
+    backend: 'Seminar',
+    title: 'Seminar Events',
+    icon: 'tabler-microphone',
+    background: '/seminar.png',
+    description: 'Explore talks, learning sessions, and knowledge-sharing events.'
+  },
+  workshop: {
+    backend: 'Workshop',
+    title: 'Workshop Events',
+    icon: 'tabler-tool',
+    background: '/workshop.png',
+    description: 'Join practical workshops and hands-on learning sessions.'
+  },
+  other: {
+    backend: 'Other',
+    title: 'Other Events',
+    icon: 'tabler-calendar-event',
+    background: '/others.png',
+    description: 'Discover special programs and other Pertamina Event experiences.'
+  }
 } as const
 
 type CategoryKey = keyof typeof categoryMap
@@ -39,7 +64,18 @@ const formatPrice = (value?: number) => {
 }
 
 const EventCard = ({ event }: { event: PublicEvent }) => (
-  <Card sx={{ height: '100%', overflow: 'hidden' }}>
+  <Card
+    sx={theme => ({
+      height: '100%',
+      overflow: 'hidden',
+      bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.9 : 0.94),
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      border: '1px solid',
+      borderColor: alpha(theme.palette.divider, 0.8),
+      boxShadow: theme.shadows[4]
+    })}
+  >
     {event.heroImageUrl ? (
       <Box component='img' src={event.heroImageUrl} alt={event.name} sx={{ width: '100%', height: 210, objectFit: 'cover', display: 'block' }} />
     ) : (
@@ -121,9 +157,35 @@ const EventCategoryPage = () => {
   }
 
   return (
-    <Box sx={{ px: 3, py: { xs: 7, md: 10 } }}>
+    <Box
+      sx={theme => ({
+        minHeight: '100dvh',
+        px: 3,
+        py: { xs: 7, md: 10 },
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.8 : 0.78)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.94 : 0.9)}), url('${category.background}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+        backgroundRepeat: 'no-repeat'
+      })}
+    >
       <Box sx={{ width: '100%', maxWidth: 1180, mx: 'auto' }}>
-        <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 6 }}>
+        <Box
+          sx={theme => ({
+            display: 'flex',
+            gap: 2.5,
+            alignItems: 'center',
+            mb: 6,
+            width: 'fit-content',
+            maxWidth: '100%',
+            p: { xs: 2.25, sm: 2.75 },
+            borderRadius: 3,
+            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.82 : 0.88),
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid',
+            borderColor: alpha(theme.palette.divider, 0.75)
+          })}
+        >
           <Box sx={{ width: 58, height: 58, borderRadius: 2, bgcolor: 'action.hover', display: 'grid', placeItems: 'center', color: 'primary.main', flexShrink: 0 }}>
             <i className={`${category.icon} text-3xl`} />
           </Box>
@@ -138,7 +200,7 @@ const EventCategoryPage = () => {
         {error && <Alert severity='error'>{error}</Alert>}
 
         {!loading && !error && events.length === 0 && (
-          <Card>
+          <Card sx={theme => ({ bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.9 : 0.94), backdropFilter: 'blur(10px)' })}>
             <CardContent sx={{ py: 8, textAlign: 'center' }}>
               <Box sx={{ width: 60, height: 60, mx: 'auto', borderRadius: 2, bgcolor: 'action.hover', display: 'grid', placeItems: 'center' }}><i className='tabler-calendar-off text-3xl' /></Box>
               <Typography variant='h5' fontWeight={600} sx={{ mt: 3 }}>No published {category.backend.toLowerCase()} events yet</Typography>

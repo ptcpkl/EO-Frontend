@@ -184,8 +184,10 @@ const PublicEventHome = () => (
         overflow: 'hidden',
         px: { xs: 2, sm: 3 },
         py: { xs: 8, sm: 10, md: 13 },
-        bgcolor: 'background.default',
-        backgroundImage: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.035)}, transparent 48%, ${alpha(theme.palette.info.main, theme.palette.mode === 'dark' ? 0.07 : 0.035)})`
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.76 : 0.58)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.9 : 0.78)}), url('${theme.palette.mode === 'dark' ? '/home-intro-dark.webp' : '/home-intro-light.webp'}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
       })}
     >
       <Box
@@ -206,11 +208,13 @@ const PublicEventHome = () => (
             borderRadius: { xs: 4, md: 5 },
             border: '1px dashed',
             borderColor: alpha(theme.palette.text.primary, 0.2),
-            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.48 : 0.72),
+            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.82),
             display: 'grid',
             placeItems: 'center',
             overflow: 'hidden',
-            boxShadow: theme.shadows[3]
+            boxShadow: theme.shadows[3],
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)'
           })}
         >
           <Box sx={{ textAlign: 'center', px: 3, color: 'text.secondary' }}>
@@ -238,7 +242,17 @@ const PublicEventHome = () => (
           </Box>
         </Box>
 
-        <Box>
+        <Box
+          sx={theme => ({
+            p: { xs: 2.5, sm: 3, md: 3.5 },
+            borderRadius: 4,
+            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.8),
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid',
+            borderColor: alpha(theme.palette.divider, 0.65)
+          })}
+        >
           <Box
             component='img'
             src='/EO%20Navbar.png'
@@ -428,12 +442,31 @@ const PublicEventHome = () => (
         position: 'relative',
         overflow: 'hidden',
         py: { xs: 7, sm: 8, md: 9 },
-        bgcolor: 'background.default',
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.72 : 0.56)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.88 : 0.76)}), url('${theme.palette.mode === 'dark' ? '/home-partners-dark.webp' : '/home-partners-light.webp'}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         borderTop: '1px solid',
         borderColor: alpha(theme.palette.divider, 0.7)
       })}
     >
-      <Box sx={{ textAlign: 'center', px: 2, mb: { xs: 4, md: 5 } }}>
+      <Box
+        sx={theme => ({
+          width: 'fit-content',
+          maxWidth: 'calc(100% - 32px)',
+          mx: 'auto',
+          textAlign: 'center',
+          px: { xs: 2.5, sm: 4 },
+          py: 2.5,
+          mb: { xs: 4, md: 5 },
+          borderRadius: 3,
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.8),
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid',
+          borderColor: alpha(theme.palette.divider, 0.65)
+        })}
+      >
         <Chip label='Presented by' color='primary' variant='tonal' />
         <Typography
           component='h2'
@@ -477,7 +510,7 @@ const PublicEventHome = () => (
                     borderRadius: 3,
                     display: 'grid',
                     placeItems: 'center',
-                    bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.72 : 0.88),
+                    bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.78 : 0.9),
                     backdropFilter: 'blur(10px)',
                     WebkitBackdropFilter: 'blur(10px)'
                   })}
