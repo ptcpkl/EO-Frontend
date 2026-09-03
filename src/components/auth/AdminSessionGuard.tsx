@@ -23,10 +23,15 @@ const AdminSessionGuard = ({ children }: Props) => {
 
       if (!active) return
 
-      if (!session) {
-        const returnTo = pathname?.startsWith('/admin') ? pathname : '/admin/home'
+      const currentAdminPath =
+        typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+          ? `${window.location.pathname}${window.location.search}`
+          : pathname?.startsWith('/admin')
+            ? pathname
+            : '/admin/home'
 
-        router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}&authCheck=1`)
+      if (!session) {
+        router.replace(`/login?returnTo=${encodeURIComponent(currentAdminPath)}&authCheck=1`)
         return
       }
 
@@ -35,12 +40,12 @@ const AdminSessionGuard = ({ children }: Props) => {
         return
       }
 
-      rememberAdminPath(pathname || '/admin/home')
+      rememberAdminPath(currentAdminPath)
       setIsAuthorized(true)
     }
 
     setIsAuthorized(false)
-    validateSession()
+    void validateSession()
 
     return () => {
       active = false
