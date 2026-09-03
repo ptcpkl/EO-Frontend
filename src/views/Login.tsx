@@ -133,6 +133,14 @@ const LoginCard = styled('div')(({ theme }) => ({
   }
 }))
 
+const getAdminDestination = () => {
+  if (typeof window === 'undefined') return '/admin/home'
+
+  const returnTo = getSafeAdminReturnTo(new URLSearchParams(window.location.search))
+
+  return returnTo ?? getLastAdminPath() ?? '/admin/home'
+}
+
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -152,14 +160,6 @@ const LoginV2 = (_props: { mode: SystemMode }) => {
   const router = useRouter()
   const theme = useTheme()
   const { updateSettings } = useSettings()
-
-  const getAdminDestination = () => {
-    if (typeof window === 'undefined') return '/admin/home'
-
-    const returnTo = getSafeAdminReturnTo(new URLSearchParams(window.location.search))
-
-    return returnTo ?? getLastAdminPath() ?? '/admin/home'
-  }
 
   useEffect(() => {
     let active = true
