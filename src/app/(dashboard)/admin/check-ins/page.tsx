@@ -19,12 +19,95 @@ type BarcodeResult = { rawValue?: string }
 type BarcodeDetectorInstance = { detect: (source: CanvasImageSource) => Promise<BarcodeResult[]> }
 type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
 
+type JsQrResult = { data: string }
+type JsQrDecoder = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: { inversionAttempts?: 'dontInvert' | 'onlyInvert' | 'attemptBoth' | 'invertFirst' }
+) => JsQrResult | null
+
+type ScannerWindow = typeof window & {
+  BarcodeDetector?: BarcodeDetectorConstructor
+  jsQR?: JsQrDecoder
+}
+
+const JSQR_SCRIPT_ID = 'eo-jsqr-fallback'
+const JSQR_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
+
 const formatDateTime = (value: string) =>
   new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'Asia/Jakarta'
   }).format(new Date(value))
+
+const loadJsQrFallback = async (): Promise<JsQrDecoder> => {
+  const scannerWindow = window as ScannerWindow
+
+  if (scannerWindow.jsQR) return scannerWindow.jsQR
+
+  await new Promise<void>((resolve, reject) => {
+    let script = document.getElementById(JSQR_SCRIPT_ID) as HTMLScriptElement | null
+
+    const handleLoad = () => {
+      cleanup()
+      resolve()
+    }
+
+    const handleError = () => {
+      cleanup()
+      reject(new Error('Unable to load the compatible QR scanner. Check your internet connection and try again.'))
+    }
+
+    const cleanup = () => {
+      script?.removeEventListener('load', handleLoad)
+      script?.removeEventListener('error', handleError)
+    }
+
+    if (!script) {
+      script = document.createElement('script')
+      script.id = JSQR_SCRIPT_ID
+      script.src = JSQR_SCRIPT_URL
+      script.async = true
+      script.crossOrigin = 'anonymous'
+      document.head.appendChild(script)
+    }
+
+    if ((window as ScannerWindow).jsQR) {
+      cleanup()
+      resolve()
+      return
+    }
+
+    script.addEventListener('load', handleLoad, { once: true })
+    script.addEventListener('error', handleError, { once: true })
+  })
+
+  const decoder = (window as ScannerWindow).jsQR
+  if (!decoder) throw new Error('Compatible QR scanner failed to initialize.')
+
+  return decoder
+}
+
+const cameraErrorMessage = (error: unknown) => {
+  if (!(error instanceof DOMException)) {
+    return error instanceof Error ? error.message : 'Unable to access the camera.'
+  }
+
+  switch (error.name) {
+    case 'NotAllowedError':
+      return 'Camera permission was denied. Allow camera access for this site, then press Start camera again.'
+    case 'NotFoundError':
+      return 'No camera was found on this device.'
+    case 'NotReadableError':
+      return 'The camera is unavailable or is being used by another application.'
+    case 'SecurityError':
+      return 'Camera access is blocked by the browser. Open this page over HTTPS or localhost.'
+    default:
+      return error.message || 'Unable to access the camera.'
+  }
+}
 
 export default function Page() {
   const [token, setToken] = useState('')
@@ -35,8 +118,11 @@ export default function Page() {
   const [result, setResult] = useState<CheckInResponse | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const scanBusyRef = useRef(false)
+  const submittingRef = useRef(false)
 
   const stopScanner = () => {
     if (timerRef.current) {
@@ -44,8 +130,15 @@ export default function Page() {
       timerRef.current = null
     }
 
+    scanBusyRef.current = false
     streamRef.current?.getTracks().forEach(track => track.stop())
     streamRef.current = null
+
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.srcObject = null
+    }
+
     setScanning(false)
   }
 
@@ -53,8 +146,9 @@ export default function Page() {
 
   const submitToken = async (value = token) => {
     const qrToken = value.trim()
-    if (!qrToken || submitting) return
+    if (!qrToken || submittingRef.current) return
 
+    submittingRef.current = true
     setSubmitting(true)
     setError('')
     setResult(null)
@@ -67,29 +161,55 @@ export default function Page() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to check in participant.')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
 
+  const handleDecodedToken = async (value: string) => {
+    const decoded = value.trim()
+    if (!decoded || submittingRef.current) return
+
+    setToken(decoded)
+    stopScanner()
+    await submitToken(decoded)
+  }
+
   const startScanner = async () => {
+    if (scanning) return
+
     setCameraMessage('')
     setError('')
+    setResult(null)
 
-    const detectorCtor = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
-
-    if (!detectorCtor) {
-      setCameraMessage('QR camera scanning is not supported by this browser. Paste the QR token manually instead.')
+    if (!window.isSecureContext) {
+      setCameraMessage('Camera access requires a secure page. Open the app over HTTPS or use localhost during development.')
       return
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraMessage('Camera access is not available in this browser.')
+      setCameraMessage('Camera access is not available in this browser. Make sure the page is opened over HTTPS and camera permission is enabled.')
       return
     }
 
+    const detectorCtor = (window as ScannerWindow).BarcodeDetector
+    let detector: BarcodeDetectorInstance | null = null
+    let jsQrDecoder: JsQrDecoder | null = null
+
     try {
+      if (detectorCtor) {
+        detector = new detectorCtor({ formats: ['qr_code'] })
+      } else {
+        setCameraMessage('Preparing compatible QR scanner...')
+        jsQrDecoder = await loadJsQrFallback()
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false
       })
 
@@ -97,30 +217,61 @@ export default function Page() {
       setScanning(true)
 
       const video = videoRef.current
-      if (!video) return
+      if (!video) {
+        stream.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+        throw new Error('Camera preview could not be initialized.')
+      }
 
       video.srcObject = stream
       await video.play()
 
-      const detector = new detectorCtor({ formats: ['qr_code'] })
+      setCameraMessage('Camera is active. Place the ticket QR code inside the frame and hold it steady.')
 
       timerRef.current = setInterval(async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) return
+        const currentVideo = videoRef.current
+        if (!currentVideo || currentVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || scanBusyRef.current) return
+
+        scanBusyRef.current = true
 
         try {
-          const codes = await detector.detect(videoRef.current)
-          const value = codes.find(item => item.rawValue)?.rawValue?.trim()
+          let decodedValue = ''
 
-          if (value) {
-            setToken(value)
-            await submitToken(value)
+          if (detector) {
+            const codes = await detector.detect(currentVideo)
+            decodedValue = codes.find(item => item.rawValue)?.rawValue?.trim() ?? ''
+          } else if (jsQrDecoder) {
+            const sourceWidth = currentVideo.videoWidth
+            const sourceHeight = currentVideo.videoHeight
+            if (!sourceWidth || !sourceHeight) return
+
+            const canvas = canvasRef.current ?? document.createElement('canvas')
+            canvasRef.current = canvas
+
+            const maxScanWidth = 960
+            const scale = Math.min(1, maxScanWidth / sourceWidth)
+            canvas.width = Math.max(1, Math.round(sourceWidth * scale))
+            canvas.height = Math.max(1, Math.round(sourceHeight * scale))
+
+            const context = canvas.getContext('2d', { willReadFrequently: true })
+            if (!context) return
+
+            context.drawImage(currentVideo, 0, 0, canvas.width, canvas.height)
+            const frame = context.getImageData(0, 0, canvas.width, canvas.height)
+            decodedValue = jsQrDecoder(frame.data, frame.width, frame.height, {
+              inversionAttempts: 'attemptBoth'
+            })?.data?.trim() ?? ''
           }
+
+          if (decodedValue) await handleDecodedToken(decodedValue)
         } catch {
-          // Ignore transient detector frame errors and continue scanning.
+          // A camera frame can fail while autofocus/exposure is changing. Keep scanning.
+        } finally {
+          scanBusyRef.current = false
         }
-      }, 800)
+      }, 300)
     } catch (err) {
-      setCameraMessage(err instanceof Error ? err.message : 'Unable to access the camera.')
+      setCameraMessage(cameraErrorMessage(err))
       stopScanner()
     }
   }
@@ -131,7 +282,7 @@ export default function Page() {
         <Chip label='Operations' color='primary' size='small' sx={{ mb: 1.5 }} />
         <Typography variant='h4' fontWeight={800}>Participant Check-ins</Typography>
         <Typography color='text.secondary' sx={{ mt: 1, maxWidth: 720 }}>
-          Validate paid or internal tickets using the QR token. The backend prevents duplicate check-ins and rejects unpaid external registrations.
+          Validate free, paid, or internal tickets using their QR code. Duplicate check-ins and inactive registrations are rejected by the backend.
         </Typography>
       </Box>
 
@@ -141,7 +292,7 @@ export default function Page() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
               <Box>
                 <Typography variant='h6' fontWeight={700}>QR scanner</Typography>
-                <Typography variant='body2' color='text.secondary'>Use the rear camera when your browser supports BarcodeDetector.</Typography>
+                <Typography variant='body2' color='text.secondary'>Use the device camera. A compatible QR fallback is loaded automatically when native scanning is unavailable.</Typography>
               </Box>
               {scanning ? (
                 <Button color='error' variant='outlined' onClick={stopScanner} startIcon={<i className='tabler-camera-off' />}>
@@ -167,25 +318,30 @@ export default function Page() {
                 position: 'relative'
               }}
             >
-              <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: scanning ? 'block' : 'none' }} />
+              <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: scanning ? 'block' : 'none' }} />
               {!scanning && (
                 <Box sx={{ textAlign: 'center', px: 3, color: 'text.secondary' }}>
                   <i className='tabler-qrcode text-5xl' />
-                  <Typography sx={{ mt: 1 }}>Camera preview will appear here.</Typography>
+                  <Typography sx={{ mt: 1 }}>Press Start camera, allow camera permission, then point it at the ticket QR.</Typography>
                 </Box>
               )}
               {scanning && (
-                <Box sx={{ position: 'absolute', inset: '18%', border: '2px solid', borderColor: 'primary.main', borderRadius: 2, pointerEvents: 'none' }} />
+                <>
+                  <Box sx={{ position: 'absolute', inset: '18%', border: '2px solid', borderColor: 'primary.main', borderRadius: 2, pointerEvents: 'none', boxShadow: '0 0 0 9999px rgba(0,0,0,.12)' }} />
+                  <Box sx={{ position: 'absolute', left: '50%', bottom: 18, transform: 'translateX(-50%)', bgcolor: 'rgba(0,0,0,.62)', color: 'common.white', px: 2, py: .75, borderRadius: 10, fontSize: 12, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                    Hold QR steady inside the frame
+                  </Box>
+                </>
               )}
             </Box>
 
-            {cameraMessage && <Alert severity='info' sx={{ mt: 3 }}>{cameraMessage}</Alert>}
+            {cameraMessage && <Alert severity={scanning ? 'success' : 'info'} sx={{ mt: 3 }}>{cameraMessage}</Alert>}
 
             <Divider sx={{ my: 4 }}>OR</Divider>
 
             <Typography variant='subtitle1' fontWeight={700}>Manual token</Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: .5, mb: 2 }}>
-              Paste the ticket QR token when camera scanning is unavailable.
+              You can still paste the ticket QR token manually when needed.
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
               <TextField
