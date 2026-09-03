@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
-import { restoreSession } from '@/lib/auth'
+import { rememberAdminPath, restoreSession } from '@/lib/auth'
 
 type Props = {
   children: ReactNode
@@ -12,6 +12,7 @@ type Props = {
 
 const AdminSessionGuard = ({ children }: Props) => {
   const router = useRouter()
+  const pathname = usePathname()
   const [isAuthorized, setIsAuthorized] = useState(false)
 
   useEffect(() => {
@@ -23,7 +24,9 @@ const AdminSessionGuard = ({ children }: Props) => {
       if (!active) return
 
       if (!session) {
-        router.replace('/login')
+        const returnTo = pathname?.startsWith('/admin') ? pathname : '/admin/home'
+
+        router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}&authCheck=1`)
         return
       }
 
@@ -32,15 +35,17 @@ const AdminSessionGuard = ({ children }: Props) => {
         return
       }
 
+      rememberAdminPath(pathname || '/admin/home')
       setIsAuthorized(true)
     }
 
+    setIsAuthorized(false)
     validateSession()
 
     return () => {
       active = false
     }
-  }, [router])
+  }, [pathname, router])
 
   return isAuthorized ? children : null
 }
