@@ -25,6 +25,13 @@ const decodeCookiePath = (value: string | undefined) => {
   }
 }
 
+const applyAdminTarget = (url: URL, target: string) => {
+  const targetUrl = new URL(target, url.origin)
+
+  url.pathname = targetUrl.pathname
+  url.search = targetUrl.search
+}
+
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
   const hasAdminHint = request.cookies.get(adminSessionHintCookie)?.value === '1'
@@ -43,11 +50,13 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname === '/login' && hasAdminHint && searchParams.get('authCheck') !== '1') {
+    const requestedReturnTo = searchParams.get('returnTo')
     const lastAdminPath = decodeCookiePath(request.cookies.get(lastAdminPathCookie)?.value)
+    const target = isSafeAdminPath(requestedReturnTo) ? requestedReturnTo : lastAdminPath ?? '/admin/home'
     const adminUrl = request.nextUrl.clone()
 
-    adminUrl.pathname = lastAdminPath ?? '/admin/home'
     adminUrl.search = ''
+    applyAdminTarget(adminUrl, target)
 
     return NextResponse.redirect(adminUrl)
   }
