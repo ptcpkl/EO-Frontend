@@ -160,7 +160,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           md: 680,
           lg: 'clamp(600px, 33.3vw, 710px)'
         },
-        backgroundImage: 'url(/pertamina-event-footer-reference.webp)',
+        backgroundImage: 'url(/footer.png)',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center center',
         backgroundSize: {
