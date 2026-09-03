@@ -10,7 +10,9 @@ import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
+import { alpha, useColorScheme, useTheme } from '@mui/material/styles'
 
+import { useSettings } from '@core/hooks/useSettings'
 import PublicFooter from './PublicFooter'
 
 const categories = [
@@ -23,9 +25,20 @@ const categories = [
 const PublicNavbar = () => {
   const [eventsAnchor, setEventsAnchor] = useState<HTMLElement | null>(null)
   const [mobileAnchor, setMobileAnchor] = useState<HTMLElement | null>(null)
+  const theme = useTheme()
+  const { setMode } = useColorScheme()
+  const { updateSettings } = useSettings()
 
+  const isDark = theme.palette.mode === 'dark'
   const openEvents = (event: MouseEvent<HTMLElement>) => setEventsAnchor(event.currentTarget)
   const openMobile = (event: MouseEvent<HTMLElement>) => setMobileAnchor(event.currentTarget)
+
+  const handleToggleMode = () => {
+    const nextMode = isDark ? 'light' : 'dark'
+
+    setMode(nextMode)
+    updateSettings({ mode: nextMode })
+  }
 
   return (
     <Box
@@ -35,8 +48,8 @@ const PublicNavbar = () => {
         insetInline: 0,
         top: 0,
         zIndex: theme => theme.zIndex.appBar,
-        px: { xs: 2, md: 3 },
-        pt: { xs: 1.5, md: 2 },
+        px: { xs: 1.5, sm: 2, md: 3 },
+        pt: { xs: 1.25, md: 2 },
         pointerEvents: 'none'
       }}
     >
@@ -44,54 +57,116 @@ const PublicNavbar = () => {
         elevation={10}
         sx={{
           maxWidth: 1180,
-          minHeight: { xs: 60, md: 68 },
+          minHeight: { xs: 58, sm: 62, md: 68 },
           mx: 'auto',
-          px: { xs: 2.25, md: 3.25 },
-          py: { xs: 1.35, md: 1.65 },
+          px: { xs: 1.75, sm: 2.25, md: 3.25 },
+          py: { xs: 1, sm: 1.2, md: 1.45 },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 2,
+          gap: { xs: 1, sm: 2 },
           border: '1px solid',
           borderColor: 'divider',
           borderRadius: 999,
-          bgcolor: 'background.paper',
-          boxShadow: '0 10px 32px rgba(15, 23, 42, .18)',
+          bgcolor: alpha(theme.palette.background.paper, isDark ? 0.9 : 0.92),
+          color: 'text.primary',
+          boxShadow: isDark
+            ? `0 12px 34px ${alpha(theme.palette.common.black, 0.34)}`
+            : `0 12px 34px ${alpha(theme.palette.common.black, 0.14)}`,
           backdropFilter: 'blur(18px)',
-          pointerEvents: 'auto'
+          WebkitBackdropFilter: 'blur(18px)',
+          pointerEvents: 'auto',
+          transition: theme.transitions.create(['background-color', 'border-color', 'box-shadow'], {
+            duration: theme.transitions.duration.shorter
+          })
         }}
       >
-        <Box component={NextLink} href='/home' sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
-          <Box component='img' src='/EO%20Navbar.png' alt='Pertamina Event' sx={{ height: { xs: 32, md: 38 }, width: 'auto', objectFit: 'contain' }} />
+        <Box
+          component={NextLink}
+          href='/home'
+          sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0, flexShrink: 0 }}
+        >
+          <Box
+            component='img'
+            src='/EO%20Navbar.png'
+            alt='Pertamina Event'
+            sx={{ height: { xs: 29, sm: 32, md: 38 }, width: 'auto', maxWidth: { xs: 126, sm: 150 }, objectFit: 'contain' }}
+          />
         </Box>
 
-        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.75 }}>
-          <Button component={NextLink} href='/home' color='inherit' variant='text'>Home</Button>
-          <Button color='inherit' variant='text' endIcon={<i className='tabler-chevron-down' />} onClick={openEvents}>Events</Button>
-          <Button component={NextLink} href='/about' color='inherit' variant='text'>About</Button>
-        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 0.75 } }}>
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.25 }}>
+            <Button component={NextLink} href='/home' variant='text' sx={{ color: 'text.primary' }}>Home</Button>
+            <Button
+              variant='text'
+              endIcon={<i className='tabler-chevron-down' />}
+              onClick={openEvents}
+              sx={{ color: 'text.primary' }}
+            >
+              Events
+            </Button>
+            <Button component={NextLink} href='/about' variant='text' sx={{ color: 'text.primary' }}>About</Button>
+          </Box>
 
-        <IconButton onClick={openMobile} sx={{ display: { xs: 'inline-flex', md: 'none' } }} aria-label='Open navigation'>
-          <i className='tabler-menu-2' />
-        </IconButton>
+          <IconButton
+            onClick={handleToggleMode}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isDark ? 'Light mode' : 'Dark mode'}
+            sx={{
+              width: { xs: 38, md: 40 },
+              height: { xs: 38, md: 40 },
+              color: 'text.primary',
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': { bgcolor: 'action.selected' }
+            }}
+          >
+            <i className={isDark ? 'tabler-sun' : 'tabler-moon'} />
+          </IconButton>
+
+          <IconButton
+            onClick={openMobile}
+            sx={{ display: { xs: 'inline-flex', md: 'none' }, color: 'text.primary' }}
+            aria-label='Open navigation'
+          >
+            <i className='tabler-menu-2' />
+          </IconButton>
+        </Box>
       </Paper>
 
       <Menu anchorEl={eventsAnchor} open={Boolean(eventsAnchor)} onClose={() => setEventsAnchor(null)}>
         {categories.map(category => (
-          <MenuItem key={category.href} component={NextLink} href={category.href} onClick={() => setEventsAnchor(null)} sx={{ gap: 1.5, minWidth: 190 }}>
+          <MenuItem
+            key={category.href}
+            component={NextLink}
+            href={category.href}
+            onClick={() => setEventsAnchor(null)}
+            sx={{ gap: 1.5, minWidth: 190, color: 'text.primary' }}
+          >
             <i className={category.icon} /> {category.label}
           </MenuItem>
         ))}
       </Menu>
 
       <Menu anchorEl={mobileAnchor} open={Boolean(mobileAnchor)} onClose={() => setMobileAnchor(null)}>
-        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-home' /> Home</MenuItem>
+        <MenuItem component={NextLink} href='/home' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5, color: 'text.primary' }}>
+          <i className='tabler-home' /> Home
+        </MenuItem>
         {categories.map(category => (
-          <MenuItem key={category.href} component={NextLink} href={category.href} onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}>
+          <MenuItem
+            key={category.href}
+            component={NextLink}
+            href={category.href}
+            onClick={() => setMobileAnchor(null)}
+            sx={{ gap: 1.5, color: 'text.primary' }}
+          >
             <i className={category.icon} /> {category.label}
           </MenuItem>
         ))}
-        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5 }}><i className='tabler-info-circle' /> About</MenuItem>
+        <MenuItem component={NextLink} href='/about' onClick={() => setMobileAnchor(null)} sx={{ gap: 1.5, color: 'text.primary' }}>
+          <i className='tabler-info-circle' /> About
+        </MenuItem>
       </Menu>
     </Box>
   )
@@ -100,11 +175,12 @@ const PublicNavbar = () => {
 const PublicSiteLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname()
   const eventDetailRoute = /^\/events\/(?!category\/)[^/]+\/?$/.test(pathname)
+  const fullBleedRoute = eventDetailRoute || pathname === '/home' || pathname === '/home/'
 
   return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', color: 'text.primary', display: 'flex', flexDirection: 'column' }}>
       <PublicNavbar />
-      <Box component='main' sx={{ flex: 1, pt: eventDetailRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
+      <Box component='main' sx={{ flex: 1, pt: fullBleedRoute ? 0 : { xs: 10, md: 12 } }}>{children}</Box>
       <PublicFooter />
     </Box>
   )
