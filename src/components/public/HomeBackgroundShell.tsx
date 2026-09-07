@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react'
 
 import Box from '@mui/material/Box'
-import { alpha } from '@mui/material/styles'
 
 type Props = {
   children: ReactNode
@@ -21,22 +20,20 @@ const HomeBackgroundShell = ({ children }: Props) => (
   <Box
     sx={theme => {
       const isDark = theme.palette.mode === 'dark'
-      const overlay = isDark
-        ? alpha('#020b20', 0.74)
-        : alpha(theme.palette.common.white, 0.035)
+      const artwork = isDark ? '/home-long-background-dark.webp' : '/web.png'
 
       return {
         position: 'relative',
         isolation: 'isolate',
         overflow: 'hidden',
-        bgcolor: isDark ? '#020b20' : '#dff3ff',
-        backgroundImage: `linear-gradient(${overlay}, ${overlay}), url('/web.png')`,
+        bgcolor: isDark ? '#03133c' : '#dff3ff',
+        backgroundImage: `url('${artwork}')`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'top center',
 
-        // The artwork follows the real rendered Home height. This deliberately
-        // favors continuity over per-section cropping, so zoom/responsive
-        // changes cannot create seams between sections.
+        // One artwork follows the full rendered Home height. Because it is
+        // owned by this wrapper rather than individual sections, zoom and
+        // responsive layout changes cannot create seams between sections.
         backgroundSize: '100% 100%',
 
         transition: theme.transitions.create(['background-color'], {
