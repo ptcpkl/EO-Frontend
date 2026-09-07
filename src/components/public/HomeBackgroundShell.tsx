@@ -20,7 +20,7 @@ const HomeBackgroundShell = ({ children }: Props) => (
   <Box
     sx={theme => {
       const isDark = theme.palette.mode === 'dark'
-      const artwork = isDark ? '/home-long-background-dark.webp' : '/web.png'
+      const artwork = isDark ? '/web2.png' : '/web.png'
 
       return {
         position: 'relative',

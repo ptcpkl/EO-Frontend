@@ -127,7 +127,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           md: 380,
           lg: 'clamp(380px, 24vw, 460px)'
         },
-        backgroundImage: `url('${theme.palette.mode === 'dark' ? '/footer-compact-dark.webp' : '/footer-compact-light.webp'}')`,
+        backgroundImage: `url('${theme.palette.mode === 'dark' ? '/footer dark.png' : '/footer.png'}')`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center center',
         backgroundSize: {
@@ -188,7 +188,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
               alignItems: 'center',
               justifyContent: 'center',
               flexWrap: 'wrap',
-              gap: { xs: 1.25, sm: 2 }
+              gap: { xs: 2.5, sm: 5 }
             }}
           >
             <Box
@@ -211,7 +211,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                   sx={theme => ({
                     borderColor: theme.palette.mode === 'dark' ? 'rgba(196,229,255,.3)' : 'rgba(7,61,105,.28)',
                     minHeight: 44,
-                    display: { xs: 'none', sm: 'block' }
+                    display: { xs: 'none', sm: 'block' },
+                    gap: 10
                   })}
                 />
                 <Box
@@ -244,7 +245,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
             Energizing every event, inspiring every moment. Together, we create experiences that connect people, ideas, and communities.
           </Typography>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: { xs: 0.9, sm: 1.1 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: { xs: 5, sm: 1.5} }}>
             <SocialMark icon='tabler-brand-instagram' label='Instagram' />
             <SocialMark icon='tabler-brand-youtube' label='YouTube' />
             <SocialMark icon='tabler-brand-tiktok' label='TikTok' />
@@ -260,7 +261,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
       <Box
         sx={{
           position: 'absolute',
-          zIndex: 2,
+          zIndex: 5,
           left: 0,
           right: 0,
           bottom: 0,
@@ -270,7 +271,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
           alignItems: { xs: 'center', sm: 'flex-end' },
-          gap: 0.75,
+          gap: 2.75,
           pointerEvents: 'none'
         }}
       >
