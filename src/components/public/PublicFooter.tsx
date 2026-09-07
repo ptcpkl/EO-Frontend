@@ -122,10 +122,10 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
         color: theme.palette.mode === 'dark' ? '#d9eeff' : '#073d69',
         bgcolor: theme.palette.mode === 'dark' ? '#020b20' : '#d8f1ff',
         minHeight: {
-          xs: 760,
-          sm: 690,
-          md: 630,
-          lg: 'clamp(570px, 33.3vw, 700px)'
+          xs: 460,
+          sm: 390,
+          md: 330,
+          lg: 'clamp(570px, 33.3vw, 500px)'
         },
         backgroundImage: `url('${theme.palette.mode === 'dark' ? '/footer%20sark.png' : '/footer.png'}')`,
         backgroundRepeat: 'no-repeat',
