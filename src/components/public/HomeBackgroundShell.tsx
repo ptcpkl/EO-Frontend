@@ -51,18 +51,20 @@ const HomeBackgroundShell = ({ children }: Props) => (
           }
         },
 
-        // Replace the old photo placeholder with the real Home artwork that is
-        // already stored in /public/heroo.png.
+        // Keep the real Home illustration visible without a card-like panel.
+        // Multiply makes the pale image background visually merge into the
+        // continuous light artwork; dark mode keeps the original rendering.
         '& > div > section:nth-of-type(2) > div > div:first-of-type': {
           backgroundImage: "url('/heroo.png')",
+          backgroundColor: 'transparent',
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'center',
-          backgroundSize: 'cover',
-          borderRadius: { xs: 3, md: 4 },
-          overflow: 'hidden',
-          boxShadow: isDark
-            ? '0 18px 48px rgba(0,0,0,.28)'
-            : '0 18px 48px rgba(24,83,132,.14)'
+          backgroundSize: 'contain',
+          borderRadius: 0,
+          overflow: 'visible',
+          boxShadow: 'none',
+          mixBlendMode: isDark ? 'normal' : 'multiply',
+          filter: isDark ? 'none' : 'saturate(1.06) contrast(1.02)'
         },
 
         '& > div > section:nth-of-type(2) > div > div:first-of-type > div': {
