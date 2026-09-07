@@ -74,7 +74,7 @@ const PublicEventHome = () => (
         px: { xs: 2, sm: 3 },
         pt: { xs: 14, sm: 15, md: 17 },
         pb: { xs: 10, sm: 11, md: 13 },
-        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.12 : 0.06)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.12 : 0.06)}), url('${theme.palette.mode === 'dark' ? '/dark bet.png' : '/terang.png'}')`,
+        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.12 : 0.06)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.12 : 0.06)}), url('${theme.palette.mode === 'dark' ? '/dark bet.png' : '/terang4.png'}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -183,7 +183,7 @@ const PublicEventHome = () => (
     position: 'relative',
     overflow: 'hidden',
 
-    minHeight: { xs: '9 dvh', md: '100dvh' },
+    minHeight: { xs: '9 dvh', md: '105dvh' },
 
     display: 'flex',
     alignItems: 'center',
@@ -194,7 +194,7 @@ const PublicEventHome = () => (
     backgroundImage: `url('${
       theme.palette.mode === 'dark'
         ? '/home-intro-dark.webp'
-        : '/cahaya2.png'
+        : '/cahaya5.png'
     }')`,
 
     backgroundSize: 'cover',
