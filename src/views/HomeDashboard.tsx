@@ -68,7 +68,7 @@ const PublicEventHome = () => (
       sx={theme => ({
         position: 'relative',
         overflow: 'hidden',
-        minHeight: { xs: '100dvh', sm: '82dvh', md: '86dvh' },
+        minHeight: { xs: '100dvh', sm: '82dvh', md: '100dvh' },
         display: 'grid',
         placeItems: 'center',
         px: { xs: 2, sm: 3 },
@@ -177,134 +177,309 @@ const PublicEventHome = () => (
       </Box>
     </Box>
 
+<Box
+  component='section'
+  sx={theme => ({
+    position: 'relative',
+    overflow: 'hidden',
+
+    minHeight: { xs: '9 dvh', md: '100dvh' },
+
+    display: 'flex',
+    alignItems: 'center',
+
+    px: { xs: 2, sm: 3 },
+    py: { xs: 10, sm: 12, md: 14 },
+
+    backgroundImage: `url('${
+      theme.palette.mode === 'dark'
+        ? '/home-intro-dark.webp'
+        : '/cahaya2.png'
+    }')`,
+
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  })}
+>
+  <Box
+    sx={{
+      position: 'relative',
+      zIndex: 1,
+
+      width: '100%',
+      maxWidth: 1180,
+      mx: 'auto',
+
+      display: 'grid',
+
+      gridTemplateColumns: {
+        xs: '1fr',
+        md: 'minmax(0, 1.05fr) minmax(0, .95fr)'
+      },
+
+      gap: {
+        xs: 5,
+        md: 8,
+        lg: 10
+      },
+
+      alignItems: 'center'
+    }}
+  >
+    {/* LEFT */}
     <Box
-      component='section'
-      sx={theme => ({
+      sx={{
         position: 'relative',
-        overflow: 'hidden',
-        px: { xs: 2, sm: 3 },
-        py: { xs: 8, sm: 10, md: 13 },
-        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.76 : 0.58)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.9 : 0.78)}), url('${theme.palette.mode === 'dark' ? '/home-intro-dark.webp' : '/circle.png'}')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      })}
+
+        minHeight: {
+          xs: 300,
+          sm: 390,
+          md: 470
+        },
+
+        display: 'grid',
+        placeItems: 'center'
+      }}
     >
       <Box
         sx={{
-          width: '100%',
-          maxWidth: 1180,
-          mx: 'auto',
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.05fr) minmax(0, .95fr)' },
-          gap: { xs: 5, md: 8, lg: 10 },
-          alignItems: 'center'
+          textAlign: 'center',
+          px: 3
         }}
       >
         <Box
-          sx={theme => ({
-            position: 'relative',
-            minHeight: { xs: 300, sm: 390, md: 470 },
+          sx={{
+            width: 72,
+            height: 72,
 
+            mx: 'auto',
+            mb: 2,
 
+            borderRadius: '50%',
 
             display: 'grid',
             placeItems: 'center',
-            overflow: 'hidden',
-            boxShadow: theme.shadows[3],
 
-          })}
+            color: 'primary.main'
+          }}
         >
-          <Box sx={{ textAlign: 'center', px: 3, color: 'text.secondary' }}>
+          <i className='tabler-photo text-3xl' />
+        </Box>
+
+        <Typography
+          color='text.primary'
+          fontWeight={700}
+          sx={{
+            fontSize: {
+              xs: '1.05rem',
+              md: '1.15rem'
+            }
+          }}
+        >
+          Event photo placeholder
+        </Typography>
+
+        <Typography
+          color='text.secondary'
+          sx={{
+            mt: 0.75,
+
+            fontSize: {
+              xs: '0.88rem',
+              md: '0.94rem'
+            }
+          }}
+        >
+          Replace this area with the homepage photo later.
+        </Typography>
+      </Box>
+    </Box>
+
+    {/* RIGHT */}
+    <Box
+      sx={{
+        position: 'relative',
+
+        p: {
+          xs: 1,
+          sm: 2,
+          md: 3
+        }
+      }}
+    >
+      <Box
+        component='img'
+        src='/EO%20Navbar.png'
+        alt='Pertamina Event'
+        sx={{
+          width: 'auto',
+
+          height: {
+            xs: 54,
+            sm: 62,
+            md: 72
+          },
+
+          maxWidth: '100%',
+          objectFit: 'contain'
+        }}
+      />
+
+      <Typography
+        component='h2'
+        sx={theme => ({
+          mt: {
+            xs: 3,
+            md: 4
+          },
+
+          fontWeight: 800,
+
+          color:
+            theme.palette.mode === 'dark'
+              ? '#fff'
+              : theme.palette.text.primary,
+
+          fontSize: {
+            xs: '2rem',
+            sm: '2.35rem',
+            md: '2.75rem'
+          },
+
+          lineHeight: 1.12,
+          letterSpacing: '-0.025em',
+          textWrap: 'balance',
+
+          textShadow:
+            theme.palette.mode === 'dark'
+              ? '0 3px 18px rgba(0,0,0,.65)'
+              : '0 2px 14px rgba(255,255,255,.8)'
+        })}
+      >
+        One place for every Pertamina event experience.
+      </Typography>
+
+      <Typography
+        sx={theme => ({
+          mt: 2.25,
+
+          fontSize: {
+            xs: '0.98rem',
+            md: '1.06rem'
+          },
+
+          lineHeight: 1.8,
+          maxWidth: 600,
+
+          color:
+            theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,.82)'
+              : theme.palette.text.secondary,
+
+          textShadow:
+            theme.palette.mode === 'dark'
+              ? '0 2px 12px rgba(0,0,0,.6)'
+              : '0 2px 10px rgba(255,255,255,.8)'
+        })}
+      >
+        Pertamina Event brings event discovery, registration,
+        package selection, and participant information together
+        in one public platform. Find the experience that fits you,
+        register in a few steps, and keep every important event
+        detail in one place.
+      </Typography>
+
+      <Box
+        sx={{
+          mt: 3.5,
+          display: 'grid',
+          gap: 1.75
+        }}
+      >
+        {websiteHighlights.map(([icon, label]) => (
+          <Box
+            key={label}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
+            }}
+          >
             <Box
               sx={{
-                width: 72,
-                height: 72,
-                mx: 'auto',
-                mb: 2,
-                borderRadius: '50%',
-                bgcolor: 'action.hover',
+                width: 38,
+                height: 38,
+                flexShrink: 0,
+
                 display: 'grid',
                 placeItems: 'center',
 
+                color: 'primary.main'
               }}
             >
-              <i className='tabler-photo text-3xl' />
+              <i className={icon} />
             </Box>
-            <Typography color='text.primary' fontWeight={700} sx={{ fontSize: { xs: '1.05rem', md: '1.15rem' } }}>
-              Event photo placeholder
-            </Typography>
-            <Typography color='text.secondary' sx={{ mt: 0.75, fontSize: { xs: '0.88rem', md: '0.94rem' } }}>
-              Replace this area with the homepage photo later.
+
+            <Typography
+              sx={theme => ({
+                fontWeight: 600,
+
+                fontSize: {
+                  xs: '0.9rem',
+                  md: '0.96rem'
+                },
+
+                color:
+                  theme.palette.mode === 'dark'
+                    ? '#fff'
+                    : theme.palette.text.primary,
+
+                textShadow:
+                  theme.palette.mode === 'dark'
+                    ? '0 2px 10px rgba(0,0,0,.6)'
+                    : '0 2px 8px rgba(255,255,255,.8)'
+              })}
+            >
+              {label}
             </Typography>
           </Box>
-        </Box>
-
-        <Box
-          sx={{
-            p: { xs: 2.5, sm: 3, md: 3.5 },
-            borderRadius: 4,
-
-
-          }}
-        >
-          <Box
-            component='img'
-            src='/EO%20Navbar.png'
-            alt='Pertamina Event'
-            sx={{ width: 'auto', height: { xs: 54, sm: 62, md: 72 }, maxWidth: '100%', objectFit: 'contain' }}
-          />
-
-          <Typography
-            component='h2'
-            sx={{
-              mt: { xs: 3, md: 4 },
-              fontWeight: 800,
-              color: 'text.primary',
-              fontSize: { xs: '2rem', sm: '2.35rem', md: '2.75rem' },
-              lineHeight: 1.12,
-              letterSpacing: '-0.025em',
-              textWrap: 'balance'
-            }}
-          >
-            One place for every Pertamina event experience.
-          </Typography>
-
-          <Typography
-            color='text.secondary'
-            sx={{ mt: 2.25, fontSize: { xs: '0.98rem', md: '1.06rem' }, lineHeight: 1.8, maxWidth: 600 }}
-          >
-            Pertamina Event brings event discovery, registration, package selection, and participant information together in one public platform. Find the experience that fits you, register in a few steps, and keep every important event detail in one place.
-          </Typography>
-
-          <Box sx={{ mt: 3.5, display: 'grid', gap: 1.75 }}>
-            {websiteHighlights.map(([icon, label]) => (
-              <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    flexShrink: 0,
-
-                    display: 'grid',
-                    placeItems: 'center'
-                  }}
-                >
-                  <i className={icon} />
-                </Box>
-                <Typography color='text.primary' sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', md: '0.96rem' } }}>
-                  {label}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-
-          <Button component={Link} href='/about' variant='outlined' endIcon={<i className='tabler-arrow-right' />} sx={{ mt: 4 }}>
-            Learn more
-          </Button>
-        </Box>
+        ))}
       </Box>
+
+      <Button
+        component={Link}
+        href='/about'
+        variant='outlined'
+        endIcon={<i className='tabler-arrow-right' />}
+        sx={theme => ({
+          mt: 4,
+
+          color:
+            theme.palette.mode === 'dark'
+              ? '#fff'
+              : theme.palette.primary.main,
+
+          borderColor:
+            theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,.65)'
+              : theme.palette.primary.main,
+
+          bgcolor: 'transparent',
+
+          '&:hover': {
+            bgcolor:
+              theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,.08)'
+                : 'rgba(255,255,255,.12)'
+          }
+        })}
+      >
+        Learn more
+      </Button>
     </Box>
+  </Box>
+</Box>
 
     <Box
       id='event-categories'
@@ -428,94 +603,269 @@ const PublicEventHome = () => (
       </Box>
     </Box>
 
-    <Box
-      component='section'
-      aria-label='Event partners'
+ <Box
+  component='section'
+  aria-label='Event partners'
+  sx={theme => ({
+    position: 'relative',
+    overflow: 'hidden',
+
+    minHeight: {
+      xs: '80dvh',
+      md: '90dvh'
+    },
+
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+
+    py: {
+      xs: 9,
+      sm: 11,
+      md: 13
+    },
+
+    backgroundImage: `url('${
+      theme.palette.mode === 'dark'
+        ? '/home-partners-dark.webp'
+        : '/circle.png'
+    }')`,
+
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  })}
+>
+  {/* TITLE */}
+  <Box
+    sx={{
+      position: 'relative',
+      zIndex: 1,
+
+      width: '100%',
+      maxWidth: 1180,
+
+      mx: 'auto',
+      mb: {
+        xs: 5,
+        md: 7
+      },
+
+      px: {
+        xs: 2,
+        sm: 3
+      },
+
+      textAlign: 'center'
+    }}
+  >
+    <Chip
+      label='Presented by'
+      color='primary'
+      variant='tonal'
+    />
+
+    <Typography
+      component='h2'
       sx={theme => ({
-        position: 'relative',
+        mt: 2,
 
-        py: { xs: 7, sm: 8, md: 9 },
-        backgroundImage: `linear-gradient(${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.72 : 0.56)}, ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.88 : 0.76)}), url('${theme.palette.mode === 'dark' ? '/home-partners-dark.webp' : '/home-partners-light.webp'}')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        fontWeight: 800,
 
+        fontSize: {
+          xs: '2rem',
+          sm: '2.4rem',
+          md: '2.8rem'
+        },
+
+        lineHeight: 1.15,
+
+        color:
+          theme.palette.mode === 'dark'
+            ? '#fff'
+            : theme.palette.text.primary,
+
+        textShadow:
+          theme.palette.mode === 'dark'
+            ? '0 3px 18px rgba(0,0,0,.65)'
+            : '0 2px 14px rgba(255,255,255,.9)'
       })}
     >
-      <Box
-        sx={{
-          width: 'fit-content',
-          maxWidth: 'calc(100% - 32px)',
-          mx: 'auto',
-          textAlign: 'center',
-          px: { xs: 2.5, sm: 4 },
-          py: 2.5,
-          mb: { xs: 4, md: 5 },
+      Partners & ecosystem
+    </Typography>
 
+    <Typography
+      sx={theme => ({
+        mt: 1.5,
 
-        }}
-      >
-        <Chip label='Presented by' color='primary' variant='tonal' />
-        <Typography
-          component='h2'
-          sx={{ mt: 2, color: 'text.primary', fontWeight: 750, fontSize: { xs: '1.65rem', sm: '2rem', md: '2.2rem' } }}
-        >
-          Partners & ecosystem
-        </Typography>
-        <Typography color='text.secondary' sx={{ mt: 1, fontSize: { xs: '0.9rem', md: '0.98rem' } }}>
-          Partner logos will be added here later.
-        </Typography>
-      </Box>
+        mx: 'auto',
+        maxWidth: 650,
 
-      <Box
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          width: '100%',
-          maskImage: 'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)',
-          WebkitMaskImage: 'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)'
-        }}
-      >
+        fontSize: {
+          xs: '0.95rem',
+          md: '1.05rem'
+        },
+
+        lineHeight: 1.7,
+
+        color:
+          theme.palette.mode === 'dark'
+            ? 'rgba(255,255,255,.82)'
+            : theme.palette.text.secondary,
+
+        textShadow:
+          theme.palette.mode === 'dark'
+            ? '0 2px 12px rgba(0,0,0,.6)'
+            : '0 2px 10px rgba(255,255,255,.9)'
+      })}
+    >
+      Together with our partners, we create meaningful event
+      experiences and connect communities across the Pertamina
+      ecosystem.
+    </Typography>
+  </Box>
+
+  {/* PARTNER LOGOS MARQUEE */}
+  <Box
+    sx={{
+      position: 'relative',
+      zIndex: 1,
+
+      overflow: 'hidden',
+
+      width: '100%',
+
+      py: 2,
+
+      maskImage:
+        'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)',
+
+      WebkitMaskImage:
+        'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)'
+    }}
+  >
+    <Box
+      sx={{
+        display: 'flex',
+
+        width: 'max-content',
+
+        animation: `${marqueeRight} 28s linear infinite`,
+
+        '@media (prefers-reduced-motion: reduce)': {
+          animation: 'none'
+        },
+
+        '&:hover': {
+          animationPlayState: 'paused'
+        }
+      }}
+    >
+      {[0, 1].map(group => (
         <Box
+          key={group}
           sx={{
             display: 'flex',
-            width: 'max-content',
-            animation: `${marqueeRight} 28s linear infinite`,
-            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
-            '&:hover': { animationPlayState: 'paused' }
+
+            gap: {
+              xs: 2,
+              md: 3
+            },
+
+            pr: {
+              xs: 2,
+              md: 3
+            }
           }}
         >
-          {[0, 1].map(group => (
-            <Box key={group} sx={{ display: 'flex', gap: { xs: 2, md: 3 }, pr: { xs: 2, md: 3 } }}>
-              {partnerPlaceholders.map((partner, index) => (
-                <Paper
-                  key={`${group}-${partner}`}
-                  variant='outlined'
+          {partnerPlaceholders.map((partner, index) => (
+            <Paper
+              key={`${group}-${partner}`}
+              elevation={0}
+              sx={theme => ({
+                width: {
+                  xs: 155,
+                  sm: 180,
+                  md: 210
+                },
+
+                height: {
+                  xs: 90,
+                  sm: 104,
+                  md: 116
+                },
+
+                flexShrink: 0,
+
+                borderRadius: 3,
+
+                display: 'grid',
+                placeItems: 'center',
+
+                /*
+                 * Transparan supaya gambar background
+                 * tetap kelihatan.
+                 */
+                bgcolor:
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(5, 18, 45, .25)'
+                    : 'rgba(255,255,255,.20)',
+
+                border: '1px solid',
+
+                borderColor:
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,.25)'
+                    : 'rgba(30,80,130,.18)',
+
+                boxShadow: 'none'
+              })}
+            >
+              <Box
+                sx={theme => ({
+                  textAlign: 'center',
+
+                  color:
+                    theme.palette.mode === 'dark'
+                      ? '#fff'
+                      : theme.palette.text.primary
+                })}
+              >
+                <i
+                  className={`${
+                    index % 2 === 0
+                      ? 'tabler-building'
+                      : 'tabler-brand-appgallery'
+                  } text-2xl`}
+                />
+
+                <Typography
                   sx={theme => ({
-                    width: { xs: 154, sm: 180, md: 210 },
-                    height: { xs: 90, sm: 104, md: 116 },
-                    flexShrink: 0,
-                    borderRadius: 3,
-                    display: 'grid',
-                    placeItems: 'center',
-                    bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.78 : 0.9),
-                    backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)'
+                    mt: 0.75,
+
+                    fontWeight: 600,
+
+                    fontSize: {
+                      xs: '0.78rem',
+                      md: '0.85rem'
+                    },
+
+                    color:
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,.85)'
+                        : theme.palette.text.primary
                   })}
                 >
-                  <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
-                    <i className={`${index % 2 === 0 ? 'tabler-building' : 'tabler-brand-appgallery'} text-2xl`} />
-                    <Typography sx={{ mt: 0.75, color: 'text.secondary', fontWeight: 600, fontSize: { xs: '0.78rem', md: '0.85rem' } }}>
-                      Partner Logo
-                    </Typography>
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
+                  Partner Logo
+                </Typography>
+              </Box>
+            </Paper>
           ))}
         </Box>
-      </Box>
+      ))}
     </Box>
+  </Box>
+</Box>
   </Box>
 )
 

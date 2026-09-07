@@ -124,8 +124,8 @@ const EventListPage = () => {
           component={Link}
           href='/admin/events/create'
           variant='contained'
-          startIcon={<i className='tabler-calendar-plus' />}
-          sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, borderRadius: 0 }}
+          startIcon={<i className='tabler-calendar-plus ' />}
+          sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, borderRadius: 1 }}
         >
           Create Event
         </Button>
