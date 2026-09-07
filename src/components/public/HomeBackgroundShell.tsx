@@ -30,7 +30,7 @@ const HomeBackgroundShell = ({ children }: Props) => (
         isolation: 'isolate',
         overflow: 'hidden',
         bgcolor: isDark ? '#020b20' : '#dff3ff',
-        backgroundImage: `linear-gradient(${overlay}, ${overlay}), url('/home-long-background.webp')`,
+        backgroundImage: `linear-gradient(${overlay}, ${overlay}), url('/web.png')`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'top center',
 

@@ -183,7 +183,7 @@ const PublicEventHome = () => (
     position: 'relative',
     overflow: 'hidden',
 
-    minHeight: { xs: '9 dvh', md: '105dvh' },
+    minHeight: { xs: '9 dvh', md: '100dvh' },
 
     display: 'flex',
     alignItems: 'center',
