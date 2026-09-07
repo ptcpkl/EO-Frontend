@@ -28,22 +28,22 @@ const SocialMark = ({ icon, label }: { icon: string; label: string }) => (
     aria-label={label}
     title={label}
     sx={theme => ({
-      width: { xs: 34, md: 38 },
-      height: { xs: 34, md: 38 },
+      width: { xs: 38, md: 42 },
+      height: { xs: 38, md: 42 },
       display: 'grid',
       placeItems: 'center',
       borderRadius: '50%',
       bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,105,172,.92)' : 'rgba(5,79,132,.94)',
       color: '#fff',
-      boxShadow: theme.palette.mode === 'dark' ? '0 8px 18px rgba(0,0,0,.24)' : '0 8px 18px rgba(3,61,105,.18)',
+      boxShadow: theme.palette.mode === 'dark' ? '0 9px 22px rgba(0,0,0,.28)' : '0 9px 20px rgba(3,61,105,.2)',
       transition: 'transform .2s ease, box-shadow .2s ease',
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: theme.palette.mode === 'dark' ? '0 10px 24px rgba(0,0,0,.32)' : '0 10px 22px rgba(3,61,105,.22)'
+        boxShadow: theme.palette.mode === 'dark' ? '0 12px 28px rgba(0,0,0,.34)' : '0 12px 24px rgba(3,61,105,.24)'
       }
     })}
   >
-    <i className={`${icon} text-lg`} />
+    <i className={`${icon} text-xl`} />
   </Box>
 )
 
@@ -122,18 +122,19 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
         color: theme.palette.mode === 'dark' ? '#d9eeff' : '#073d69',
         bgcolor: theme.palette.mode === 'dark' ? '#020b20' : '#d8f1ff',
         minHeight: {
-          xs: 430,
-          sm: 400,
-          md: 380,
-          lg: 'clamp(380px, 24vw, 460px)'
+          xs: 760,
+          sm: 690,
+          md: 630,
+          lg: 'clamp(570px, 33.3vw, 700px)'
         },
         backgroundImage: `url('${theme.palette.mode === 'dark' ? '/footer dark.png' : '/footer.png'}')`,
         backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center center',
+        backgroundPosition: 'center bottom',
         backgroundSize: {
-          xs: 'cover',
-          sm: 'cover',
-          md: '100% 100%'
+          xs: 'auto 100%',
+          sm: 'auto 100%',
+          md: 'cover',
+          lg: '100% auto'
         },
         transition: theme.transitions.create(['background-color', 'color'], {
           duration: theme.transitions.duration.shorter
@@ -147,8 +148,14 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           inset: 0,
           pointerEvents: 'none',
           background: theme.palette.mode === 'dark'
-            ? 'radial-gradient(ellipse at 50% 35%, rgba(4,21,53,.48) 0%, rgba(2,11,32,.15) 55%, rgba(2,11,32,0) 76%)'
-            : 'radial-gradient(ellipse at 50% 35%, rgba(233,249,255,.62) 0%, rgba(229,248,255,.24) 52%, rgba(229,248,255,0) 76%)'
+            ? {
+                xs: 'linear-gradient(180deg, rgba(2,11,32,.72) 0%, rgba(2,11,32,.42) 42%, rgba(2,11,32,.05) 74%, rgba(2,11,32,0) 100%)',
+                md: 'radial-gradient(ellipse at 50% 34%, rgba(5,25,58,.62) 0%, rgba(3,16,40,.34) 38%, rgba(2,11,32,.04) 65%, rgba(2,11,32,0) 78%)'
+              }
+            : {
+                xs: 'linear-gradient(180deg, rgba(225,247,255,.82) 0%, rgba(225,247,255,.5) 40%, rgba(225,247,255,.04) 70%, rgba(225,247,255,0) 100%)',
+                md: 'radial-gradient(ellipse at 50% 34%, rgba(229,248,255,.66) 0%, rgba(229,248,255,.38) 35%, rgba(229,248,255,.04) 62%, rgba(229,248,255,0) 76%)'
+              }
         })}
       />
 
@@ -158,28 +165,28 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           zIndex: 1,
           mx: 'auto',
           width: '100%',
-          maxWidth: 720,
-          px: { xs: 2.5, sm: 3.5 },
-          pt: { xs: 5.5, sm: 5.5, md: 6, lg: 6.5 },
+          maxWidth: 780,
+          px: { xs: 3, sm: 4 },
+          pt: { xs: 11, sm: 12, md: 13, lg: 14 },
           textAlign: 'center'
         }}
       >
         <Box
           sx={theme => ({
             mx: 'auto',
-            maxWidth: 640,
+            maxWidth: 700,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: { xs: 1.5, sm: 1.75 },
-            px: { xs: 2, sm: 3 },
-            py: { xs: 2, sm: 2.25 },
-            borderRadius: 4,
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(2,14,38,.38)' : 'rgba(230,248,255,.3)',
-            border: theme.palette.mode === 'dark' ? '1px solid rgba(118,190,255,.1)' : '1px solid transparent',
+            gap: { xs: 3.25, sm: 3.75 },
+            px: { xs: 2.5, sm: 4.5 },
+            py: { xs: 3.25, sm: 4 },
+            borderRadius: 5,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(2,14,38,.44)' : 'rgba(230,248,255,.34)',
+            border: theme.palette.mode === 'dark' ? '1px solid rgba(118,190,255,.12)' : '1px solid transparent',
             backdropFilter: 'blur(4px)',
             WebkitBackdropFilter: 'blur(4px)',
-            boxShadow: theme.palette.mode === 'dark' ? '0 14px 36px rgba(0,0,0,.14)' : '0 14px 34px rgba(7,61,105,.05)'
+            boxShadow: theme.palette.mode === 'dark' ? '0 18px 48px rgba(0,0,0,.16)' : '0 16px 44px rgba(7,61,105,.06)'
           })}
         >
           <Box
@@ -188,7 +195,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
               alignItems: 'center',
               justifyContent: 'center',
               flexWrap: 'wrap',
-              gap: { xs: 2.5, sm: 5 }
+              gap: { xs: 1.75, sm: 2.5 }
             }}
           >
             <Box
@@ -197,8 +204,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
               alt='Pertamina Event'
               sx={{
                 width: 'auto',
-                height: { xs: 38, md: 46 },
-                maxWidth: 190,
+                height: { xs: 48, md: 58 },
+                maxWidth: 225,
                 objectFit: 'contain'
               }}
             />
@@ -210,9 +217,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                   flexItem
                   sx={theme => ({
                     borderColor: theme.palette.mode === 'dark' ? 'rgba(196,229,255,.3)' : 'rgba(7,61,105,.28)',
-                    minHeight: 44,
-                    display: { xs: 'none', sm: 'block' },
-                    gap: 10
+                    minHeight: 56,
+                    display: { xs: 'none', sm: 'block' }
                   })}
                 />
                 <Box
@@ -221,8 +227,8 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
                   alt={`${resolvedEventName || 'Event'} logo`}
                   sx={{
                     width: 'auto',
-                    maxWidth: { xs: 130, sm: 160 },
-                    maxHeight: { xs: 44, sm: 52 },
+                    maxWidth: { xs: 160, sm: 190 },
+                    maxHeight: { xs: 56, sm: 66 },
                     objectFit: 'contain',
                     filter: 'drop-shadow(0 4px 8px rgba(6,61,105,.08))'
                   }}
@@ -234,10 +240,11 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           <Typography
             sx={theme => ({
               mx: 'auto',
-              maxWidth: 560,
+              my: { xs: 0.5, sm: 1 },
+              maxWidth: 590,
               color: theme.palette.mode === 'dark' ? '#d8edff' : '#0b456f',
-              lineHeight: 1.55,
-              fontSize: { xs: 13.5, sm: 14.5 },
+              lineHeight: { xs: 1.8, sm: 1.9 },
+              fontSize: { xs: 14.5, sm: 15.75 },
               fontWeight: 600,
               textShadow: theme.palette.mode === 'dark' ? '0 1px 8px rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.7)'
             })}
@@ -245,14 +252,14 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
             Energizing every event, inspiring every moment. Together, we create experiences that connect people, ideas, and communities.
           </Typography>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: { xs: 5, sm: 1.5} }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: { xs: 1.1, sm: 1.35 } }}>
             <SocialMark icon='tabler-brand-instagram' label='Instagram' />
             <SocialMark icon='tabler-brand-youtube' label='YouTube' />
             <SocialMark icon='tabler-brand-tiktok' label='TikTok' />
             <SocialMark icon='tabler-brand-discord' label='Community' />
           </Box>
 
-          <Typography sx={theme => ({ color: theme.palette.mode === 'dark' ? '#d8edff' : '#073d69', fontWeight: 850, fontSize: 13.5 })}>
+          <Typography sx={theme => ({ color: theme.palette.mode === 'dark' ? '#d8edff' : '#073d69', fontWeight: 850, fontSize: 14.5 })}>
             @pertaminaevent
           </Typography>
         </Box>
@@ -261,17 +268,17 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
       <Box
         sx={{
           position: 'absolute',
-          zIndex: 5,
+          zIndex: 2,
           left: 0,
           right: 0,
           bottom: 0,
-          px: { xs: 2.5, md: 4 },
-          pb: { xs: 1.5, md: 1.75 },
+          px: { xs: 3, md: 6 },
+          pb: { xs: 2.5, md: 2.8 },
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
           alignItems: { xs: 'center', sm: 'flex-end' },
-          gap: 2.75,
+          gap: 1.25,
           pointerEvents: 'none'
         }}
       >
@@ -279,7 +286,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
           sx={{
             color: '#fff',
             fontWeight: 600,
-            fontSize: { xs: 11.5, md: 12.5 },
+            fontSize: { xs: 12.5, md: 14 },
             textShadow: '0 2px 6px rgba(0,25,70,.5)'
           }}
         >
@@ -292,7 +299,7 @@ const PublicFooter = ({ eventLogoUrl, eventName }: Props) => {
             fontWeight: 950,
             fontStyle: 'italic',
             letterSpacing: '-.025em',
-            fontSize: { xs: 16, md: 20 },
+            fontSize: { xs: 19, md: 25 },
             textShadow: '0 3px 8px rgba(0,25,70,.45)'
           }}
         >
