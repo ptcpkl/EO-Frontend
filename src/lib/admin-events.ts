@@ -151,3 +151,13 @@ export async function archiveAdminEvent(eventId: string): Promise<void> {
 
   await ensureOk(response, 'Unable to archive event.')
 }
+
+export async function unarchiveAdminEvent(eventId: string): Promise<AdminEvent> {
+  const response = await authFetch(`/admin/events/${encodeURIComponent(eventId)}/unarchive`, {
+    method: 'POST'
+  })
+
+  await ensureOk(response, 'Unable to unarchive event.')
+
+  return (await response.json()) as AdminEvent
+}
