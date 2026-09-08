@@ -26,6 +26,7 @@ import {
   archiveAdminEvent,
   getAdminEvent,
   publishAdminEvent,
+  unarchiveAdminEvent,
   type AdminEvent
 } from '@/lib/admin-events'
 
@@ -49,7 +50,7 @@ const EventOverviewPage = () => {
   const [event, setEvent] = useState<AdminEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
-  const [actionDialog, setActionDialog] = useState<'publish' | 'archive' | null>(null)
+  const [actionDialog, setActionDialog] = useState<'publish' | 'archive' | 'unarchive' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadEvent = async () => {
@@ -100,6 +101,23 @@ const EventOverviewPage = () => {
     }
   }
 
+  const handleUnarchive = async () => {
+    if (!event) return
+
+    try {
+      setActionLoading(true)
+      setError(null)
+      setEvent(await unarchiveAdminEvent(event.id))
+      setActionDialog(null)
+      router.refresh()
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to unarchive event.')
+      setActionDialog(null)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}><CircularProgress size={32} /></Box>
 
   if (!event) {
@@ -127,7 +145,11 @@ const EventOverviewPage = () => {
         </Breadcrumbs>
 
         {error && <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>}
-        {archived && <Alert severity='info' sx={{ mb: 3 }}>This event is archived and read-only. Its history remains available to administrators.</Alert>}
+        {archived && (
+          <Alert severity='info' sx={{ mb: 3 }}>
+            This event is archived and read-only. Unarchive it to restore it as a Draft, then review and publish it again when ready.
+          </Alert>
+        )}
         {event.status === 'Draft' && !mediaComplete && (
           <Alert severity='warning' sx={{ mb: 3 }}>
             Event presentation is incomplete. Add the logo, hero image, registration visual, and visual title before publishing.
@@ -165,8 +187,24 @@ const EventOverviewPage = () => {
             <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/registrations`} variant='outlined' startIcon={<i className='tabler-users' />}>
               {archived ? 'View Registrations' : 'Manage Registrations'}
             </Button>
-            {!archived && (
-              <Button color='error' variant='outlined' disabled={actionLoading} onClick={() => setActionDialog('archive')} startIcon={<i className='tabler-archive' />}>
+            {archived ? (
+              <Button
+                color='primary'
+                variant='contained'
+                disabled={actionLoading}
+                onClick={() => setActionDialog('unarchive')}
+                startIcon={<i className='tabler-archive-off' />}
+              >
+                Unarchive Event
+              </Button>
+            ) : (
+              <Button
+                color='error'
+                variant='outlined'
+                disabled={actionLoading}
+                onClick={() => setActionDialog('archive')}
+                startIcon={<i className='tabler-archive' />}
+              >
                 Archive Event
               </Button>
             )}
@@ -266,6 +304,21 @@ const EventOverviewPage = () => {
           <Button variant='text' onClick={() => setActionDialog(null)} disabled={actionLoading}>Cancel</Button>
           <Button color='error' variant='contained' onClick={() => void handleArchive()} disabled={actionLoading}>
             {actionLoading ? 'Archiving...' : 'Archive Event'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={actionDialog === 'unarchive'} onClose={() => !actionLoading && setActionDialog(null)} maxWidth='xs' fullWidth>
+        <DialogTitle>Unarchive this event?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            The event will be restored as Draft. It will stay hidden from public pages until you review it and publish it again.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant='text' onClick={() => setActionDialog(null)} disabled={actionLoading}>Cancel</Button>
+          <Button variant='contained' onClick={() => void handleUnarchive()} disabled={actionLoading}>
+            {actionLoading ? 'Restoring...' : 'Unarchive Event'}
           </Button>
         </DialogActions>
       </Dialog>
