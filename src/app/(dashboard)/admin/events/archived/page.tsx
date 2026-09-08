@@ -20,7 +20,7 @@ import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
-import { EVENT_KINDS, listAdminEvents, type AdminEvent, type EventKind } from '@/lib/admin-events'
+import { EVENT_KINDS, listAdminEvents, unarchiveAdminEvent, type AdminEvent, type EventKind } from '@/lib/admin-events'
 
 type CategoryFilter = 'All' | EventKind
 
@@ -29,6 +29,7 @@ const ArchivedEventsPage = () => {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<CategoryFilter>('All')
   const [loading, setLoading] = useState(true)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadEvents = async () => {
@@ -44,8 +45,21 @@ const ArchivedEventsPage = () => {
   }
 
   useEffect(() => {
-    loadEvents()
+    void loadEvents()
   }, [])
+
+  const handleUnarchive = async (eventId: string) => {
+    try {
+      setRestoringId(eventId)
+      setError(null)
+      await unarchiveAdminEvent(eventId)
+      setEvents(current => current.filter(event => event.id !== eventId))
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to unarchive event.')
+    } finally {
+      setRestoringId(null)
+    }
+  }
 
   const filteredEvents = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -64,7 +78,7 @@ const ArchivedEventsPage = () => {
           Archived Events
         </Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Review archived event history. Archived events stay hidden from public registration and are read-only.
+          Review archived event history or restore an event as Draft when it needs to be used again.
         </Typography>
       </Box>
 
@@ -137,9 +151,17 @@ const ArchivedEventsPage = () => {
                       <Typography variant='body2' color='text.secondary'><i className='tabler-users' /> {event.registeredCount.toLocaleString()} registered</Typography>
                     </Box>
                   </CardContent>
-                  <CardActions>
+                  <CardActions sx={{ gap: 1, flexWrap: 'wrap' }}>
                     <Button component={Link} href={`/admin/events/${encodeURIComponent(event.id)}`} endIcon={<i className='tabler-arrow-right' />}>
                       View Details
+                    </Button>
+                    <Button
+                      variant='contained'
+                      startIcon={<i className='tabler-archive-off' />}
+                      disabled={restoringId === event.id}
+                      onClick={() => void handleUnarchive(event.id)}
+                    >
+                      {restoringId === event.id ? 'Restoring...' : 'Unarchive'}
                     </Button>
                   </CardActions>
                 </Card>
