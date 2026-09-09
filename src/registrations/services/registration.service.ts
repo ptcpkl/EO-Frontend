@@ -10,6 +10,7 @@ export type CreateExternalRegistrationPaymentRequest = {
   phone: string
   organization?: string | null
   department?: string | null
+  customFields?: Record<string, string | null>
 }
 
 export type RegistrationPaymentResponse = {
