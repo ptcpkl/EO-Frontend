@@ -13,13 +13,14 @@ import Typography from '@mui/material/Typography'
 
 import EventForm, { type EventFormSubmission } from '../components/EventForm'
 import { createAdminEvent, uploadAdminEventAsset } from '@/lib/admin-events'
+import { updateAdminEventExperience } from '@/lib/event-experience'
 
 const CreateEventPage = () => {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async ({ request, assets }: EventFormSubmission) => {
+  const handleSubmit = async ({ request, assets, experienceConfig }: EventFormSubmission) => {
     setSubmitting(true)
     setError(null)
 
@@ -28,6 +29,11 @@ const CreateEventPage = () => {
     try {
       const created = await createAdminEvent(request)
       createdEventId = created.id
+
+      await updateAdminEventExperience(created.id, {
+        enabledModules: experienceConfig.enabledModules,
+        registrationFields: experienceConfig.registrationFields
+      })
 
       if (!assets.logo || !assets.hero || !assets.registration) {
         throw new Error('Logo, hero image, and registration visual are required for a new event.')
@@ -42,8 +48,6 @@ const CreateEventPage = () => {
       const message = submitError instanceof Error ? submitError.message : 'Unable to create event.'
 
       if (createdEventId) {
-        // The event is intentionally kept as Draft. This avoids destructive rollback
-        // after one media upload succeeded and lets the admin safely continue setup.
         router.push(`/admin/events/${encodeURIComponent(createdEventId)}/edit`)
         return
       }
@@ -65,10 +69,10 @@ const CreateEventPage = () => {
 
         <Typography variant='h4' fontWeight={700}>Create Event</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Build the event information, branding, public landing content, and registration visual in one place.
+          Choose Running or Seminar, then configure exactly which operational modules and registration fields this event needs.
         </Typography>
         <Alert severity='info' sx={{ mt: 3 }}>
-          New events are saved as Draft. Add at least one active package after creation, then publish when the event is ready.
+          Running and Seminar are templates, not separate systems. You can turn optional modules on or off for every event.
         </Alert>
       </Box>
 
