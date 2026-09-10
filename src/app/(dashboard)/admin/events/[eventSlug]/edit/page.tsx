@@ -112,6 +112,21 @@ const EditEventPage = () => {
     return <Alert severity='warning'>Archived events are read-only. Unarchive the event before changing its modules.</Alert>
   }
 
+  if (event.kind !== 'Running' && event.kind !== 'Seminar') {
+    return (
+      <Alert
+        severity='info'
+        action={
+          <Button onClick={() => router.push(`/admin/events/${encodeURIComponent(event.id)}/dashboard`)}>
+            Open dashboard
+          </Button>
+        }
+      >
+        {event.kind} is a legacy event type. This modular editor currently supports Running and Seminar, so the existing event type is preserved and will not be converted automatically.
+      </Alert>
+    )
+  }
+
   const mediaComplete = Boolean(event.logoUrl && event.heroImageUrl && event.registrationImageUrl && event.registrationImageTitle)
 
   return (
