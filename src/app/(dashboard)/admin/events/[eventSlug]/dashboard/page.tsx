@@ -37,15 +37,13 @@ const routeForModule = (event: AdminEvent, module: EventModuleDefinition) => {
       return `/admin/events/${id}`
     case 'checkins':
       return `/admin/check-ins?eventId=${id}`
-    case 'reports':
-      return `/admin/reports?eventId=${id}`
     default:
       return `/admin/events/${id}/modules/${encodeURIComponent(module.key)}`
   }
 }
 
 const isImplementedOperation = (key: EventModuleKey) =>
-  ['registration', 'participants', 'packages', 'checkins', 'reports'].includes(key)
+  ['registration', 'participants', 'packages', 'checkins'].includes(key)
 
 const EventDashboardPage = () => {
   const params = useParams<{ eventSlug: string }>()
@@ -126,7 +124,7 @@ const EventDashboardPage = () => {
             <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}`} variant='outlined' startIcon={<i className='tabler-settings' />}>
               Event overview
             </Button>
-            {event.status !== 'Archived' && (
+            {event.status !== 'Archived' && event.kind !== 'Workshop' && event.kind !== 'Other' && (
               <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/edit`} variant='contained' startIcon={<i className='tabler-adjustments' />}>
                 Configure modules
               </Button>
@@ -186,7 +184,7 @@ const EventDashboardPage = () => {
                   </Box>
                   <Chip
                     size='small'
-                    label={implemented ? 'Operational' : 'Module enabled'}
+                    label={implemented ? 'Operational' : 'Configured'}
                     color={implemented ? 'success' : 'primary'}
                     variant='tonal'
                   />
