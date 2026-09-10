@@ -43,7 +43,7 @@ const CreateEventPage = () => {
       await uploadAdminEventAsset(created.id, 'hero', assets.hero)
       await uploadAdminEventAsset(created.id, 'registration', assets.registration)
 
-      router.push(`/admin/events/${encodeURIComponent(created.id)}`)
+      router.push(`/admin/events/${encodeURIComponent(created.id)}/dashboard`)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Unable to create event.'
 
