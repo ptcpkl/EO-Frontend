@@ -16,14 +16,19 @@ import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
+import EventExperienceConfigurator from './EventExperienceConfigurator'
 import {
   EVENT_ACCESS_MODES,
-  EVENT_KINDS,
   type AdminEvent,
   type EventAccessMode,
   type EventKind,
   type EventUpsertRequest
 } from '@/lib/admin-events'
+import {
+  createDefaultExperienceConfig,
+  type EventExperienceConfig,
+  type ModularEventKind
+} from '@/lib/event-experience'
 
 export type EventFormAssets = {
   logo?: File
@@ -34,10 +39,12 @@ export type EventFormAssets = {
 export type EventFormSubmission = {
   request: EventUpsertRequest
   assets: EventFormAssets
+  experienceConfig: EventExperienceConfig
 }
 
 type Props = {
   event?: AdminEvent | null
+  experienceConfig?: EventExperienceConfig | null
   submitLabel: string
   submitting?: boolean
   error?: string | null
@@ -66,16 +73,16 @@ type FormState = {
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const SUPPORTED_EVENT_KINDS: ModularEventKind[] = ['Running', 'Seminar']
+
+const toModularKind = (kind?: EventKind | null): ModularEventKind =>
+  kind === 'Running' ? 'Running' : 'Seminar'
 
 const toLocalDateTime = (value?: string | null) => {
   if (!value) return ''
-
   const date = new Date(value)
-
   if (Number.isNaN(date.getTime())) return ''
-
   const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-
   return shifted.toISOString().slice(0, 16)
 }
 
@@ -83,7 +90,7 @@ const createState = (event?: AdminEvent | null): FormState => ({
   name: event?.name ?? '',
   description: event?.description ?? '',
   location: event?.location ?? '',
-  kind: event?.kind ?? 'Seminar',
+  kind: toModularKind(event?.kind),
   startAt: toLocalDateTime(event?.startAtUtc),
   endAt: toLocalDateTime(event?.endAtUtc),
   registrationOpenAt: toLocalDateTime(event?.registrationOpenAtUtc),
@@ -106,6 +113,13 @@ const validateImage = (file: File | undefined, label: string) => {
   return null
 }
 
+const SectionHeading = ({ title, description }: { title: string; description: string }) => (
+  <Box>
+    <Typography variant='h6' fontWeight={700}>{title}</Typography>
+    <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, lineHeight: 1.65 }}>{description}</Typography>
+  </Box>
+)
+
 const AssetField = ({
   label,
   helper,
@@ -122,8 +136,8 @@ const AssetField = ({
   onChange: (file?: File) => void
 }) => (
   <Card variant='outlined'>
-    <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+    <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, height: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
         <Box>
           <Typography variant='subtitle1' fontWeight={600}>{label}</Typography>
           <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>{helper}</Typography>
@@ -137,63 +151,68 @@ const AssetField = ({
       </Box>
 
       {currentUrl && !file && (
-        <Box
-          component='img'
-          src={currentUrl}
-          alt={`${label} preview`}
-          sx={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 1, bgcolor: 'action.hover' }}
-        />
+        <Box component='img' src={currentUrl} alt={`${label} preview`} sx={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 1, bgcolor: 'action.hover' }} />
       )}
 
-      {file && (
-        <Alert severity='success' icon={<i className='tabler-photo-check' />}>
-          {file.name}
-        </Alert>
-      )}
+      {file && <Alert severity='success' icon={<i className='tabler-photo-check' />}>{file.name}</Alert>}
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 'auto' }}>
         <Button component='label' variant='outlined' startIcon={<i className='tabler-upload' />}>
           {currentUrl || file ? 'Replace Image' : 'Choose Image'}
-          <input
-            hidden
-            type='file'
-            accept='image/*'
-            onChange={event => onChange(event.target.files?.[0])}
-          />
+          <input hidden type='file' accept='image/*' onChange={event => onChange(event.target.files?.[0])} />
         </Button>
-        {file && (
-          <Button variant='text' color='secondary' onClick={() => onChange(undefined)}>
-            Clear selection
-          </Button>
-        )}
+        {file && <Button variant='text' color='secondary' onClick={() => onChange(undefined)}>Clear selection</Button>}
       </Box>
     </CardContent>
   </Card>
 )
 
-const SectionHeading = ({ title, description }: { title: string; description: string }) => (
-  <Box>
-    <Typography variant='h6' fontWeight={700}>{title}</Typography>
-    <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>{description}</Typography>
-  </Box>
-)
-
-const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, onCancel }: Props) => {
+const EventForm = ({
+  event,
+  experienceConfig,
+  submitLabel,
+  submitting = false,
+  error,
+  onSubmit,
+  onCancel
+}: Props) => {
   const [form, setForm] = useState<FormState>(() => createState(event))
   const [assets, setAssets] = useState<EventFormAssets>({})
+  const [experience, setExperience] = useState<EventExperienceConfig>(() =>
+    experienceConfig ?? createDefaultExperienceConfig(toModularKind(event?.kind))
+  )
   const [validationError, setValidationError] = useState<string | null>(null)
 
   useEffect(() => {
     setForm(createState(event))
     setAssets({})
-  }, [event])
+    setExperience(experienceConfig ?? createDefaultExperienceConfig(toModularKind(event?.kind)))
+  }, [event, experienceConfig])
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(previous => ({ ...previous, [key]: value }))
   }
 
+  const changeKind = (kind: ModularEventKind) => {
+    update('kind', kind)
+    setExperience(createDefaultExperienceConfig(kind))
+  }
+
   const updateAsset = (key: keyof EventFormAssets, file?: File) => {
     setAssets(previous => ({ ...previous, [key]: file }))
+  }
+
+  const validateExperience = () => {
+    const keys = new Set<string>()
+    for (const field of experience.registrationFields) {
+      const key = field.key.trim()
+      if (!/^[a-z][a-zA-Z0-9_-]{0,63}$/.test(key)) return `Invalid registration field key: ${field.key}.`
+      if (keys.has(key.toLowerCase())) return `Registration field key ${key} is duplicated.`
+      keys.add(key.toLowerCase())
+      if (!field.label.trim()) return `Registration field ${key} needs a label.`
+      if (field.type === 'select' && field.options.length === 0) return `${field.label} needs at least one select option.`
+    }
+    return null
   }
 
   const handleSubmit = async (submitEvent: FormEvent<HTMLFormElement>) => {
@@ -213,20 +232,15 @@ const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, on
       return setValidationError('Please complete all event and registration dates.')
     }
     if (endAt <= startAt) return setValidationError('Event end time must be after the start time.')
-    if (registrationCloseAt <= registrationOpenAt) {
-      return setValidationError('Registration close time must be after the open time.')
-    }
-    if (registrationCloseAt > startAt) {
-      return setValidationError('Registration must close no later than the event start time.')
-    }
+    if (registrationCloseAt <= registrationOpenAt) return setValidationError('Registration close time must be after the open time.')
+    if (registrationCloseAt > startAt) return setValidationError('Registration must close no later than the event start time.')
     if (form.accessMode !== 'Public' && !form.accessValue.trim()) {
-      return setValidationError(
-        form.accessMode === 'EmailDomain' ? 'Email domain is required.' : 'Invitation code is required.'
-      )
+      return setValidationError(form.accessMode === 'EmailDomain' ? 'Email domain is required.' : 'Invitation code is required.')
     }
-    if (!form.registrationImageTitle.trim()) {
-      return setValidationError('Registration visual title is required.')
-    }
+    if (!form.registrationImageTitle.trim()) return setValidationError('Registration visual title is required.')
+
+    const experienceError = validateExperience()
+    if (experienceError) return setValidationError(experienceError)
 
     const mediaRequirements: Array<[File | undefined, string, boolean]> = [
       [assets.logo, 'Event logo', !event?.logoUrl],
@@ -268,38 +282,42 @@ const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, on
         benefits: form.benefits.trim() || null,
         additionalInformation: form.additionalInformation.trim() || null
       },
-      assets
+      assets,
+      experienceConfig: { ...experience, kind: toModularKind(form.kind) }
     })
   }
 
   return (
     <Box component='form' onSubmit={handleSubmit} sx={{ display: 'grid', gap: 4 }}>
-      {(error || validationError) && (
-        <Alert severity='error'>
-          {validationError ?? error}
-        </Alert>
-      )}
+      {(error || validationError) && <Alert severity='error'>{validationError ?? error}</Alert>}
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
           <SectionHeading
             title='Event information'
-            description='Core information used across the admin dashboard, category listing, landing page, and registration flow.'
+            description='Choose the event template first. Running and Seminar share the same platform, but each starts with different recommended modules and participant fields.'
           />
 
-          <TextField
-            label='Event name'
-            value={form.name}
-            onChange={e => update('name', e.target.value)}
-            required
-            fullWidth
-            inputProps={{ maxLength: 200 }}
-          />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' }, gap: 3 }}>
+            <FormControl fullWidth>
+              <InputLabel id='event-kind-label'>Event type</InputLabel>
+              <Select
+                labelId='event-kind-label'
+                label='Event type'
+                value={toModularKind(form.kind)}
+                onChange={event => changeKind(event.target.value as ModularEventKind)}
+              >
+                {SUPPORTED_EVENT_KINDS.map(kind => <MenuItem value={kind} key={kind}>{kind}</MenuItem>)}
+              </Select>
+            </FormControl>
+
+            <TextField label='Event name' value={form.name} onChange={event => update('name', event.target.value)} required fullWidth inputProps={{ maxLength: 200 }} />
+          </Box>
 
           <TextField
             label='Short description'
             value={form.description}
-            onChange={e => update('description', e.target.value)}
+            onChange={event => update('description', event.target.value)}
             multiline
             minRows={3}
             fullWidth
@@ -307,97 +325,55 @@ const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, on
             helperText='Used for event previews and short introductions.'
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel id='event-kind-label'>Event category</InputLabel>
-              <Select
-                labelId='event-kind-label'
-                label='Event category'
-                value={form.kind}
-                onChange={e => update('kind', e.target.value as EventKind)}
-              >
-                {EVENT_KINDS.map(kind => <MenuItem value={kind} key={kind}>{kind}</MenuItem>)}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label='Venue / location name'
-              value={form.location}
-              onChange={e => update('location', e.target.value)}
-              fullWidth
-              inputProps={{ maxLength: 300 }}
-              placeholder='e.g. Kantor PTC Jakarta'
-            />
-          </Box>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Schedule & capacity'
-            description='Set the event schedule, registration window, and total capacity.'
-          />
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            <TextField label='Event starts' type='datetime-local' value={form.startAt} onChange={e => update('startAt', e.target.value)} InputLabelProps={{ shrink: true }} required />
-            <TextField label='Event ends' type='datetime-local' value={form.endAt} onChange={e => update('endAt', e.target.value)} InputLabelProps={{ shrink: true }} required />
-            <TextField label='Registration opens' type='datetime-local' value={form.registrationOpenAt} onChange={e => update('registrationOpenAt', e.target.value)} InputLabelProps={{ shrink: true }} required />
-            <TextField label='Registration closes' type='datetime-local' value={form.registrationCloseAt} onChange={e => update('registrationCloseAt', e.target.value)} InputLabelProps={{ shrink: true }} required />
-          </Box>
-
           <TextField
-            label='Event capacity'
-            type='number'
-            value={form.capacity}
-            onChange={e => update('capacity', e.target.value)}
-            inputProps={{ min: 1, max: 1_000_000, step: 1 }}
+            label='Venue / location name'
+            value={form.location}
+            onChange={event => update('location', event.target.value)}
             fullWidth
-            required
+            inputProps={{ maxLength: 300 }}
+            placeholder='e.g. Pertamina Arena Jakarta'
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+          <EventExperienceConfigurator
+            kind={toModularKind(form.kind)}
+            value={{ ...experience, kind: toModularKind(form.kind) }}
+            disabled={submitting}
+            onChange={setExperience}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Branding & registration visual'
-            description='These assets are event-specific. They replace the old hardcoded FFWS logo, hero, and arena map.'
-          />
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
-            <AssetField
-              label='Event logo'
-              helper='Shown on the event landing page and registration form.'
-              currentUrl={event?.logoUrl}
-              file={assets.logo}
-              required
-              onChange={file => updateAsset('logo', file)}
-            />
-            <AssetField
-              label='Hero / cover image'
-              helper='Main visual for the public event microsite.'
-              currentUrl={event?.heroImageUrl}
-              file={assets.hero}
-              required
-              onChange={file => updateAsset('hero', file)}
-            />
-            <AssetField
-              label='Registration visual'
-              helper='Arena map, race route, package visual, or other event-specific guide.'
-              currentUrl={event?.registrationImageUrl}
-              file={assets.registration}
-              required
-              onChange={file => updateAsset('registration', file)}
-            />
+          <SectionHeading title='Schedule & capacity' description='Set the event schedule, registration window, and total participant capacity.' />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            <TextField label='Event starts' type='datetime-local' value={form.startAt} onChange={event => update('startAt', event.target.value)} InputLabelProps={{ shrink: true }} required />
+            <TextField label='Event ends' type='datetime-local' value={form.endAt} onChange={event => update('endAt', event.target.value)} InputLabelProps={{ shrink: true }} required />
+            <TextField label='Registration opens' type='datetime-local' value={form.registrationOpenAt} onChange={event => update('registrationOpenAt', event.target.value)} InputLabelProps={{ shrink: true }} required />
+            <TextField label='Registration closes' type='datetime-local' value={form.registrationCloseAt} onChange={event => update('registrationCloseAt', event.target.value)} InputLabelProps={{ shrink: true }} required />
           </Box>
+          <TextField label='Event capacity' type='number' value={form.capacity} onChange={event => update('capacity', event.target.value)} inputProps={{ min: 1, max: 1_000_000, step: 1 }} required />
+        </CardContent>
+      </Card>
 
+      <Card>
+        <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
+          <SectionHeading title='Branding & registration visual' description='Every event keeps its own logo, hero, and event-specific guide such as a race route, venue map, or package visual.' />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
+            <AssetField label='Event logo' helper='Shown on the event landing and registration page.' currentUrl={event?.logoUrl} file={assets.logo} required onChange={file => updateAsset('logo', file)} />
+            <AssetField label='Hero / cover image' helper='Main visual for the public event microsite.' currentUrl={event?.heroImageUrl} file={assets.hero} required onChange={file => updateAsset('hero', file)} />
+            <AssetField label='Registration visual' helper='Race route, venue layout, seminar map, or event guide.' currentUrl={event?.registrationImageUrl} file={assets.registration} required onChange={file => updateAsset('registration', file)} />
+          </Box>
           <TextField
             label='Registration visual title'
             value={form.registrationImageTitle}
-            onChange={e => update('registrationImageTitle', e.target.value)}
+            onChange={event => update('registrationImageTitle', event.target.value)}
             inputProps={{ maxLength: 200 }}
-            helperText='Examples: Seminar Arena Map, Race Route, Venue Layout, Package Guide.'
+            helperText='Examples: Race Route, Race Pack Guide, Seminar Venue Map.'
             required
           />
         </CardContent>
@@ -405,103 +381,31 @@ const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, on
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Event landing content'
-            description='Content shown when visitors scroll through the public event page.'
-          />
-
-          <TextField
-            label='About the event'
-            value={form.about}
-            onChange={e => update('about', e.target.value)}
-            multiline
-            minRows={4}
-            inputProps={{ maxLength: 8000 }}
-            helperText='Explain the purpose, concept, and experience of this event.'
-          />
-
-          <TextField
-            label='Event benefits'
-            value={form.benefits}
-            onChange={e => update('benefits', e.target.value)}
-            multiline
-            minRows={4}
-            inputProps={{ maxLength: 8000 }}
-            helperText='One benefit per line works best. Package-specific benefits remain managed in Event Packages.'
-          />
-
-          <TextField
-            label='Additional information'
-            value={form.additionalInformation}
-            onChange={e => update('additionalInformation', e.target.value)}
-            multiline
-            minRows={5}
-            inputProps={{ maxLength: 12000 }}
-            helperText='Rules, schedule notes, preparation information, race-pack notes, FAQ hints, or other details.'
-          />
+          <SectionHeading title='Public event content' description='Content displayed on the event landing page.' />
+          <TextField label='About the event' value={form.about} onChange={event => update('about', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} />
+          <TextField label='Event benefits' value={form.benefits} onChange={event => update('benefits', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} helperText='Package-specific benefits remain managed inside Event Packages.' />
+          <TextField label='Additional information' value={form.additionalInformation} onChange={event => update('additionalInformation', event.target.value)} multiline minRows={5} inputProps={{ maxLength: 12000 }} />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Location & Google Maps'
-            description='Add the exact venue information that will appear on the public event landing page.'
-          />
-
-          <TextField
-            label='Full venue address'
-            value={form.venueAddress}
-            onChange={e => update('venueAddress', e.target.value)}
-            inputProps={{ maxLength: 300 }}
-            placeholder='Street, building, city, province'
-          />
-
-          <TextField
-            label='Google Maps URL'
-            value={form.mapsUrl}
-            onChange={e => update('mapsUrl', e.target.value)}
-            inputProps={{ maxLength: 1000 }}
-            placeholder='https://maps.google.com/...'
-            helperText='Use a shareable Google Maps location URL.'
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Registration access'
-            description='Public events can be opened by everyone. Restricted modes require an invitation code or email domain.'
-          />
-
+          <SectionHeading title='Venue & access' description='Configure the exact location and who may register.' />
+          <TextField label='Full venue address' value={form.venueAddress} onChange={event => update('venueAddress', event.target.value)} inputProps={{ maxLength: 300 }} />
+          <TextField label='Google Maps URL' value={form.mapsUrl} onChange={event => update('mapsUrl', event.target.value)} inputProps={{ maxLength: 1000 }} placeholder='https://maps.google.com/...' />
+          <Divider />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <FormControl fullWidth>
-              <InputLabel id='access-mode-label'>Access mode</InputLabel>
-              <Select
-                labelId='access-mode-label'
-                label='Access mode'
-                value={form.accessMode}
-                onChange={e => {
-                  const value = e.target.value as EventAccessMode
-                  update('accessMode', value)
-                  if (value === 'Public') update('accessValue', '')
-                }}
-              >
-                {EVENT_ACCESS_MODES.map(mode => (
-                  <MenuItem value={mode} key={mode}>
-                    {mode === 'InvitationCode' ? 'Invitation Code' : mode === 'EmailDomain' ? 'Email Domain' : 'Public'}
-                  </MenuItem>
-                ))}
+              <InputLabel id='event-access-label'>Registration access</InputLabel>
+              <Select labelId='event-access-label' label='Registration access' value={form.accessMode} onChange={event => update('accessMode', event.target.value as EventAccessMode)}>
+                {EVENT_ACCESS_MODES.map(mode => <MenuItem value={mode} key={mode}>{mode}</MenuItem>)}
               </Select>
             </FormControl>
-
             {form.accessMode !== 'Public' && (
               <TextField
                 label={form.accessMode === 'EmailDomain' ? 'Allowed email domain' : 'Invitation code'}
-                placeholder={form.accessMode === 'EmailDomain' ? 'example.com' : 'EVENT-2026'}
                 value={form.accessValue}
-                onChange={e => update('accessValue', e.target.value)}
+                onChange={event => update('accessValue', event.target.value)}
                 inputProps={{ maxLength: 200 }}
                 required
               />
@@ -510,24 +414,12 @@ const EventForm = ({ event, submitLabel, submitting = false, error, onSubmit, on
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 3 }}>
-            <Box>
-              <Typography fontWeight={600}>Save as event details</Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-                Event pricing is managed through packages. New events remain Draft until explicitly published.
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button type='button' variant='outlined' onClick={onCancel} disabled={submitting}>Cancel</Button>
-              <Button type='submit' variant='contained' disabled={submitting} startIcon={<i className='tabler-device-floppy' />}>
-                {submitting ? 'Saving...' : submitLabel}
-              </Button>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
+        <Button variant='text' onClick={onCancel} disabled={submitting}>Cancel</Button>
+        <Button type='submit' variant='contained' disabled={submitting} startIcon={<i className='tabler-device-floppy' />}>
+          {submitting ? 'Saving...' : submitLabel}
+        </Button>
+      </Box>
     </Box>
   )
 }
