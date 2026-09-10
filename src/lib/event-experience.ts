@@ -3,7 +3,7 @@ import { authFetch } from '@/lib/auth'
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5174/api').replace(/\/$/, '')
 
-export type ModularEventKind = 'Seminar' | 'Running'
+export type ModularEventKind = 'Seminar' | 'Running' | 'Workshop' | 'Other'
 
 export type EventModuleKey =
   | 'registration'
@@ -79,11 +79,17 @@ export const defaultRegistrationFields = (kind: ModularEventKind): RegistrationF
     ]
   }
 
-  return [
-    { key: 'attendeeType', label: 'Attendee Type', type: 'select', required: true, options: ['Student', 'Professional', 'General'] },
-    { key: 'institution', label: 'Institution / Company', type: 'text', required: false, options: [] },
-    { key: 'position', label: 'Position / Role', type: 'text', required: false, options: [] }
-  ]
+  if (kind === 'Seminar') {
+    return [
+      { key: 'attendeeType', label: 'Attendee Type', type: 'select', required: true, options: ['Student', 'Professional', 'General'] },
+      { key: 'institution', label: 'Institution / Company', type: 'text', required: false, options: [] },
+      { key: 'position', label: 'Position / Role', type: 'text', required: false, options: [] }
+    ]
+  }
+
+  // Legacy Workshop/Other events stay valid while Running and Seminar are the
+  // only first-class templates in this phase.
+  return []
 }
 
 export const defaultEventModules = (kind: ModularEventKind): EventModuleKey[] => {
