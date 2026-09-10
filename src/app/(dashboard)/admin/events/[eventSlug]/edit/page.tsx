@@ -75,7 +75,7 @@ const EditEventPage = () => {
       if (assets.hero) await uploadAdminEventAsset(event.id, 'hero', assets.hero)
       if (assets.registration) await uploadAdminEventAsset(event.id, 'registration', assets.registration)
 
-      router.push(`/admin/events/${encodeURIComponent(event.id)}`)
+      router.push(`/admin/events/${encodeURIComponent(event.id)}/dashboard`)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to update event.')
 
@@ -119,7 +119,7 @@ const EditEventPage = () => {
       <Box>
         <Breadcrumbs sx={{ mb: 3 }}>
           <Link component={NextLink} href='/admin/events' color='inherit' underline='hover'>Events</Link>
-          <Link component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}`} color='inherit' underline='hover'>{event.name}</Link>
+          <Link component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/dashboard`} color='inherit' underline='hover'>{event.name}</Link>
           <Typography color='text.primary'>Edit</Typography>
         </Breadcrumbs>
 
@@ -142,7 +142,7 @@ const EditEventPage = () => {
         submitting={submitting}
         error={error}
         onSubmit={handleSubmit}
-        onCancel={() => router.push(`/admin/events/${encodeURIComponent(event.id)}`)}
+        onCancel={() => router.push(`/admin/events/${encodeURIComponent(event.id)}/dashboard`)}
       />
     </Box>
   )
