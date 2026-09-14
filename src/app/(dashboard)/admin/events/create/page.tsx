@@ -32,7 +32,9 @@ const CreateEventPage = () => {
 
       await updateAdminEventExperience(created.id, {
         enabledModules: experienceConfig.enabledModules,
-        registrationFields: experienceConfig.registrationFields
+        registrationFields: experienceConfig.registrationFields,
+        benefits: experienceConfig.benefits,
+        contentSections: experienceConfig.contentSections
       })
 
       if (!assets.logo || !assets.hero || !assets.registration) {
@@ -69,10 +71,10 @@ const CreateEventPage = () => {
 
         <Typography variant='h4' fontWeight={700}>Create Event</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Choose Running or Seminar, then configure exactly which operational modules and registration fields this event needs.
+          Choose Running or Seminar, then configure modules, registration fields, benefits, and public information for this event.
         </Typography>
         <Alert severity='info' sx={{ mt: 3 }}>
-          Running and Seminar are templates, not separate systems. You can turn optional modules on or off for every event.
+          Running and Seminar are templates, not separate systems. Optional modules and public event content can be configured per event.
         </Alert>
       </Box>
 
