@@ -1,26 +1,52 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import TextField from '@mui/material/TextField'
-import Button from '@mui/material/Button'
-import Stack from '@mui/material/Stack'
 import Alert from '@mui/material/Alert'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import MenuItem from '@mui/material/MenuItem'
+import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
 
 import type { EventPackage, CreateEventPackageRequest } from '../registrations/services/types/event-package'
+
+export type RaceCategoryOption = {
+  id: string
+  title: string
+  distance?: string
+  linkedPackageName?: string | null
+}
+
+export type RaceCategorySelection =
+  | { mode: 'existing'; id: string }
+  | { mode: 'new'; title: string; distance: string }
+  | null
 
 type Props = {
   open: boolean
   packageItem?: EventPackage | null
+  runningEvent?: boolean
+  raceCategories?: RaceCategoryOption[]
+  linkedRaceCategoryId?: string | null
   onClose: () => void
-  onSubmit: (data: CreateEventPackageRequest) => Promise<void>
+  onSubmit: (data: CreateEventPackageRequest, raceCategory: RaceCategorySelection) => Promise<void>
 }
 
-const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => {
+const NEW_RACE_CATEGORY = '__new_race_category__'
+
+const EventPackageDialog = ({
+  open,
+  packageItem,
+  runningEvent = false,
+  raceCategories = [],
+  linkedRaceCategoryId,
+  onClose,
+  onSubmit
+}: Props) => {
   const isEdit = Boolean(packageItem)
 
   const [name, setName] = useState('')
@@ -28,8 +54,16 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
   const [capacity, setCapacity] = useState('')
   const [price, setPrice] = useState('')
   const [sortOrder, setSortOrder] = useState('0')
+  const [raceCategoryId, setRaceCategoryId] = useState('')
+  const [newRaceCategoryName, setNewRaceCategoryName] = useState('')
+  const [newRaceDistance, setNewRaceDistance] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const selectableRaceCategories = useMemo(
+    () => raceCategories.filter(category => !category.linkedPackageName || category.id === linkedRaceCategoryId),
+    [linkedRaceCategoryId, raceCategories]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -39,8 +73,15 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
     setCapacity(packageItem?.capacity == null ? '' : String(packageItem.capacity))
     setPrice(packageItem ? String(packageItem.price) : '')
     setSortOrder(packageItem ? String(packageItem.sortOrder) : '0')
+    setRaceCategoryId(
+      runningEvent
+        ? linkedRaceCategoryId || (selectableRaceCategories.length === 0 ? NEW_RACE_CATEGORY : '')
+        : ''
+    )
+    setNewRaceCategoryName('')
+    setNewRaceDistance('')
     setError('')
-  }, [open, packageItem])
+  }, [open, packageItem, runningEvent, linkedRaceCategoryId, selectableRaceCategories.length])
 
   const handleSubmit = async () => {
     setError('')
@@ -69,6 +110,30 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
       return
     }
 
+    let raceCategory: RaceCategorySelection = null
+
+    if (runningEvent) {
+      if (!raceCategoryId) {
+        setError('Race Category is required for a Running package.')
+        return
+      }
+
+      if (raceCategoryId === NEW_RACE_CATEGORY) {
+        if (!newRaceCategoryName.trim()) {
+          setError('New Race Category name is required.')
+          return
+        }
+
+        raceCategory = {
+          mode: 'new',
+          title: newRaceCategoryName.trim(),
+          distance: newRaceDistance.trim()
+        }
+      } else {
+        raceCategory = { mode: 'existing', id: raceCategoryId }
+      }
+    }
+
     try {
       setLoading(true)
 
@@ -78,11 +143,11 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
         capacity: parsedCapacity,
         price: parsedPrice,
         sortOrder: parsedSortOrder
-      })
+      }, raceCategory)
 
       onClose()
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Something went wrong.')
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Something went wrong.')
     } finally {
       setLoading(false)
     }
@@ -102,8 +167,55 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
             label='Package Name'
             value={name}
             onChange={event => setName(event.target.value)}
-            placeholder='e.g. Silver'
+            placeholder='e.g. 10K Regular'
           />
+
+          {runningEvent && (
+            <>
+              <TextField
+                fullWidth
+                required
+                select
+                label='Race Category'
+                value={raceCategoryId}
+                onChange={event => setRaceCategoryId(event.target.value)}
+                helperText='Choose the race category while creating the package. Categories already linked to another package cannot be selected.'
+              >
+                <MenuItem value=''><em>Select race category</em></MenuItem>
+                {raceCategories.map(category => (
+                  <MenuItem
+                    key={category.id}
+                    value={category.id}
+                    disabled={Boolean(category.linkedPackageName) && category.id !== linkedRaceCategoryId}
+                  >
+                    {category.title}{category.distance ? ` — ${category.distance}` : ''}
+                    {category.linkedPackageName && category.id !== linkedRaceCategoryId ? ` · used by ${category.linkedPackageName}` : ''}
+                  </MenuItem>
+                ))}
+                <MenuItem value={NEW_RACE_CATEGORY}>+ Create new Race Category with this Package</MenuItem>
+              </TextField>
+
+              {raceCategoryId === NEW_RACE_CATEGORY && (
+                <Stack spacing={2}>
+                  <TextField
+                    fullWidth
+                    required
+                    label='New Race Category Name'
+                    value={newRaceCategoryName}
+                    onChange={event => setNewRaceCategoryName(event.target.value)}
+                    placeholder='e.g. Half Marathon'
+                  />
+                  <TextField
+                    fullWidth
+                    label='Distance'
+                    value={newRaceDistance}
+                    onChange={event => setNewRaceDistance(event.target.value)}
+                    placeholder='e.g. 21.1K'
+                  />
+                </Stack>
+              )}
+            </>
+          )}
 
           <TextField
             fullWidth
@@ -112,7 +224,7 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
             label='Benefits'
             value={benefits}
             onChange={event => setBenefits(event.target.value)}
-            placeholder={'VIP seat\nFree parking\nCertificate'}
+            placeholder={'Race jersey\nBib number\nTiming chip'}
             helperText='Optional. You can separate benefits by line.'
           />
 
@@ -150,10 +262,7 @@ const EventPackageDialog = ({ open, packageItem, onClose, onSubmit }: Props) => 
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-
+        <Button onClick={onClose} disabled={loading}>Cancel</Button>
         <Button variant='contained' onClick={handleSubmit} disabled={loading}>
           {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Package'}
         </Button>
