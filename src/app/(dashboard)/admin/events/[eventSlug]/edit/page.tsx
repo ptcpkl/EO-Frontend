@@ -68,7 +68,9 @@ const EditEventPage = () => {
       await updateAdminEvent(event.id, request)
       await updateAdminEventExperience(event.id, {
         enabledModules: experienceConfig.enabledModules,
-        registrationFields: experienceConfig.registrationFields
+        registrationFields: experienceConfig.registrationFields,
+        benefits: experienceConfig.benefits,
+        contentSections: experienceConfig.contentSections
       })
 
       if (assets.logo) await uploadAdminEventAsset(event.id, 'logo', assets.logo)
@@ -140,7 +142,7 @@ const EditEventPage = () => {
 
         <Typography variant='h4' fontWeight={700}>Edit Event</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Update the event template, modules, dynamic registration fields, public content, and visual assets.
+          Update modules, dynamic registration fields, benefit cards, information sections, public content, and visual assets.
         </Typography>
 
         {!mediaComplete && (
