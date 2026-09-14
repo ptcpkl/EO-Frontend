@@ -31,11 +31,27 @@ export type RegistrationFieldDefinition = {
   options: string[]
 }
 
+export type BenefitItemDefinition = {
+  id?: string | null
+  title: string
+  description?: string | null
+  icon?: string | null
+}
+
+export type ContentSectionDefinition = {
+  id?: string | null
+  title: string
+  icon?: string | null
+  markdown: string
+}
+
 export type EventExperienceConfig = {
   eventId?: string
   kind: ModularEventKind
   enabledModules: EventModuleKey[]
   registrationFields: RegistrationFieldDefinition[]
+  benefits: BenefitItemDefinition[]
+  contentSections: ContentSectionDefinition[]
 }
 
 export type EventModuleDefinition = {
@@ -45,6 +61,34 @@ export type EventModuleDefinition = {
   icon: string
   core?: boolean
   recommendedFor?: ModularEventKind[]
+  comingSoon?: boolean
+}
+
+export type EventModuleFieldDefinition = {
+  key: string
+  label: string
+  type: 'text' | 'textarea' | 'number' | 'date' | 'time' | 'datetime-local' | 'select' | 'url'
+  required?: boolean
+  options?: string[]
+  helperText?: string
+}
+
+export type EventModuleRecord = {
+  id: string
+  moduleKey: EventModuleKey
+  title: string
+  status: string
+  sortOrder: number
+  data: Record<string, string | null>
+  createdAtUtc: string
+  updatedAtUtc: string
+}
+
+export type EventModuleRecordInput = {
+  title: string
+  status?: string | null
+  sortOrder: number
+  data: Record<string, string | null>
 }
 
 export const EVENT_MODULE_DEFINITIONS: EventModuleDefinition[] = [
@@ -53,20 +97,82 @@ export const EVENT_MODULE_DEFINITIONS: EventModuleDefinition[] = [
   { key: 'packages', label: 'Packages', description: 'Free or paid packages, quota, benefits, and Midtrans flow.', icon: 'tabler-package', core: true },
   { key: 'checkins', label: 'Check-ins', description: 'QR gate check-in while the event is running.', icon: 'tabler-scan', core: true },
   { key: 'reports', label: 'Reports', description: 'Operational and participant reporting.', icon: 'tabler-chart-bar', core: true },
-  { key: 'race-categories', label: 'Race Categories', description: 'Running distance/category setup such as 5K or 10K.', icon: 'tabler-run', recommendedFor: ['Running'] },
-  { key: 'race-pack', label: 'Race Pack', description: 'Race pack pickup schedule, distribution, and collection status.', icon: 'tabler-shopping-bag', recommendedFor: ['Running'] },
-  { key: 'speakers', label: 'Speakers', description: 'Speaker profiles and seminar lineup.', icon: 'tabler-microphone-2', recommendedFor: ['Seminar'] },
-  { key: 'sessions', label: 'Sessions', description: 'Seminar sessions, room, capacity, and attendance.', icon: 'tabler-presentation', recommendedFor: ['Seminar'] },
+  { key: 'race-categories', label: 'Race Categories', description: 'Running distance/category setup such as 5K, 10K, or Half Marathon.', icon: 'tabler-run', recommendedFor: ['Running'] },
+  { key: 'race-pack', label: 'Race Pack', description: 'Race pack pickup schedule, distribution instructions, and collection operations.', icon: 'tabler-shopping-bag', recommendedFor: ['Running'] },
+  { key: 'speakers', label: 'Speakers', description: 'Speaker profiles, roles, organizations, and session assignment.', icon: 'tabler-microphone-2', recommendedFor: ['Seminar'] },
+  { key: 'sessions', label: 'Sessions', description: 'Seminar sessions, rooms, capacity, speakers, and schedule.', icon: 'tabler-presentation', recommendedFor: ['Seminar'] },
   { key: 'agenda', label: 'Agenda', description: 'Event rundown and scheduled activities.', icon: 'tabler-calendar-time', recommendedFor: ['Seminar'] },
-  { key: 'quiz', label: 'Quiz', description: 'Questions, participant attempts, scores, and winners.', icon: 'tabler-help-hexagon', recommendedFor: ['Running', 'Seminar'] },
-  { key: 'doorprize', label: 'Doorprize', description: 'Eligible participants, drawing, winners, and claim status.', icon: 'tabler-gift', recommendedFor: ['Running', 'Seminar'] },
-  { key: 'booths', label: 'Booths', description: 'Booth/activity points and participant engagement.', icon: 'tabler-building-store', recommendedFor: ['Running', 'Seminar'] },
-  { key: 'certificates', label: 'Certificates', description: 'Participant certificate readiness and distribution.', icon: 'tabler-certificate', recommendedFor: ['Seminar'] }
+  { key: 'doorprize', label: 'Doorprize', description: 'Prize inventory, winner information, and claim status.', icon: 'tabler-gift', recommendedFor: ['Running', 'Seminar'] },
+  { key: 'booths', label: 'Booths', description: 'Booth/activity points, locations, owners, and operating details.', icon: 'tabler-building-store', recommendedFor: ['Running', 'Seminar'] },
+  { key: 'certificates', label: 'Certificates', description: 'Certificate setup, eligibility rule, signer, and distribution link.', icon: 'tabler-certificate', recommendedFor: ['Seminar'] },
+  { key: 'quiz', label: 'Quiz', description: 'Reserved for the future quiz implementation.', icon: 'tabler-help-hexagon', comingSoon: true }
 ]
 
 export const CORE_EVENT_MODULES: EventModuleKey[] = EVENT_MODULE_DEFINITIONS
   .filter(module => module.core)
   .map(module => module.key)
+
+export const EVENT_MODULE_FIELDS: Partial<Record<EventModuleKey, EventModuleFieldDefinition[]>> = {
+  'race-categories': [
+    { key: 'distanceKm', label: 'Distance (KM)', type: 'number', required: true },
+    { key: 'startTime', label: 'Race start', type: 'datetime-local' },
+    { key: 'capacity', label: 'Category capacity', type: 'number' },
+    { key: 'routeLabel', label: 'Route / course label', type: 'text' },
+    { key: 'notes', label: 'Notes', type: 'textarea' }
+  ],
+  'race-pack': [
+    { key: 'pickupDate', label: 'Pickup date', type: 'date', required: true },
+    { key: 'startTime', label: 'Start time', type: 'time' },
+    { key: 'endTime', label: 'End time', type: 'time' },
+    { key: 'location', label: 'Pickup location', type: 'text', required: true },
+    { key: 'items', label: 'Race pack contents', type: 'textarea' },
+    { key: 'instructions', label: 'Pickup instructions', type: 'textarea' }
+  ],
+  doorprize: [
+    { key: 'quantity', label: 'Quantity', type: 'number', required: true },
+    { key: 'sponsor', label: 'Sponsor', type: 'text' },
+    { key: 'eligibility', label: 'Eligibility rule', type: 'textarea' },
+    { key: 'winner', label: 'Winner / booking code', type: 'text' },
+    { key: 'claimStatus', label: 'Claim status', type: 'select', options: ['Not Drawn', 'Pending Claim', 'Claimed'] }
+  ],
+  booths: [
+    { key: 'location', label: 'Booth location', type: 'text', required: true },
+    { key: 'activity', label: 'Activity', type: 'textarea' },
+    { key: 'owner', label: 'PIC / owner', type: 'text' },
+    { key: 'operatingHours', label: 'Operating hours', type: 'text' },
+    { key: 'notes', label: 'Notes', type: 'textarea' }
+  ],
+  speakers: [
+    { key: 'role', label: 'Role / topic', type: 'text' },
+    { key: 'organization', label: 'Organization', type: 'text' },
+    { key: 'bio', label: 'Short bio', type: 'textarea' },
+    { key: 'photoUrl', label: 'Photo URL', type: 'url' },
+    { key: 'session', label: 'Session', type: 'text' }
+  ],
+  sessions: [
+    { key: 'date', label: 'Date', type: 'date', required: true },
+    { key: 'startTime', label: 'Start time', type: 'time', required: true },
+    { key: 'endTime', label: 'End time', type: 'time' },
+    { key: 'room', label: 'Room / venue', type: 'text' },
+    { key: 'capacity', label: 'Capacity', type: 'number' },
+    { key: 'speaker', label: 'Speaker(s)', type: 'text' },
+    { key: 'description', label: 'Description', type: 'textarea' }
+  ],
+  agenda: [
+    { key: 'date', label: 'Date', type: 'date' },
+    { key: 'startTime', label: 'Start time', type: 'time', required: true },
+    { key: 'endTime', label: 'End time', type: 'time' },
+    { key: 'location', label: 'Location', type: 'text' },
+    { key: 'description', label: 'Description', type: 'textarea' }
+  ],
+  certificates: [
+    { key: 'eligibilityRule', label: 'Eligibility rule', type: 'textarea' },
+    { key: 'signer', label: 'Signer', type: 'text' },
+    { key: 'issueDate', label: 'Issue date', type: 'date' },
+    { key: 'downloadUrl', label: 'Certificate / template URL', type: 'url' },
+    { key: 'notes', label: 'Notes', type: 'textarea' }
+  ]
+}
 
 export const defaultRegistrationFields = (kind: ModularEventKind): RegistrationFieldDefinition[] => {
   if (kind === 'Running') {
@@ -87,14 +193,12 @@ export const defaultRegistrationFields = (kind: ModularEventKind): RegistrationF
     ]
   }
 
-  // Legacy Workshop/Other events stay valid while Running and Seminar are the
-  // only first-class templates in this phase.
   return []
 }
 
 export const defaultEventModules = (kind: ModularEventKind): EventModuleKey[] => {
   const recommended = EVENT_MODULE_DEFINITIONS
-    .filter(module => module.recommendedFor?.includes(kind))
+    .filter(module => !module.comingSoon && module.recommendedFor?.includes(kind))
     .map(module => module.key)
 
   return [...CORE_EVENT_MODULES, ...recommended]
@@ -103,7 +207,15 @@ export const defaultEventModules = (kind: ModularEventKind): EventModuleKey[] =>
 export const createDefaultExperienceConfig = (kind: ModularEventKind): EventExperienceConfig => ({
   kind,
   enabledModules: defaultEventModules(kind),
-  registrationFields: defaultRegistrationFields(kind)
+  registrationFields: defaultRegistrationFields(kind),
+  benefits: [],
+  contentSections: []
+})
+
+const normalizeConfig = (payload: EventExperienceConfig): EventExperienceConfig => ({
+  ...payload,
+  benefits: Array.isArray(payload.benefits) ? payload.benefits : [],
+  contentSections: Array.isArray(payload.contentSections) ? payload.contentSections : []
 })
 
 const ensureOk = async (response: Response, fallback: string) => {
@@ -114,12 +226,12 @@ const ensureOk = async (response: Response, fallback: string) => {
 export async function getAdminEventExperience(eventId: string): Promise<EventExperienceConfig> {
   const response = await authFetch(`/admin/events/${encodeURIComponent(eventId)}/experience`, { cache: 'no-store' })
   await ensureOk(response, 'Unable to load event modules.')
-  return (await response.json()) as EventExperienceConfig
+  return normalizeConfig((await response.json()) as EventExperienceConfig)
 }
 
 export async function updateAdminEventExperience(
   eventId: string,
-  config: Pick<EventExperienceConfig, 'enabledModules' | 'registrationFields'>
+  config: Pick<EventExperienceConfig, 'enabledModules' | 'registrationFields' | 'benefits' | 'contentSections'>
 ): Promise<EventExperienceConfig> {
   const response = await authFetch(`/admin/events/${encodeURIComponent(eventId)}/experience`, {
     method: 'PUT',
@@ -127,12 +239,69 @@ export async function updateAdminEventExperience(
     body: JSON.stringify(config)
   })
 
-  await ensureOk(response, 'Unable to save event modules.')
-  return (await response.json()) as EventExperienceConfig
+  await ensureOk(response, 'Unable to save event configuration.')
+  return normalizeConfig((await response.json()) as EventExperienceConfig)
 }
 
 export async function getPublicEventExperience(eventId: string): Promise<EventExperienceConfig> {
   const response = await fetch(`${apiUrl}/events/${encodeURIComponent(eventId)}/experience`, { cache: 'no-store' })
   if (!response.ok) throw new Error(await parseError(response, 'Unable to load event registration configuration.'))
-  return (await response.json()) as EventExperienceConfig
+  return normalizeConfig((await response.json()) as EventExperienceConfig)
+}
+
+export async function listEventModuleRecords(eventId: string, moduleKey: EventModuleKey): Promise<EventModuleRecord[]> {
+  const response = await authFetch(
+    `/admin/events/${encodeURIComponent(eventId)}/modules/${encodeURIComponent(moduleKey)}/records`,
+    { cache: 'no-store' }
+  )
+  await ensureOk(response, 'Unable to load module records.')
+  const payload = await response.json()
+  return Array.isArray(payload) ? payload as EventModuleRecord[] : []
+}
+
+export async function createEventModuleRecord(
+  eventId: string,
+  moduleKey: EventModuleKey,
+  input: EventModuleRecordInput
+): Promise<EventModuleRecord> {
+  const response = await authFetch(
+    `/admin/events/${encodeURIComponent(eventId)}/modules/${encodeURIComponent(moduleKey)}/records`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input)
+    }
+  )
+  await ensureOk(response, 'Unable to create module record.')
+  return await response.json() as EventModuleRecord
+}
+
+export async function updateEventModuleRecord(
+  eventId: string,
+  moduleKey: EventModuleKey,
+  recordId: string,
+  input: EventModuleRecordInput
+): Promise<EventModuleRecord> {
+  const response = await authFetch(
+    `/admin/events/${encodeURIComponent(eventId)}/modules/${encodeURIComponent(moduleKey)}/records/${encodeURIComponent(recordId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input)
+    }
+  )
+  await ensureOk(response, 'Unable to update module record.')
+  return await response.json() as EventModuleRecord
+}
+
+export async function deleteEventModuleRecord(
+  eventId: string,
+  moduleKey: EventModuleKey,
+  recordId: string
+): Promise<void> {
+  const response = await authFetch(
+    `/admin/events/${encodeURIComponent(eventId)}/modules/${encodeURIComponent(moduleKey)}/records/${encodeURIComponent(recordId)}`,
+    { method: 'DELETE' }
+  )
+  await ensureOk(response, 'Unable to delete module record.')
 }
