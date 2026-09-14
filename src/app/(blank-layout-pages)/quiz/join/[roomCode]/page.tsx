@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
+import ParticipantQuizLive from '@/components/quiz/ParticipantQuizLive'
 import {
   getPublicQuizRoom,
   joinPublicQuizRoom,
@@ -55,13 +56,6 @@ const QuizJoinPage = () => {
     void loadRoom()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode])
-
-  useEffect(() => {
-    if (!participant) return
-    const interval = window.setInterval(() => void loadRoom(), 5000)
-    return () => window.clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participant, roomCode])
 
   const statusMessage = useMemo(() => {
     if (!room) return ''
@@ -117,71 +111,69 @@ const QuizJoinPage = () => {
     <Box
       sx={theme => ({
         minHeight: '100dvh',
-        p: { xs: 2.5, sm: 4 },
+        p: { xs: 2, sm: 3.5 },
         display: 'grid',
         placeItems: 'center',
         background: theme.palette.mode === 'dark'
-          ? 'radial-gradient(circle at 20% 10%, rgba(0,174,239,.18), transparent 35%), radial-gradient(circle at 90% 80%, rgba(237,28,36,.14), transparent 36%), #07111f'
-          : 'radial-gradient(circle at 20% 10%, rgba(0,174,239,.16), transparent 35%), radial-gradient(circle at 90% 80%, rgba(237,28,36,.10), transparent 36%), #eef8ff'
+          ? 'radial-gradient(circle at 12% 6%, rgba(0,174,239,.17), transparent 32%), radial-gradient(circle at 92% 92%, rgba(237,28,36,.13), transparent 34%), #07111f'
+          : 'radial-gradient(circle at 12% 6%, rgba(0,174,239,.15), transparent 32%), radial-gradient(circle at 92% 92%, rgba(237,28,36,.09), transparent 34%), #eef8ff'
       })}
     >
-      <Box sx={{ width: '100%', maxWidth: 620 }}>
-        <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Box component='img' src='/EO Navbar.png' alt='Pertamina Event' sx={{ maxWidth: 190, maxHeight: 58, objectFit: 'contain' }} />
+      <Box sx={{ width: '100%', maxWidth: participant ? 760 : 620 }}>
+        <Box sx={{ textAlign: 'center', mb: 2.5 }}>
+          <Box component='img' src='/EO Navbar.png' alt='Pertamina Event' sx={{ maxWidth: 180, maxHeight: 54, objectFit: 'contain' }} />
         </Box>
 
-        <Card sx={{ overflow: 'hidden' }}>
-          <Box sx={{ px: { xs: 3, sm: 4 }, pt: { xs: 3.5, sm: 4.5 }, pb: 3, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-start' }}>
-              <Box>
-                <Typography variant='overline' sx={{ opacity: 0.8 }}>LIVE QUIZ ROOM</Typography>
-                <Typography variant='h4' fontWeight={800} sx={{ mt: 0.5 }}>{room.quizName}</Typography>
-                <Typography sx={{ mt: 0.75, opacity: 0.9 }}>{room.eventName}</Typography>
+        {participant ? (
+          <Card sx={{ overflow: 'hidden' }}>
+            <Box sx={{ px: { xs: 2.5, sm: 3.5 }, py: 2, display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', bgcolor: 'background.paper', borderBottom: theme => `1px solid ${theme.palette.divider}` }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant='caption' color='text.secondary'>{room.eventName}</Typography>
+                <Typography fontWeight={850} noWrap>{room.quizName}</Typography>
               </Box>
-              <Chip label={room.status} variant='filled' sx={{ bgcolor: 'rgba(255,255,255,.16)', color: 'inherit', fontWeight: 700 }} />
+              <Chip size='small' variant='tonal' color='primary' label={room.roomCode} sx={{ fontWeight: 850, letterSpacing: 1 }} />
             </Box>
-          </Box>
-
-          <CardContent sx={{ p: { xs: 3, sm: 4 }, display: 'grid', gap: 3 }}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant='caption' color='text.secondary'>ROOM CODE</Typography>
-              <Typography variant='h3' fontWeight={850} letterSpacing={5} sx={{ mt: 0.5 }}>{room.roomCode}</Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>{room.sessionName}</Typography>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
-                <Typography variant='h6' fontWeight={750}>{room.participantCount}</Typography>
-                <Typography variant='caption' color='text.secondary'>joined</Typography>
-              </Box>
-              <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
-                <Typography variant='h6' fontWeight={750}>{room.remainingCapacity}</Typography>
-                <Typography variant='caption' color='text.secondary'>spots left</Typography>
-              </Box>
-            </Box>
-
-            <Alert severity={room.status === 'Open' ? 'success' : room.status === 'Cancelled' ? 'error' : 'info'}>
-              {statusMessage}
-            </Alert>
-
-            {error && <Alert severity='error'>{error}</Alert>}
-
-            {participant ? (
-              <Box sx={{ display: 'grid', gap: 2.5, textAlign: 'center', py: 1 }}>
-                <Box sx={{ width: 72, height: 72, mx: 'auto', borderRadius: '50%', bgcolor: 'success.main', color: 'success.contrastText', display: 'grid', placeItems: 'center' }}>
-                  <i className='tabler-check text-4xl' />
-                </Box>
+            <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+              <ParticipantQuizLive room={room} participant={participant} />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card sx={{ overflow: 'hidden' }}>
+            <Box sx={{ px: { xs: 3, sm: 4 }, pt: { xs: 3.5, sm: 4.5 }, pb: 3, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-start' }}>
                 <Box>
-                  <Typography variant='h5' fontWeight={750}>You&apos;re in, {participant.displayName}</Typography>
-                  <Typography color='text.secondary' sx={{ mt: 1 }}>
-                    Keep this page open. The host controls when the Quiz starts.
-                  </Typography>
+                  <Typography variant='overline' sx={{ opacity: 0.8 }}>LIVE QUIZ ROOM</Typography>
+                  <Typography variant='h4' fontWeight={800} sx={{ mt: 0.5 }}>{room.quizName}</Typography>
+                  <Typography sx={{ mt: 0.75, opacity: 0.9 }}>{room.eventName}</Typography>
                 </Box>
-                <Button variant='outlined' onClick={() => void loadRoom()} startIcon={<i className='tabler-refresh' />}>
-                  Refresh room status
-                </Button>
+                <Chip label={room.status} variant='filled' sx={{ bgcolor: 'rgba(255,255,255,.16)', color: 'inherit', fontWeight: 700 }} />
               </Box>
-            ) : (
+            </Box>
+
+            <CardContent sx={{ p: { xs: 3, sm: 4 }, display: 'grid', gap: 3 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant='caption' color='text.secondary'>ROOM CODE</Typography>
+                <Typography variant='h3' fontWeight={850} letterSpacing={5} sx={{ mt: 0.5 }}>{room.roomCode}</Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>{room.sessionName}</Typography>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
+                  <Typography variant='h6' fontWeight={750}>{room.participantCount}</Typography>
+                  <Typography variant='caption' color='text.secondary'>joined</Typography>
+                </Box>
+                <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
+                  <Typography variant='h6' fontWeight={750}>{room.remainingCapacity}</Typography>
+                  <Typography variant='caption' color='text.secondary'>spots left</Typography>
+                </Box>
+              </Box>
+
+              <Alert severity={room.status === 'Open' ? 'success' : room.status === 'Cancelled' ? 'error' : 'info'}>
+                {statusMessage}
+              </Alert>
+
+              {error && <Alert severity='error'>{error}</Alert>}
+
               <Box sx={{ display: 'grid', gap: 2 }}>
                 <TextField
                   label='Display name'
@@ -189,7 +181,7 @@ const QuizJoinPage = () => {
                   disabled={!roomOpen || joining}
                   onChange={event => setDisplayName(event.target.value)}
                   inputProps={{ maxLength: 120 }}
-                  placeholder='Name shown on the leaderboard'
+                  placeholder='Name shown on the host leaderboard'
                   autoComplete='off'
                   onKeyDown={event => {
                     if (event.key === 'Enter' && roomOpen && !joining) void join()
@@ -205,12 +197,12 @@ const QuizJoinPage = () => {
                   {joining ? 'Joining...' : room.remainingCapacity <= 0 ? 'Room Full' : room.status === 'Open' ? 'Join Quiz' : 'Waiting for Host'}
                 </Button>
               </Box>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', textAlign: 'center', mt: 2.5 }}>
-          Pertamina Event • Participant Quiz
+        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', textAlign: 'center', mt: 2 }}>
+          Pertamina Event • Realtime Quiz
         </Typography>
       </Box>
     </Box>
