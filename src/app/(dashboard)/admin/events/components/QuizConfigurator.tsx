@@ -1,0 +1,446 @@
+'use client'
+
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Chip from '@mui/material/Chip'
+import Divider from '@mui/material/Divider'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+
+import type {
+  QuizAnswerMarkerMode,
+  QuizDifficulty,
+  QuizGenerationMode,
+  QuizQuestionResponse,
+  QuizResponse
+} from '@/lib/admin-quiz'
+
+export type QuizQuestionDraft = {
+  key: string
+  id?: string
+  isAllocated?: boolean
+  questionText: string
+  answerA: string
+  answerB: string
+  answerC: string
+  answerD: string
+  correctAnswerIndex: number
+  shortExplanation: string
+  difficulty: QuizDifficulty
+  existingImageUrl?: string | null
+  imageFile?: File
+}
+
+export type QuizMarkerFiles = {
+  a?: File
+  b?: File
+  c?: File
+  d?: File
+}
+
+export type QuizFormValue = {
+  enabled: boolean
+  existingQuizId?: string
+  name: string
+  description: string
+  context: string
+  generationMode: QuizGenerationMode
+  answerMarkerMode: QuizAnswerMarkerMode
+  defaultQuestionDurationSeconds: number
+  markerAUrl?: string | null
+  markerBUrl?: string | null
+  markerCUrl?: string | null
+  markerDUrl?: string | null
+  markerFiles: QuizMarkerFiles
+  questions: QuizQuestionDraft[]
+}
+
+const keyForQuestion = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+export const createQuizFormValue = (
+  quiz?: QuizResponse | null,
+  questions: QuizQuestionResponse[] = []
+): QuizFormValue => ({
+  enabled: Boolean(quiz && quiz.status !== 'Archived'),
+  existingQuizId: quiz?.id,
+  name: quiz?.name ?? '',
+  description: quiz?.description ?? '',
+  context: quiz?.context ?? '',
+  generationMode: quiz?.generationMode ?? 'AiGenerated',
+  answerMarkerMode: quiz?.answerMarkerMode ?? 'DefaultShapes',
+  defaultQuestionDurationSeconds: quiz?.defaultQuestionDurationSeconds ?? 10,
+  markerAUrl: quiz?.markerAUrl,
+  markerBUrl: quiz?.markerBUrl,
+  markerCUrl: quiz?.markerCUrl,
+  markerDUrl: quiz?.markerDUrl,
+  markerFiles: {},
+  questions: questions
+    .filter(question => question.isActive)
+    .map(question => ({
+      key: question.id,
+      id: question.id,
+      isAllocated: question.isAllocated,
+      questionText: question.questionText,
+      answerA: question.answerA,
+      answerB: question.answerB,
+      answerC: question.answerC,
+      answerD: question.answerD,
+      correctAnswerIndex: question.correctAnswerIndex,
+      shortExplanation: question.shortExplanation ?? '',
+      difficulty: question.difficulty,
+      existingImageUrl: question.questionImageUrl
+    }))
+})
+
+const emptyQuestion = (): QuizQuestionDraft => ({
+  key: keyForQuestion(),
+  questionText: '',
+  answerA: '',
+  answerB: '',
+  answerC: '',
+  answerD: '',
+  correctAnswerIndex: 0,
+  shortExplanation: '',
+  difficulty: 'Medium'
+})
+
+const MARKER_META = [
+  { key: 'a' as const, label: 'A', shape: '▲', urlKey: 'markerAUrl' as const },
+  { key: 'b' as const, label: 'B', shape: '◆', urlKey: 'markerBUrl' as const },
+  { key: 'c' as const, label: 'C', shape: '●', urlKey: 'markerCUrl' as const },
+  { key: 'd' as const, label: 'D', shape: '■', urlKey: 'markerDUrl' as const }
+]
+
+const QuizConfigurator = ({
+  value,
+  disabled = false,
+  onChange
+}: {
+  value: QuizFormValue
+  disabled?: boolean
+  onChange: (value: QuizFormValue) => void
+}) => {
+  const update = <K extends keyof QuizFormValue>(key: K, next: QuizFormValue[K]) => {
+    onChange({ ...value, [key]: next })
+  }
+
+  const updateQuestion = <K extends keyof QuizQuestionDraft>(index: number, key: K, next: QuizQuestionDraft[K]) => {
+    const questions = value.questions.map((question, questionIndex) =>
+      questionIndex === index ? { ...question, [key]: next } : question
+    )
+    update('questions', questions)
+  }
+
+  const setMarkerFile = (key: keyof QuizMarkerFiles, file?: File) => {
+    update('markerFiles', { ...value.markerFiles, [key]: file })
+  }
+
+  if (!value.enabled) {
+    return (
+      <Card id='quiz-configuration' variant='outlined' sx={{ borderStyle: 'dashed' }}>
+        <CardContent sx={{ p: { xs: 3, md: 4 }, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: { md: 'center' }, justifyContent: 'space-between' }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ width: 42, height: 42, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: 'primary.lighter', color: 'primary.main' }}>
+                <i className='tabler-device-gamepad-2' style={{ fontSize: 23 }} />
+              </Box>
+              <Typography variant='h6' fontWeight={750}>Realtime Quiz</Typography>
+            </Box>
+            <Typography color='text.secondary' sx={{ mt: 1.5, maxWidth: 720, lineHeight: 1.65 }}>
+              Add a Kahoot-style realtime quiz with Pertamina Event branding, optional Question Bank, AI-assisted generation, sessions, leaderboard, and podium.
+            </Typography>
+          </Box>
+          <Button
+            variant='contained'
+            disabled={disabled}
+            startIcon={<i className='tabler-plus' />}
+            onClick={() => onChange({ ...value, enabled: true })}
+          >
+            Add Quiz
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card id='quiz-configuration'>
+      <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, justifyContent: 'space-between' }}>
+          <Box>
+            <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography variant='h6' fontWeight={750}>Quiz configuration</Typography>
+              <Chip label='Game enabled' color='success' variant='tonal' size='small' />
+              {value.existingQuizId && <Chip label='Saved quiz' color='primary' variant='tonal' size='small' />}
+            </Box>
+            <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75, maxWidth: 760, lineHeight: 1.65 }}>
+              Configure the event context and question source now. Rooms, live gameplay, leaderboard, and podium are managed after the event is created.
+            </Typography>
+          </Box>
+          {!value.existingQuizId && (
+            <Button color='secondary' variant='text' disabled={disabled} onClick={() => onChange(createQuizFormValue())}>
+              Remove Quiz
+            </Button>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 220px' }, gap: 3 }}>
+          <TextField
+            label='Quiz name'
+            value={value.name}
+            onChange={event => update('name', event.target.value)}
+            disabled={disabled}
+            required
+            inputProps={{ maxLength: 160 }}
+            placeholder='e.g. FFWS Knowledge Challenge'
+          />
+          <TextField
+            label='Default duration / question'
+            type='number'
+            value={value.defaultQuestionDurationSeconds}
+            onChange={event => update('defaultQuestionDurationSeconds', Number(event.target.value))}
+            disabled={disabled}
+            inputProps={{ min: 3, max: 120, step: 1 }}
+            helperText='Seconds (3–120)'
+          />
+        </Box>
+
+        <TextField
+          label='Quiz description'
+          value={value.description}
+          onChange={event => update('description', event.target.value)}
+          disabled={disabled}
+          multiline
+          minRows={2}
+          inputProps={{ maxLength: 3000 }}
+          helperText='Optional internal/public description for this game.'
+        />
+
+        <TextField
+          label='Question context'
+          value={value.context}
+          onChange={event => update('context', event.target.value)}
+          disabled={disabled}
+          multiline
+          minRows={5}
+          required
+          inputProps={{ maxLength: 12000 }}
+          helperText='Describe the event material, speaker topics, theme, terminology, and facts that AI may use when preparing questions.'
+        />
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+          <FormControl fullWidth>
+            <InputLabel id='quiz-source-label'>Question source</InputLabel>
+            <Select
+              labelId='quiz-source-label'
+              label='Question source'
+              value={value.generationMode}
+              disabled={disabled}
+              onChange={event => update('generationMode', event.target.value as QuizGenerationMode)}
+            >
+              <MenuItem value='AiGenerated'>AI generated</MenuItem>
+              <MenuItem value='QuestionBank'>Question Bank</MenuItem>
+              <MenuItem value='Hybrid'>Question Bank + AI assistance</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel id='quiz-marker-label'>Answer marker</InputLabel>
+            <Select
+              labelId='quiz-marker-label'
+              label='Answer marker'
+              value={value.answerMarkerMode}
+              disabled={disabled}
+              onChange={event => update('answerMarkerMode', event.target.value as QuizAnswerMarkerMode)}
+            >
+              <MenuItem value='DefaultShapes'>Pertamina Event shapes (default)</MenuItem>
+              <MenuItem value='CustomImages'>Custom images / icons</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Divider />
+
+        <Box>
+          <Typography variant='subtitle1' fontWeight={700}>Answer markers</Typography>
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+            Participant phones only show the four answer markers during a live question. The host screen shows the full question and answer text.
+          </Typography>
+
+          {value.answerMarkerMode === 'DefaultShapes' ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 1.5, mt: 2.5 }}>
+              {MARKER_META.map(marker => (
+                <Box key={marker.key} sx={{ minHeight: 82, borderRadius: 2, bgcolor: 'action.hover', display: 'grid', placeItems: 'center', color: 'primary.main' }}>
+                  <Typography variant='h4' fontWeight={800}>{marker.shape}</Typography>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, mt: 2.5 }}>
+              {MARKER_META.map(marker => {
+                const currentUrl = value[marker.urlKey]
+                const file = value.markerFiles[marker.key]
+                return (
+                  <Card variant='outlined' key={marker.key}>
+                    <CardContent sx={{ display: 'grid', gap: 1.5 }}>
+                      <Typography fontWeight={700}>Answer {marker.label}</Typography>
+                      {currentUrl && !file && <Box component='img' src={currentUrl} alt={`Marker ${marker.label}`} sx={{ width: '100%', height: 80, objectFit: 'contain' }} />}
+                      {file && <Chip label={file.name} size='small' color='success' variant='tonal' />}
+                      <Button component='label' variant='outlined' size='small' disabled={disabled}>
+                        {currentUrl || file ? 'Replace' : 'Upload'}
+                        <input hidden type='file' accept='.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml' onChange={event => setMarkerFile(marker.key, event.target.files?.[0])} />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </Box>
+          )}
+        </Box>
+
+        <Divider />
+
+        <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 2, alignItems: { sm: 'center' } }}>
+            <Box>
+              <Typography variant='subtitle1' fontWeight={700}>Question Bank <Typography component='span' color='text.secondary'>(optional)</Typography></Typography>
+              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, maxWidth: 760 }}>
+                Add curated questions now, or leave this empty when AI will prepare them later. Existing session-allocated questions become read-only.
+              </Typography>
+            </Box>
+            <Button
+              variant='outlined'
+              disabled={disabled}
+              startIcon={<i className='tabler-plus' />}
+              onClick={() => update('questions', [...value.questions, emptyQuestion()])}
+            >
+              Add Question
+            </Button>
+          </Box>
+
+          <Box sx={{ display: 'grid', gap: 2.5, mt: 3 }}>
+            {value.questions.length === 0 && (
+              <Box sx={{ py: 4, px: 3, border: '1px dashed', borderColor: 'divider', borderRadius: 2, textAlign: 'center' }}>
+                <Typography fontWeight={650}>No manual questions yet</Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+                  This is valid. AI generation and session allocation are added in the next phases.
+                </Typography>
+              </Box>
+            )}
+
+            {value.questions.map((question, index) => (
+              <Card variant='outlined' key={question.key}>
+                <CardContent sx={{ display: 'grid', gap: 2.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography fontWeight={750}>Question {index + 1}</Typography>
+                      {question.isAllocated && <Chip size='small' label='Allocated • read only' color='warning' variant='tonal' />}
+                    </Box>
+                    {!question.isAllocated && (
+                      <Button
+                        color='error'
+                        variant='text'
+                        size='small'
+                        disabled={disabled}
+                        onClick={() => update('questions', value.questions.filter(item => item.key !== question.key))}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Box>
+
+                  <TextField
+                    label='Question'
+                    value={question.questionText}
+                    disabled={disabled || question.isAllocated}
+                    onChange={event => updateQuestion(index, 'questionText', event.target.value)}
+                    multiline
+                    minRows={2}
+                    inputProps={{ maxLength: 1500 }}
+                  />
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    {(['answerA', 'answerB', 'answerC', 'answerD'] as const).map((answerKey, answerIndex) => (
+                      <TextField
+                        key={answerKey}
+                        label={`Answer ${String.fromCharCode(65 + answerIndex)}`}
+                        value={question[answerKey]}
+                        disabled={disabled || question.isAllocated}
+                        onChange={event => updateQuestion(index, answerKey, event.target.value)}
+                        inputProps={{ maxLength: 500 }}
+                      />
+                    ))}
+                  </Box>
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Correct answer</InputLabel>
+                      <Select
+                        label='Correct answer'
+                        value={question.correctAnswerIndex}
+                        disabled={disabled || question.isAllocated}
+                        onChange={event => updateQuestion(index, 'correctAnswerIndex', Number(event.target.value))}
+                      >
+                        <MenuItem value={0}>A</MenuItem>
+                        <MenuItem value={1}>B</MenuItem>
+                        <MenuItem value={2}>C</MenuItem>
+                        <MenuItem value={3}>D</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <FormControl fullWidth>
+                      <InputLabel>Difficulty</InputLabel>
+                      <Select
+                        label='Difficulty'
+                        value={question.difficulty}
+                        disabled={disabled || question.isAllocated}
+                        onChange={event => updateQuestion(index, 'difficulty', event.target.value as QuizDifficulty)}
+                      >
+                        <MenuItem value='Easy'>Easy</MenuItem>
+                        <MenuItem value='Medium'>Medium</MenuItem>
+                        <MenuItem value='Hard'>Hard</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  <TextField
+                    label='Short explanation'
+                    value={question.shortExplanation}
+                    disabled={disabled || question.isAllocated}
+                    onChange={event => updateQuestion(index, 'shortExplanation', event.target.value)}
+                    inputProps={{ maxLength: 1500 }}
+                    helperText='Shown after the question ends. Keep it concise.'
+                  />
+
+                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { sm: 'center' } }}>
+                    {(question.existingImageUrl || question.imageFile) && (
+                      <Box
+                        component='img'
+                        src={question.imageFile ? URL.createObjectURL(question.imageFile) : question.existingImageUrl ?? undefined}
+                        alt={`Question ${index + 1}`}
+                        sx={{ width: 120, height: 76, objectFit: 'cover', borderRadius: 1.5, bgcolor: 'action.hover' }}
+                      />
+                    )}
+                    {!question.isAllocated && (
+                      <Button component='label' variant='outlined' size='small' disabled={disabled} startIcon={<i className='tabler-photo' />}>
+                        {question.existingImageUrl || question.imageFile ? 'Replace image' : 'Add optional image'}
+                        <input hidden type='file' accept='.png,.jpg,.jpeg,.webp,.svg,image/*' onChange={event => updateQuestion(index, 'imageFile', event.target.files?.[0])} />
+                      </Button>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default QuizConfigurator
