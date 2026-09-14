@@ -16,7 +16,7 @@ import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
-import DynamicPublicContentEditors, { DynamicBenefitsEditor, DynamicContentSectionsEditor } from './DynamicPublicContentEditors'
+import { DynamicBenefitsEditor, DynamicContentSectionsEditor } from './DynamicPublicContentEditors'
 import EventExperienceConfigurator from './EventExperienceConfigurator'
 import {
   EVENT_ACCESS_MODES,
