@@ -190,3 +190,7 @@ export const DynamicContentSectionsEditor = ({ value, onChange }: { value: strin
     </Box>
   )
 }
+
+// Default export keeps compatibility with the initial event-form import while
+// the named exports are used for the two dedicated editors.
+export default DynamicBenefitsEditor
