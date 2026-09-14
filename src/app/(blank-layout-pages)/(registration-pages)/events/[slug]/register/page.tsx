@@ -36,7 +36,7 @@ const RegistrationPage = async ({ params }: Props) => {
       <Box sx={{ minHeight: '100dvh', px: 3, py: 8, display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
         <Card sx={{ width: '100%', maxWidth: 620 }}>
           <CardContent sx={{ p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Box sx={{ width: 64, height: 64, mx: 'auto', borderRadius: '50%', bgcolor: 'warning.lighterOpacity', color: 'warning.main', display: 'grid', placeItems: 'center' }}>
+            <Box sx={{ width: 64, height: 64, mx: 'auto', borderRadius: '50%', bgcolor: 'action.hover', color: 'warning.main', display: 'grid', placeItems: 'center' }}>
               <i className='tabler-calendar-off text-3xl' />
             </Box>
             <Typography variant='h4' fontWeight={750} sx={{ mt: 3 }}>{title}</Typography>
