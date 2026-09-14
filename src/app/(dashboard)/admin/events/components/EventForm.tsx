@@ -67,8 +67,8 @@ type FormState = {
   venueAddress: string
   mapsUrl: string
   about: string
-  benefits: string
-  additionalInformation: string
+  legacyBenefits: string
+  legacyAdditionalInformation: string
   registrationImageTitle: string
 }
 
@@ -101,8 +101,8 @@ const createState = (event?: AdminEvent | null): FormState => ({
   venueAddress: event?.venueAddress ?? '',
   mapsUrl: event?.mapsUrl ?? '',
   about: event?.about ?? '',
-  benefits: event?.benefits ?? '',
-  additionalInformation: event?.additionalInformation ?? '',
+  legacyBenefits: event?.benefits ?? '',
+  legacyAdditionalInformation: event?.additionalInformation ?? '',
   registrationImageTitle: event?.registrationImageTitle ?? ''
 })
 
@@ -195,7 +195,12 @@ const EventForm = ({
 
   const changeKind = (kind: ModularEventKind) => {
     update('kind', kind)
-    setExperience(createDefaultExperienceConfig(kind))
+    const template = createDefaultExperienceConfig(kind)
+    setExperience(previous => ({
+      ...template,
+      benefits: previous.benefits ?? [],
+      contentSections: previous.contentSections ?? []
+    }))
   }
 
   const updateAsset = (key: keyof EventFormAssets, file?: File) => {
@@ -212,6 +217,15 @@ const EventForm = ({
       if (!field.label.trim()) return `Registration field ${key} needs a label.`
       if (field.type === 'select' && field.options.length === 0) return `${field.label} needs at least one select option.`
     }
+
+    for (const benefit of experience.benefits ?? []) {
+      if (!benefit.title.trim()) return 'Every benefit needs a title.'
+    }
+
+    for (const section of experience.contentSections ?? []) {
+      if (!section.title.trim()) return 'Every information section needs a title.'
+    }
+
     return null
   }
 
@@ -228,15 +242,11 @@ const EventForm = ({
 
     if (!name) return setValidationError('Event name is required.')
     if (!Number.isInteger(capacity) || capacity <= 0) return setValidationError('Capacity must be greater than zero.')
-    if ([startAt, endAt, registrationOpenAt, registrationCloseAt].some(date => Number.isNaN(date.getTime()))) {
-      return setValidationError('Please complete all event and registration dates.')
-    }
+    if ([startAt, endAt, registrationOpenAt, registrationCloseAt].some(date => Number.isNaN(date.getTime()))) return setValidationError('Please complete all event and registration dates.')
     if (endAt <= startAt) return setValidationError('Event end time must be after the start time.')
     if (registrationCloseAt <= registrationOpenAt) return setValidationError('Registration close time must be after the open time.')
     if (registrationCloseAt > startAt) return setValidationError('Registration must close no later than the event start time.')
-    if (form.accessMode !== 'Public' && !form.accessValue.trim()) {
-      return setValidationError(form.accessMode === 'EmailDomain' ? 'Email domain is required.' : 'Invitation code is required.')
-    }
+    if (form.accessMode !== 'Public' && !form.accessValue.trim()) return setValidationError(form.accessMode === 'EmailDomain' ? 'Email domain is required.' : 'Invitation code is required.')
     if (!form.registrationImageTitle.trim()) return setValidationError('Registration visual title is required.')
 
     const experienceError = validateExperience()
@@ -279,8 +289,8 @@ const EventForm = ({
         venueAddress: form.venueAddress.trim() || null,
         mapsUrl: form.mapsUrl.trim() || null,
         about: form.about.trim() || null,
-        benefits: form.benefits.trim() || null,
-        additionalInformation: form.additionalInformation.trim() || null
+        benefits: form.legacyBenefits.trim() || null,
+        additionalInformation: form.legacyAdditionalInformation.trim() || null
       },
       assets,
       experienceConfig: { ...experience, kind: toModularKind(form.kind) }
@@ -293,57 +303,24 @@ const EventForm = ({
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading
-            title='Event information'
-            description='Choose the event template first. Running and Seminar share the same platform, but each starts with different recommended modules and participant fields.'
-          />
-
+          <SectionHeading title='Event information' description='Choose the event template first. Running and Seminar share the same platform, but each starts with different recommended modules and participant fields.' />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' }, gap: 3 }}>
             <FormControl fullWidth>
               <InputLabel id='event-kind-label'>Event type</InputLabel>
-              <Select
-                labelId='event-kind-label'
-                label='Event type'
-                value={toModularKind(form.kind)}
-                onChange={event => changeKind(event.target.value as ModularEventKind)}
-              >
+              <Select labelId='event-kind-label' label='Event type' value={toModularKind(form.kind)} onChange={event => changeKind(event.target.value as ModularEventKind)}>
                 {SUPPORTED_EVENT_KINDS.map(kind => <MenuItem value={kind} key={kind}>{kind}</MenuItem>)}
               </Select>
             </FormControl>
-
             <TextField label='Event name' value={form.name} onChange={event => update('name', event.target.value)} required fullWidth inputProps={{ maxLength: 200 }} />
           </Box>
-
-          <TextField
-            label='Short description'
-            value={form.description}
-            onChange={event => update('description', event.target.value)}
-            multiline
-            minRows={3}
-            fullWidth
-            inputProps={{ maxLength: 4000 }}
-            helperText='Used for event previews and short introductions.'
-          />
-
-          <TextField
-            label='Venue / location name'
-            value={form.location}
-            onChange={event => update('location', event.target.value)}
-            fullWidth
-            inputProps={{ maxLength: 300 }}
-            placeholder='e.g. Pertamina Arena Jakarta'
-          />
+          <TextField label='Short description' value={form.description} onChange={event => update('description', event.target.value)} multiline minRows={3} fullWidth inputProps={{ maxLength: 4000 }} helperText='Used for event previews and short introductions.' />
+          <TextField label='Venue / location name' value={form.location} onChange={event => update('location', event.target.value)} fullWidth inputProps={{ maxLength: 300 }} placeholder='e.g. Pertamina Arena Jakarta' />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-          <EventExperienceConfigurator
-            kind={toModularKind(form.kind)}
-            value={{ ...experience, kind: toModularKind(form.kind) }}
-            disabled={submitting}
-            onChange={setExperience}
-          />
+          <EventExperienceConfigurator kind={toModularKind(form.kind)} value={{ ...experience, kind: toModularKind(form.kind) }} disabled={submitting} onChange={setExperience} />
         </CardContent>
       </Card>
 
@@ -368,23 +345,15 @@ const EventForm = ({
             <AssetField label='Hero / cover image' helper='Main visual for the public event microsite.' currentUrl={event?.heroImageUrl} file={assets.hero} required onChange={file => updateAsset('hero', file)} />
             <AssetField label='Registration visual' helper='Race route, venue layout, seminar map, or event guide.' currentUrl={event?.registrationImageUrl} file={assets.registration} required onChange={file => updateAsset('registration', file)} />
           </Box>
-          <TextField
-            label='Registration visual title'
-            value={form.registrationImageTitle}
-            onChange={event => update('registrationImageTitle', event.target.value)}
-            inputProps={{ maxLength: 200 }}
-            helperText='Examples: Race Route, Race Pack Guide, Seminar Venue Map.'
-            required
-          />
+          <TextField label='Registration visual title' value={form.registrationImageTitle} onChange={event => update('registrationImageTitle', event.target.value)} inputProps={{ maxLength: 200 }} helperText='Examples: Race Route, Race Pack Guide, Seminar Venue Map.' required />
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading title='Public event content' description='Content displayed on the event landing page.' />
-          <TextField label='About the event' value={form.about} onChange={event => update('about', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} />
-          <TextField label='Event benefits' value={form.benefits} onChange={event => update('benefits', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} helperText='Package-specific benefits remain managed inside Event Packages.' />
-          <TextField label='Additional information' value={form.additionalInformation} onChange={event => update('additionalInformation', event.target.value)} multiline minRows={5} inputProps={{ maxLength: 12000 }} />
+        <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 3 }}>
+          <SectionHeading title='Public event introduction' description='The About section is the long-form introduction. Benefits and additional information are managed with the dynamic builders above.' />
+          <TextField label='About the event' value={form.about} onChange={event => update('about', event.target.value)} multiline minRows={5} inputProps={{ maxLength: 8000 }} />
+          <Alert severity='info'>Use <strong>Dynamic benefits</strong> for icon-based benefit cards and <strong>Dynamic information sections</strong> for Prize, Rules, Winner Information, or any other formatted section.</Alert>
         </CardContent>
       </Card>
 
@@ -402,13 +371,7 @@ const EventForm = ({
               </Select>
             </FormControl>
             {form.accessMode !== 'Public' && (
-              <TextField
-                label={form.accessMode === 'EmailDomain' ? 'Allowed email domain' : 'Invitation code'}
-                value={form.accessValue}
-                onChange={event => update('accessValue', event.target.value)}
-                inputProps={{ maxLength: 200 }}
-                required
-              />
+              <TextField label={form.accessMode === 'EmailDomain' ? 'Allowed email domain' : 'Invitation code'} value={form.accessValue} onChange={event => update('accessValue', event.target.value)} inputProps={{ maxLength: 200 }} required />
             )}
           </Box>
         </CardContent>
