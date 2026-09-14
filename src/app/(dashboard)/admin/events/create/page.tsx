@@ -12,13 +12,16 @@ import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
 
 import EventForm, { type EventFormSubmission } from '../components/EventForm'
+import QuizConfigurator, { createQuizFormValue, type QuizFormValue } from '../components/QuizConfigurator'
 import { createAdminEvent, uploadAdminEventAsset } from '@/lib/admin-events'
 import { updateAdminEventExperience } from '@/lib/event-experience'
+import { persistQuizEditor, validateQuizEditor } from '@/lib/quiz-editor'
 
 const CreateEventPage = () => {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [quizConfig, setQuizConfig] = useState<QuizFormValue>(() => createQuizFormValue())
 
   const handleSubmit = async ({ request, assets, experienceConfig }: EventFormSubmission) => {
     setSubmitting(true)
@@ -27,6 +30,9 @@ const CreateEventPage = () => {
     let createdEventId: string | null = null
 
     try {
+      const quizError = validateQuizEditor(quizConfig)
+      if (quizError) throw new Error(quizError)
+
       const created = await createAdminEvent(request)
       createdEventId = created.id
 
@@ -42,6 +48,8 @@ const CreateEventPage = () => {
       await uploadAdminEventAsset(created.id, 'logo', assets.logo)
       await uploadAdminEventAsset(created.id, 'hero', assets.hero)
       await uploadAdminEventAsset(created.id, 'registration', assets.registration)
+
+      await persistQuizEditor(created.id, quizConfig)
 
       router.push(`/admin/events/${encodeURIComponent(created.id)}/dashboard`)
     } catch (submitError) {
@@ -69,12 +77,14 @@ const CreateEventPage = () => {
 
         <Typography variant='h4' fontWeight={700}>Create Event</Typography>
         <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-          Choose Running or Seminar, then configure exactly which operational modules and registration fields this event needs.
+          Choose Running or Seminar, then configure exactly which operational modules, registration fields, and optional games this event needs.
         </Typography>
         <Alert severity='info' sx={{ mt: 3 }}>
-          Running and Seminar are templates, not separate systems. You can turn optional modules on or off for every event.
+          Running and Seminar are templates, not separate systems. Optional games such as Quiz can be configured per event.
         </Alert>
       </Box>
+
+      <QuizConfigurator value={quizConfig} disabled={submitting} onChange={setQuizConfig} />
 
       <EventForm
         submitLabel='Create Event'
