@@ -16,7 +16,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
 import { generateQuizQuestions } from '@/lib/quiz-ai'
-import type { QuizDifficulty, QuizGenerationMode } from '@/lib/admin-quiz'
+import type { QuizDifficulty, QuizGenerationMode, QuizQuestionResponse } from '@/lib/admin-quiz'
 
 const CyraQuizGenerator = ({
   eventId,
@@ -27,7 +27,7 @@ const CyraQuizGenerator = ({
   eventId: string
   generationMode: QuizGenerationMode
   disabled?: boolean
-  onGenerated: () => Promise<void> | void
+  onGenerated: (questions: QuizQuestionResponse[]) => Promise<void> | void
 }) => {
   const [count, setCount] = useState(10)
   const [difficulty, setDifficulty] = useState<QuizDifficulty>('Medium')
@@ -53,7 +53,7 @@ const CyraQuizGenerator = ({
         additionalInstructions: instructions.trim() || null
       })
 
-      await onGenerated()
+      await onGenerated(result.questions)
       setSuccess(
         result.created === result.requested
           ? `CYRA added ${result.created} unique questions to the Question Bank.`
@@ -84,7 +84,7 @@ const CyraQuizGenerator = ({
               <Chip label='AI • Server-side' color='primary' variant='tonal' size='small' />
             </Box>
             <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75, maxWidth: 760, lineHeight: 1.65 }}>
-              CYRA uses the saved event Quiz context, checks the existing Question Bank, rejects repeated or highly similar questions, and stores only unique results.
+              CYRA uses the saved Quiz context, checks the existing Question Bank, rejects repeated or highly similar questions, and stores only unique results.
             </Typography>
           </Box>
         </Box>
