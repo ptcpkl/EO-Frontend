@@ -120,7 +120,9 @@ const ParticipantQuizLive = ({ room, participant }: Props) => {
       setError(connectError instanceof Error ? connectError.message : 'Realtime connection interrupted.')
       retryRef.current = window.setTimeout(() => void connect(), 1800)
     }
-  }, [applyState, connect, participant.participantToken, participant.sessionId, refreshMyState])
+  // Recursive reconnect is intentionally scheduled from onClose/catch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyState, participant.participantToken, participant.sessionId, refreshMyState])
 
   useEffect(() => {
     void getParticipantQuizState(participant.sessionId, participant.participantToken)
