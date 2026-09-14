@@ -77,10 +77,16 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
   const generate = () => {
     if (!template || recipients.length === 0) return
 
-    const popup = window.open('', '_blank', 'noopener,noreferrer')
+    const popup = window.open('', '_blank')
     if (!popup) {
       setError('Certificate preview was blocked by the browser. Allow pop-ups for this site and try again.')
       return
+    }
+
+    try {
+      popup.opener = null
+    } catch {
+      // Some browsers disallow changing opener; certificate rendering can continue safely.
     }
 
     const issuer = escapeHtml(template.issuer || 'Event Organizer')
