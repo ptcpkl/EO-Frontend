@@ -29,6 +29,7 @@ import {
   unarchiveAdminEvent,
   type AdminEvent
 } from '@/lib/admin-events'
+import { parseEventBenefits, parseEventContentSections } from '@/lib/event-content'
 
 const formatDateTime = (value: string) => {
   const date = new Date(value)
@@ -42,6 +43,8 @@ const formatPrice = (value: number) =>
   value === 0 ? 'Free / no active package' : new Intl.NumberFormat('id-ID', {
     style: 'currency', currency: 'IDR', maximumFractionDigits: 0
   }).format(value)
+
+const stripHtml = (value: string) => value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 
 const EventOverviewPage = () => {
   const params = useParams<{ eventSlug: string }>()
@@ -132,6 +135,10 @@ const EventOverviewPage = () => {
     ['Visual title', event.registrationImageTitle]
   ] as const
   const mediaComplete = presentationItems.every(([, value]) => Boolean(value))
+  const benefits = parseEventBenefits(event.benefits).filter(item => item.title.trim())
+  const informationSections = parseEventContentSections(event.additionalInformation)
+    .map(section => ({ ...section, plainText: stripHtml(section.contentHtml) }))
+    .filter(section => section.plainText)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -169,6 +176,9 @@ const EventOverviewPage = () => {
           </Box>
 
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignSelf: { xs: 'flex-start', lg: 'center' } }}>
+            <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/dashboard`} variant='outlined' startIcon={<i className='tabler-layout-dashboard' />}>
+              Dashboard
+            </Button>
             {!archived && (
               <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/edit`} variant='outlined' startIcon={<i className='tabler-edit' />}>
                 Edit Event
@@ -264,11 +274,38 @@ const EventOverviewPage = () => {
             ))}
           </Box>
 
-          {(event.about || event.benefits || event.additionalInformation || event.venueAddress || event.mapsUrl) && (
+          {(event.about || benefits.length > 0 || informationSections.length > 0 || event.venueAddress || event.mapsUrl) && (
             <Box sx={{ mt: 4, display: 'grid', gap: 3 }}>
               {event.about && <Box><Typography fontWeight={600}>About</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.about}</Typography></Box>}
-              {event.benefits && <Box><Typography fontWeight={600}>Benefits</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.benefits}</Typography></Box>}
-              {event.additionalInformation && <Box><Typography fontWeight={600}>Additional information</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1, whiteSpace: 'pre-line' }}>{event.additionalInformation}</Typography></Box>}
+              {benefits.length > 0 && (
+                <Box>
+                  <Typography fontWeight={600}>Benefits</Typography>
+                  <Box sx={{ mt: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+                    {benefits.map(benefit => (
+                      <Box key={benefit.id} sx={{ display: 'flex', gap: 1.25, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                        <i className={benefit.icon} />
+                        <Box>
+                          <Typography variant='body2' fontWeight={700}>{benefit.title}</Typography>
+                          {benefit.description && <Typography variant='caption' color='text.secondary'>{benefit.description}</Typography>}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {informationSections.length > 0 && (
+                <Box>
+                  <Typography fontWeight={600}>Additional information</Typography>
+                  <Box sx={{ mt: 1.5, display: 'grid', gap: 1.5 }}>
+                    {informationSections.map(section => (
+                      <Box key={section.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                        <Typography variant='body2' fontWeight={700}>{section.title || 'Additional Information'}</Typography>
+                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: .5 }}>{section.plainText}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
               {event.venueAddress && <Box><Typography fontWeight={600}>Venue address</Typography><Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>{event.venueAddress}</Typography></Box>}
               {event.mapsUrl && <Button component='a' href={event.mapsUrl} target='_blank' rel='noreferrer' variant='outlined' startIcon={<i className='tabler-map-pin' />} sx={{ justifySelf: 'start' }}>Open Google Maps</Button>}
             </Box>
