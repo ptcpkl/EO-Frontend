@@ -27,11 +27,7 @@ type StatusFilter = 'All' | 'Draft' | 'Published'
 type CategoryFilter = 'All' | EventKind
 
 const formatDateRange = (startValue: string, endValue: string) => {
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
+  const formatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   const start = new Date(startValue)
   const end = new Date(endValue)
 
@@ -81,7 +77,7 @@ const EventListPage = () => {
   }
 
   useEffect(() => {
-    loadEvents()
+    void loadEvents()
   }, [])
 
   const activeEvents = useMemo(() => events.filter(event => event.status !== 'Archived'), [events])
@@ -102,31 +98,15 @@ const EventListPage = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { md: 'center' },
-          justifyContent: 'space-between',
-          gap: 3
-        }}
-      >
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 3 }}>
         <Box>
-          <Typography variant='h4' fontWeight={700}>
-            Event Management
-          </Typography>
+          <Typography variant='h4' fontWeight={700}>Event Management</Typography>
           <Typography variant='body1' color='text.secondary' sx={{ mt: 1 }}>
-            Create drafts, manage packages, publish events, and monitor registration readiness.
+            Create events and jump directly into each event workspace, dashboard, editor, or public page.
           </Typography>
         </Box>
 
-        <Button
-          component={Link}
-          href='/admin/events/create'
-          variant='contained'
-          startIcon={<i className='tabler-calendar-plus ' />}
-          sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, borderRadius: 1 }}
-        >
+        <Button component={Link} href='/admin/events/create' variant='contained' startIcon={<i className='tabler-calendar-plus ' />} sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, borderRadius: 1 }}>
           Create Event
         </Button>
       </Box>
@@ -134,30 +114,20 @@ const EventListPage = () => {
       <Card elevation={0}>
         <CardContent sx={{ p: { xs: 3, sm: 4 }, '&:last-child': { pb: { xs: 3, sm: 4 } } }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box>
-              <Typography variant='h6' fontWeight={600}>
-                Active events
-              </Typography>
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-                {loading ? 'Loading events…' : `${filteredEvents.length} event${filteredEvents.length === 1 ? '' : 's'} found`}
-              </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center' }}>
+              <Box>
+                <Typography variant='h6' fontWeight={600}>Active events</Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+                  {loading ? 'Loading events…' : `${filteredEvents.length} event${filteredEvents.length === 1 ? '' : 's'} found`}
+                </Typography>
+              </Box>
+              <Button variant='text' onClick={() => void loadEvents()} disabled={loading} startIcon={<i className='tabler-refresh' />}>Refresh</Button>
             </Box>
 
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '180px 210px minmax(260px, 1fr)' },
-                gap: 2
-              }}
-            >
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '180px 210px minmax(260px, 1fr)' }, gap: 2 }}>
               <FormControl size='small'>
                 <InputLabel id='status-filter-label'>Status</InputLabel>
-                <Select
-                  labelId='status-filter-label'
-                  label='Status'
-                  value={status}
-                  onChange={event => setStatus(event.target.value as StatusFilter)}
-                >
+                <Select labelId='status-filter-label' label='Status' value={status} onChange={event => setStatus(event.target.value as StatusFilter)}>
                   <MenuItem value='All'>All statuses</MenuItem>
                   <MenuItem value='Draft'>Draft</MenuItem>
                   <MenuItem value='Published'>Published</MenuItem>
@@ -166,18 +136,9 @@ const EventListPage = () => {
 
               <FormControl size='small'>
                 <InputLabel id='category-filter-label'>Category</InputLabel>
-                <Select
-                  labelId='category-filter-label'
-                  label='Category'
-                  value={category}
-                  onChange={event => setCategory(event.target.value as CategoryFilter)}
-                >
+                <Select labelId='category-filter-label' label='Category' value={category} onChange={event => setCategory(event.target.value as CategoryFilter)}>
                   <MenuItem value='All'>All categories</MenuItem>
-                  {EVENT_KINDS.map(kind => (
-                    <MenuItem value={kind} key={kind}>
-                      {kind}
-                    </MenuItem>
-                  ))}
+                  {EVENT_KINDS.map(kind => <MenuItem value={kind} key={kind}>{kind}</MenuItem>)}
                 </Select>
               </FormControl>
 
@@ -186,15 +147,7 @@ const EventListPage = () => {
                 onChange={event => setSearch(event.target.value)}
                 placeholder='Search events'
                 size='small'
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position='start'>
-                        <i className='tabler-search' />
-                      </InputAdornment>
-                    )
-                  }
-                }}
+                slotProps={{ input: { startAdornment: <InputAdornment position='start'><i className='tabler-search' /></InputAdornment> } }}
               />
             </Box>
           </Box>
@@ -205,101 +158,65 @@ const EventListPage = () => {
         {loading && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 10 }}>
             <CircularProgress size={32} />
-            <Typography variant='body2' color='text.secondary'>
-              Loading events…
-            </Typography>
+            <Typography variant='body2' color='text.secondary'>Loading events…</Typography>
           </Box>
         )}
 
         {!loading && error && (
           <Box sx={{ p: { xs: 3, sm: 4 } }}>
-            <Alert
-              severity='error'
-              action={
-                <Button color='inherit' size='small' onClick={loadEvents}>
-                  Retry
-                </Button>
-              }
-            >
-              {error}
-            </Alert>
+            <Alert severity='error' action={<Button color='inherit' size='small' onClick={() => void loadEvents()}>Retry</Button>}>{error}</Alert>
           </Box>
         )}
 
         {!loading && !error && filteredEvents.length === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 2, py: 10, px: 3 }}>
             <i className='tabler-calendar-off text-4xl' />
-            <Typography variant='h6' fontWeight={600}>
-              {activeEvents.length === 0 ? 'No active events yet' : 'No matching events'}
-            </Typography>
-            <Typography variant='body2' color='text.secondary'>
-              {activeEvents.length === 0 ? 'Create your first event as a draft.' : 'Try changing the status, category, or search filter.'}
-            </Typography>
-            {activeEvents.length === 0 && (
-              <Button component={Link} href='/admin/events/create' variant='outlined'>
-                Create Event
-              </Button>
-            )}
+            <Typography variant='h6' fontWeight={600}>{activeEvents.length === 0 ? 'No active events yet' : 'No matching events'}</Typography>
+            <Typography variant='body2' color='text.secondary'>{activeEvents.length === 0 ? 'Create your first event as a draft.' : 'Try changing the status, category, or search filter.'}</Typography>
+            {activeEvents.length === 0 && <Button component={Link} href='/admin/events/create' variant='outlined'>Create Event</Button>}
           </Box>
         )}
 
         {!loading && !error && filteredEvents.length > 0 && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' },
-              gap: 3,
-              p: { xs: 3, sm: 4 }
-            }}
-          >
-            {filteredEvents.map(event => (
-              <Card key={event.id} variant='outlined' sx={{ display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-                    <Box>
-                      <Typography variant='h6' fontWeight={600}>
-                        {event.name}
-                      </Typography>
-                      <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-                        {event.kind}
-                      </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 3, p: { xs: 3, sm: 4 } }}>
+            {filteredEvents.map(event => {
+              const base = `/admin/events/${encodeURIComponent(event.id)}`
+              const regState = registrationState(event)
+
+              return (
+                <Card key={event.id} variant='outlined' sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                      <Box>
+                        <Typography variant='h6' fontWeight={600}>{event.name}</Typography>
+                        <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>{event.kind}</Typography>
+                      </Box>
+                      <Chip label={event.status} color={event.status === 'Published' ? 'success' : 'default'} size='small' />
                     </Box>
-                    <Chip
-                      label={event.status}
-                      color={event.status === 'Published' ? 'success' : 'default'}
-                      size='small'
-                    />
-                  </Box>
 
-                  <Divider sx={{ my: 3 }} />
+                    <Divider sx={{ my: 3 }} />
 
-                  <Box sx={{ display: 'grid', gap: 1.5 }}>
-                    <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <i className='tabler-map-pin' /> {event.location || 'Location to be announced'}
-                    </Typography>
-                    <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <i className='tabler-calendar' /> {formatDateRange(event.startAtUtc, event.endAtUtc)}
-                    </Typography>
-                    <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <i className='tabler-users' /> Capacity {event.capacity.toLocaleString()} · {event.remainingQuota.toLocaleString()} remaining
-                    </Typography>
-                  </Box>
+                    <Box sx={{ display: 'grid', gap: 1.5 }}>
+                      <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}><i className='tabler-map-pin' /> {event.location || 'Location to be announced'}</Typography>
+                      <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}><i className='tabler-calendar' /> {formatDateRange(event.startAtUtc, event.endAtUtc)}</Typography>
+                      <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', gap: 1, alignItems: 'center' }}><i className='tabler-users' /> Capacity {event.capacity.toLocaleString()} · {event.remainingQuota.toLocaleString()} remaining</Typography>
+                    </Box>
 
-                  <Chip
-                    label={registrationState(event)}
-                    color={registrationState(event) === 'Registration open' ? 'primary' : 'default'}
-                    variant='outlined'
-                    size='small'
-                    sx={{ mt: 3 }}
-                  />
-                </CardContent>
-                <CardActions sx={{ px: 2, pb: 2 }}>
-                  <Button component={Link} href={`/admin/events/${encodeURIComponent(event.id)}`} endIcon={<i className='tabler-arrow-right' />}>
-                    Manage
-                  </Button>
-                </CardActions>
-              </Card>
-            ))}
+                    <Chip label={regState} color={regState === 'Registration open' ? 'primary' : 'default'} variant='outlined' size='small' sx={{ mt: 3 }} />
+                  </CardContent>
+
+                  <Divider />
+                  <CardActions sx={{ px: 2, py: 2, display: 'flex', flexWrap: 'wrap', gap: .5 }}>
+                    <Button component={Link} href={`${base}/dashboard`} variant='contained' size='small' startIcon={<i className='tabler-layout-dashboard' />}>Dashboard</Button>
+                    <Button component={Link} href={base} size='small' startIcon={<i className='tabler-apps' />}>Workspace</Button>
+                    <Button component={Link} href={`${base}/edit`} size='small' startIcon={<i className='tabler-edit' />}>Edit</Button>
+                    {event.status === 'Published' && (
+                      <Button component={Link} href={`/events/${encodeURIComponent(event.slug)}`} target='_blank' size='small' startIcon={<i className='tabler-external-link' />}>Public</Button>
+                    )}
+                  </CardActions>
+                </Card>
+              )
+            })}
           </Box>
         )}
       </Card>

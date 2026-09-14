@@ -16,6 +16,7 @@ import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
+import { DynamicBenefitsEditor, DynamicContentSectionsEditor } from './DynamicPublicContentEditors'
 import EventExperienceConfigurator from './EventExperienceConfigurator'
 import {
   EVENT_ACCESS_MODES,
@@ -238,6 +239,8 @@ const EventForm = ({
       return setValidationError(form.accessMode === 'EmailDomain' ? 'Email domain is required.' : 'Invitation code is required.')
     }
     if (!form.registrationImageTitle.trim()) return setValidationError('Registration visual title is required.')
+    if (form.benefits.length > 8000) return setValidationError('Event benefits are too long. Reduce the number or description length of benefits.')
+    if (form.additionalInformation.length > 12000) return setValidationError('Additional information is too long. Shorten the rich-text sections.')
 
     const experienceError = validateExperience()
     if (experienceError) return setValidationError(experienceError)
@@ -381,10 +384,11 @@ const EventForm = ({
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 5 }, display: 'grid', gap: 4 }}>
-          <SectionHeading title='Public event content' description='Content displayed on the event landing page.' />
+          <SectionHeading title='Public event content' description='Build the public landing page using reusable benefit cards and rich information sections.' />
           <TextField label='About the event' value={form.about} onChange={event => update('about', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} />
-          <TextField label='Event benefits' value={form.benefits} onChange={event => update('benefits', event.target.value)} multiline minRows={4} inputProps={{ maxLength: 8000 }} helperText='Package-specific benefits remain managed inside Event Packages.' />
-          <TextField label='Additional information' value={form.additionalInformation} onChange={event => update('additionalInformation', event.target.value)} multiline minRows={5} inputProps={{ maxLength: 12000 }} />
+          <DynamicBenefitsEditor value={form.benefits} onChange={value => update('benefits', value)} />
+          <Divider />
+          <DynamicContentSectionsEditor value={form.additionalInformation} onChange={value => update('additionalInformation', value)} />
         </CardContent>
       </Card>
 
