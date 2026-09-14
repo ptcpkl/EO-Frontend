@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -14,6 +14,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
 import { checkInParticipant, type CheckInResponse } from '@/lib/check-ins'
+import { getAdminEventExperience, type EventExperienceConfig, type EventWorkspaceItem } from '@/lib/event-experience'
 
 type BarcodeResult = { rawValue?: string }
 type BarcodeDetectorInstance = { detect: (source: CanvasImageSource) => Promise<BarcodeResult[]> }
@@ -41,6 +42,18 @@ const formatDateTime = (value: string) =>
     timeStyle: 'short',
     timeZone: 'Asia/Jakarta'
   }).format(new Date(value))
+
+const itemForPackage = (items: EventWorkspaceItem[] | undefined, packageId: string | null) => {
+  const safeItems = Array.isArray(items) ? items.filter(item => item && typeof item === 'object') : []
+  if (!safeItems.length) return null
+
+  if (packageId) {
+    const matched = safeItems.find(item => String(item.packageId ?? '') === packageId)
+    if (matched) return matched
+  }
+
+  return safeItems.length === 1 ? safeItems[0] : null
+}
 
 const loadJsQrFallback = async (): Promise<JsQrDecoder> => {
   const scannerWindow = window as ScannerWindow
@@ -116,6 +129,7 @@ export default function Page() {
   const [error, setError] = useState('')
   const [cameraMessage, setCameraMessage] = useState('')
   const [result, setResult] = useState<CheckInResponse | null>(null)
+  const [experience, setExperience] = useState<EventExperienceConfig | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -144,6 +158,15 @@ export default function Page() {
 
   useEffect(() => stopScanner, [])
 
+  const raceCategory = useMemo(
+    () => result ? itemForPackage(experience?.moduleData?.['race-categories'], result.eventPackageId) : null,
+    [experience, result]
+  )
+  const racePack = useMemo(
+    () => result ? itemForPackage(experience?.moduleData?.['race-pack'], result.eventPackageId) : null,
+    [experience, result]
+  )
+
   const submitToken = async (value = token) => {
     const qrToken = value.trim()
     if (!qrToken || submittingRef.current) return
@@ -152,12 +175,21 @@ export default function Page() {
     setSubmitting(true)
     setError('')
     setResult(null)
+    setExperience(null)
 
     try {
       const response = await checkInParticipant(qrToken)
       setResult(response)
       setToken('')
       stopScanner()
+
+      try {
+        const loadedExperience = await getAdminEventExperience(response.eventId)
+        setExperience(loadedExperience)
+      } catch {
+        // Check-in itself succeeded. Entitlement context is optional and must never turn success into failure.
+        setExperience(null)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to check in participant.')
     } finally {
@@ -181,6 +213,7 @@ export default function Page() {
     setCameraMessage('')
     setError('')
     setResult(null)
+    setExperience(null)
 
     if (!window.isSecureContext) {
       setCameraMessage('Camera access requires a secure page. Open the app over HTTPS or use localhost during development.')
@@ -281,8 +314,8 @@ export default function Page() {
       <Box>
         <Chip label='Operations' color='primary' size='small' sx={{ mb: 1.5 }} />
         <Typography variant='h4' fontWeight={800}>Participant Check-ins</Typography>
-        <Typography color='text.secondary' sx={{ mt: 1, maxWidth: 720 }}>
-          Validate free, paid, or internal tickets using their QR code. Duplicate check-ins and inactive registrations are rejected by the backend.
+        <Typography color='text.secondary' sx={{ mt: 1, maxWidth: 760 }}>
+          Validate tickets using QR. For Running events, the latest result also shows the participant package, race category, and race-pack items that staff should hand over.
         </Typography>
       </Box>
 
@@ -397,10 +430,45 @@ export default function Page() {
                     <Typography>{result.eventName}</Typography>
                   </Box>
                   <Box>
+                    <Typography variant='caption' color='text.secondary'>Package / payment selection</Typography>
+                    <Typography fontWeight={650}>{result.eventPackageName || 'No package assigned'}</Typography>
+                  </Box>
+                  {raceCategory && (
+                    <Box>
+                      <Typography variant='caption' color='text.secondary'>Race category</Typography>
+                      <Typography fontWeight={650}>{raceCategory.title}</Typography>
+                      {raceCategory.distance && <Typography variant='body2' color='text.secondary'>{String(raceCategory.distance)}</Typography>}
+                    </Box>
+                  )}
+                  <Box>
                     <Typography variant='caption' color='text.secondary'>Checked in</Typography>
                     <Typography>{formatDateTime(result.checkedInAtUtc)} WIB</Typography>
                   </Box>
                 </Box>
+
+                {racePack && (
+                  <Box sx={{ mt: 3, p: 2.5, borderRadius: 2, bgcolor: 'action.hover', border: theme => `1px solid ${theme.palette.divider}` }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                      <i className='tabler-package text-xl' />
+                      <Typography fontWeight={750}>Hand over at check-in</Typography>
+                    </Box>
+                    <Typography fontWeight={650}>{racePack.title}</Typography>
+                    <Typography variant='body2' sx={{ mt: .75, whiteSpace: 'pre-wrap' }}>
+                      {String(racePack.contents || 'Race pack configured for this package.')}
+                    </Typography>
+                    {racePack.pickupLocation && (
+                      <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                        Pickup: {String(racePack.pickupLocation)}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+
+                {experience && !racePack && result.eventPackageId && (
+                  <Alert severity='info' sx={{ mt: 3 }}>
+                    This participant is checked in, but no Race Pack is linked to the selected package yet. Configure it from the event workspace.
+                  </Alert>
+                )}
               </Box>
             )}
           </CardContent>
