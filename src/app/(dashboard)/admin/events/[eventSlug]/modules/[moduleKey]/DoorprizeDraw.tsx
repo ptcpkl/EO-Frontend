@@ -9,13 +9,19 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
 import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 
 import type { EventWorkspaceItem } from '@/lib/event-experience'
 import { getAllRegistrations } from '../../registrations/services/registration.service'
 import type { Registration } from '../../registrations/types'
+
+type PrizeType = 'regular' | 'doorprize'
+type DrawMode = 'random' | 'manual'
+type CandidateSource = 'registration' | 'manual'
 
 type DoorprizeWinner = {
   registrationId: string
@@ -23,9 +29,23 @@ type DoorprizeWinner = {
   bookingCode: string
   eventPackageName: string | null
   drawnAtUtc: string
+  source?: CandidateSource
+  selectionMode?: DrawMode
 }
 
-type PrizeType = 'regular' | 'doorprize'
+type ManualEntrant = {
+  id: string
+  fullName: string
+  createdAtUtc: string
+}
+
+type DrawCandidate = {
+  id: string
+  fullName: string
+  bookingCode: string
+  eventPackageName: string | null
+  source: CandidateSource
+}
 
 type Props = {
   eventId: string
@@ -48,6 +68,22 @@ const parseWinners = (value: unknown): DoorprizeWinner[] => {
   })
 }
 
+const parseManualEntrants = (value: unknown): ManualEntrant[] => {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item => {
+    if (!item || typeof item !== 'object') return []
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id : ''
+    const fullName = typeof record.fullName === 'string' ? record.fullName.trim() : ''
+    if (!id || !fullName) return []
+    return [{
+      id,
+      fullName,
+      createdAtUtc: typeof record.createdAtUtc === 'string' ? record.createdAtUtc : ''
+    }]
+  })
+}
+
 const getQuantity = (prize: EventWorkspaceItem | undefined) => {
   const parsed = Number(prize?.quantity ?? 1)
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1
@@ -56,24 +92,20 @@ const getQuantity = (prize: EventWorkspaceItem | undefined) => {
 const getPrizeType = (prize: EventWorkspaceItem | undefined): PrizeType => {
   const value = String(prize?.prizeType ?? '').toLowerCase()
   if (value === 'regular') return 'regular'
-
-  // Existing records were created by the old Doorprize flow, so keep them
-  // as doorprize by default for backward-compatible winner eligibility.
   return 'doorprize'
 }
 
-const randomName = (pool: Registration[]) => {
+const randomName = (pool: DrawCandidate[]) => {
   if (!pool.length) return '—'
   return pool[Math.floor(Math.random() * pool.length)].fullName
 }
 
-const buildReel = (pool: Registration[], winner: Registration) => {
+const buildReel = (pool: DrawCandidate[], winner: DrawCandidate) => {
   const names: string[] = []
   let previous = ''
 
   for (let index = 0; index < 48; index += 1) {
     let next = randomName(pool)
-
     if (pool.length > 1) {
       let guard = 0
       while (next === previous && guard < 5) {
@@ -81,19 +113,19 @@ const buildReel = (pool: Registration[], winner: Registration) => {
         guard += 1
       }
     }
-
     names.push(next)
     previous = next
   }
 
   const winnerIndex = names.length
   names.push(winner.fullName)
-
-  // Keep a couple of rows below the final winner so the reel still looks
-  // continuous when it settles with the winner exactly on the center line.
   names.push(randomName(pool), randomName(pool))
-
   return { names, winnerIndex }
+}
+
+const createManualId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `manual-${crypto.randomUUID()}`
+  return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 const wait = (milliseconds: number) => new Promise(resolve => window.setTimeout(resolve, milliseconds))
@@ -104,6 +136,10 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const [loading, setLoading] = useState(true)
   const [rolling, setRolling] = useState(false)
   const [savingPrizeType, setSavingPrizeType] = useState(false)
+  const [savingManualEntrant, setSavingManualEntrant] = useState(false)
+  const [drawMode, setDrawMode] = useState<DrawMode>('random')
+  const [manualName, setManualName] = useState('')
+  const [manualWinnerId, setManualWinnerId] = useState('')
   const [reelItems, setReelItems] = useState<string[]>([])
   const [reelOffset, setReelOffset] = useState(0)
   const [revealedWinner, setRevealedWinner] = useState<DoorprizeWinner | null>(null)
@@ -138,9 +174,11 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     setReelItems([])
     setReelOffset(0)
     setRevealedWinner(null)
-  }, [selectedPrizeId])
+    setManualWinnerId('')
+    setManualName('')
+  }, [selectedPrizeId, drawMode])
 
-  const eligible = useMemo(
+  const eligibleRegistrations = useMemo(
     () => registrations.filter(item => Boolean(item.checkedInAt) || item.status === 'CHECKED_IN'),
     [registrations]
   )
@@ -148,6 +186,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const selectedPrize = prizes.find(prize => prize.id === selectedPrizeId)
   const selectedPrizeType = getPrizeType(selectedPrize)
   const selectedWinners = parseWinners(selectedPrize?.winners)
+  const manualEntrants = parseManualEntrants(selectedPrize?.manualEntrants)
 
   const allWinnerIds = useMemo(
     () => new Set(prizes.flatMap(prize => parseWinners(prize.winners).map(winner => winner.registrationId))),
@@ -168,21 +207,33 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     [selectedWinners]
   )
 
+  const candidatePool = useMemo<DrawCandidate[]>(() => [
+    ...eligibleRegistrations.map(item => ({
+      id: item.id,
+      fullName: item.fullName,
+      bookingCode: item.bookingCode,
+      eventPackageName: item.eventPackageName ?? null,
+      source: 'registration' as const
+    })),
+    ...manualEntrants.map(item => ({
+      id: item.id,
+      fullName: item.fullName,
+      bookingCode: 'MANUAL',
+      eventPackageName: null,
+      source: 'manual' as const
+    }))
+  ], [eligibleRegistrations, manualEntrants])
+
   const available = useMemo(() => {
     if (selectedPrizeType === 'doorprize') {
-      // Regular-prize winners are still eligible for the Doorprize.
-      // Anyone who has already won a Doorprize is globally blocked.
-      return eligible.filter(item => !doorprizeWinnerIds.has(item.id) && !selectedWinnerIds.has(item.id))
+      return candidatePool.filter(item => !doorprizeWinnerIds.has(item.id) && !selectedWinnerIds.has(item.id))
     }
-
-    // A regular-prize draw only accepts participants who have not won any prize yet.
-    // This prevents duplicate regular prizes and also guarantees a Doorprize winner
-    // can never receive any later prize.
-    return eligible.filter(item => !allWinnerIds.has(item.id) && !selectedWinnerIds.has(item.id))
-  }, [eligible, selectedPrizeType, doorprizeWinnerIds, allWinnerIds, selectedWinnerIds])
+    return candidatePool.filter(item => !allWinnerIds.has(item.id) && !selectedWinnerIds.has(item.id))
+  }, [candidatePool, selectedPrizeType, doorprizeWinnerIds, allWinnerIds, selectedWinnerIds])
 
   const quantity = getQuantity(selectedPrize)
   const complete = selectedWinners.length >= quantity
+  const manualWinner = available.find(item => item.id === manualWinnerId)
 
   const changePrizeType = async (nextType: PrizeType) => {
     if (!selectedPrize || disabled || rolling || savingPrizeType || nextType === selectedPrizeType) return
@@ -194,6 +245,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       setReelItems([])
       setReelOffset(0)
       setRevealedWinner(null)
+      setManualWinnerId('')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to update prize type.')
     } finally {
@@ -201,17 +253,68 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     }
   }
 
-  const draw = async () => {
+  const addManualEntrant = async () => {
+    const fullName = manualName.trim()
+    if (!selectedPrize || !fullName || disabled || rolling || savingManualEntrant) return
+    if (manualEntrants.some(item => item.fullName.toLowerCase() === fullName.toLowerCase())) {
+      setError('That manual name is already in this prize pool.')
+      return
+    }
+
+    const next: ManualEntrant = { id: createManualId(), fullName, createdAtUtc: new Date().toISOString() }
+    try {
+      setSavingManualEntrant(true)
+      setError(null)
+      await onUpdatePrize(selectedPrize.id, { manualEntrants: [...manualEntrants, next] })
+      setManualName('')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to add manual entrant.')
+    } finally {
+      setSavingManualEntrant(false)
+    }
+  }
+
+  const removeManualEntrant = async (entrantId: string) => {
+    if (!selectedPrize || disabled || rolling || savingManualEntrant) return
+    if (allWinnerIds.has(entrantId)) {
+      setError('This manual entrant already appears in winner history and cannot be removed.')
+      return
+    }
+
+    try {
+      setSavingManualEntrant(true)
+      setError(null)
+      await onUpdatePrize(selectedPrize.id, { manualEntrants: manualEntrants.filter(item => item.id !== entrantId) })
+      if (manualWinnerId === entrantId) setManualWinnerId('')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to remove manual entrant.')
+    } finally {
+      setSavingManualEntrant(false)
+    }
+  }
+
+  const winnerRecordFor = (candidate: DrawCandidate, selectionMode: DrawMode): DoorprizeWinner => ({
+    registrationId: candidate.id,
+    fullName: candidate.fullName,
+    bookingCode: candidate.bookingCode,
+    eventPackageName: candidate.eventPackageName,
+    drawnAtUtc: new Date().toISOString(),
+    source: candidate.source,
+    selectionMode
+  })
+
+  const saveWinner = async (winnerRecord: DoorprizeWinner) => {
+    if (!selectedPrize) return
+    await onUpdatePrize(selectedPrize.id, { winners: [...selectedWinners, winnerRecord] })
+    setRevealedWinner(winnerRecord)
+    setManualWinnerId('')
+  }
+
+  const drawRandom = async () => {
     if (!selectedPrize || !available.length || complete || rolling) return
 
     const winner = available[Math.floor(Math.random() * available.length)]
-    const winnerRecord: DoorprizeWinner = {
-      registrationId: winner.id,
-      fullName: winner.fullName,
-      bookingCode: winner.bookingCode,
-      eventPackageName: winner.eventPackageName ?? null,
-      drawnAtUtc: new Date().toISOString()
-    }
+    const winnerRecord = winnerRecordFor(winner, 'random')
     const reel = buildReel(available, winner)
 
     setRolling(true)
@@ -220,18 +323,30 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     setReelItems(reel.names)
     setReelOffset(0)
 
-    // Give the browser one paint with the reel at its starting position, then
-    // animate the whole strip. The easing creates a fast scroll that naturally
-    // slows down and locks the selected winner onto the center selector.
     await wait(80)
     setReelOffset(Math.max(0, reel.winnerIndex - CENTER_SLOT) * ITEM_HEIGHT)
     await wait(REEL_DURATION_MS + 120)
 
     try {
-      await onUpdatePrize(selectedPrize.id, { winners: [...selectedWinners, winnerRecord] })
-      setRevealedWinner(winnerRecord)
+      await saveWinner(winnerRecord)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save the winner.')
+    } finally {
+      setRolling(false)
+    }
+  }
+
+  const confirmManualWinner = async () => {
+    if (!selectedPrize || !manualWinner || complete || rolling) return
+
+    try {
+      setRolling(true)
+      setError(null)
+      setReelItems([])
+      setReelOffset(0)
+      await saveWinner(winnerRecordFor(manualWinner, 'manual'))
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save the manual winner.')
     } finally {
       setRolling(false)
     }
@@ -253,19 +368,19 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
           <Box>
             <Typography variant='h5' fontWeight={750}>Live Prize Draw</Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: .75, maxWidth: 780 }}>
-              Only checked-in participants are eligible. Regular-prize winners may still enter the Doorprize. Once someone wins a Doorprize, they are blocked from every later prize draw.
+              Use Random Draw for a fair reel draw, or Manual Selection when an admin intentionally chooses the winner. Manual selections are clearly recorded in winner history.
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip label={`${eligible.length} checked in`} color='success' variant='tonal' />
-            <Chip label={`${doorprizeWinnerIds.size} doorprize winner${doorprizeWinnerIds.size === 1 ? '' : 's'}`} color='warning' variant='tonal' />
+            <Chip label={`${eligibleRegistrations.length} checked in`} color='success' variant='tonal' />
+            <Chip label={`${manualEntrants.length} manual`} color='info' variant='tonal' />
             <Chip label={`${available.length} available`} variant='outlined' />
           </Box>
         </Box>
 
         <Alert severity='info'>
           <strong>Regular Prize:</strong> one regular-prize win per participant, but the winner can still win a Doorprize.{' '}
-          <strong>Doorprize:</strong> after winning, that participant cannot win any other prize.
+          <strong>Doorprize:</strong> after winning, that person cannot win any other prize.
         </Alert>
 
         {error && <Alert severity='error'>{error}</Alert>}
@@ -276,22 +391,18 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
           <Alert severity='info'>Create at least one prize item above before starting the draw.</Alert>
         ) : (
           <>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.3fr) minmax(220px, .7fr)' }, gap: 2, maxWidth: 760 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.3fr) minmax(220px, .7fr)' }, gap: 2, maxWidth: 820 }}>
               <TextField
                 select
                 label='Prize to draw'
                 value={selectedPrizeId}
                 onChange={event => setSelectedPrizeId(event.target.value)}
-                disabled={disabled || rolling || savingPrizeType}
+                disabled={disabled || rolling || savingPrizeType || savingManualEntrant}
               >
                 {prizes.map(prize => {
                   const winners = parseWinners(prize.winners)
                   const type = getPrizeType(prize)
-                  return (
-                    <MenuItem key={prize.id} value={prize.id}>
-                      {prize.title} · {type === 'doorprize' ? 'Doorprize' : 'Regular'} ({winners.length}/{getQuantity(prize)})
-                    </MenuItem>
-                  )
+                  return <MenuItem key={prize.id} value={prize.id}>{prize.title} · {type === 'doorprize' ? 'Doorprize' : 'Regular'} ({winners.length}/{getQuantity(prize)})</MenuItem>
                 })}
               </TextField>
 
@@ -308,165 +419,175 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
               </TextField>
             </Box>
 
-            {selectedPrize && (
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip
-                  label={selectedPrizeType === 'doorprize' ? 'Doorprize rules' : 'Regular prize rules'}
-                  color={selectedPrizeType === 'doorprize' ? 'warning' : 'primary'}
-                  variant='tonal'
+            <Card variant='outlined'>
+              <CardContent sx={{ display: 'grid', gap: 2 }}>
+                <Box>
+                  <Typography variant='subtitle1' fontWeight={750}>Manual entrants</Typography>
+                  <Typography variant='body2' color='text.secondary'>Add names that are not in registration data. They can join either Random Draw or Manual Selection for this prize.</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <TextField
+                    size='small'
+                    label='Add name manually'
+                    value={manualName}
+                    onChange={event => setManualName(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void addManualEntrant()
+                      }
+                    }}
+                    disabled={disabled || rolling || savingManualEntrant || !selectedPrize}
+                    sx={{ minWidth: 280, flex: '1 1 320px' }}
+                  />
+                  <Button variant='outlined' onClick={() => void addManualEntrant()} disabled={disabled || rolling || savingManualEntrant || !manualName.trim()} startIcon={<i className='tabler-user-plus' />}>
+                    Add name
+                  </Button>
+                </Box>
+                {manualEntrants.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {manualEntrants.map(entrant => (
+                      <Chip
+                        key={entrant.id}
+                        label={entrant.fullName}
+                        color='info'
+                        variant='tonal'
+                        onDelete={disabled || rolling || savingManualEntrant ? undefined : () => void removeManualEntrant(entrant.id)}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, .55fr) minmax(0, 1.45fr)' }, gap: 2, alignItems: 'start' }}>
+              <TextField
+                select
+                label='Draw mode'
+                value={drawMode}
+                onChange={event => setDrawMode(event.target.value as DrawMode)}
+                disabled={disabled || rolling}
+                helperText={drawMode === 'random' ? 'Winner is selected randomly.' : 'Admin explicitly selects the winner.'}
+              >
+                <MenuItem value='random'>Random Draw</MenuItem>
+                <MenuItem value='manual'>Manual Selection</MenuItem>
+              </TextField>
+
+              {drawMode === 'manual' && (
+                <TextField
+                  select
+                  label='Choose winner manually'
+                  value={manualWinnerId}
+                  onChange={event => setManualWinnerId(event.target.value)}
+                  disabled={disabled || rolling || complete || available.length === 0}
+                  helperText='This is a transparent admin selection and will be marked Manual in winner history.'
+                >
+                  <MenuItem value=''><em>Select eligible person</em></MenuItem>
+                  {available.map(candidate => (
+                    <MenuItem key={candidate.id} value={candidate.id}>
+                      {candidate.fullName} · {candidate.source === 'manual' ? 'Manual entrant' : candidate.bookingCode}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Box>
+
+            {drawMode === 'random' ? (
+              <Box
+                sx={{
+                  position: 'relative',
+                  height: ITEM_HEIGHT * VISIBLE_ITEMS,
+                  overflow: 'hidden',
+                  borderRadius: 4,
+                  border: theme => `1px solid ${theme.palette.divider}`,
+                  bgcolor: 'background.paper',
+                  boxShadow: rolling ? theme => `0 18px 48px ${theme.palette.action.hover}` : 'none',
+                  transition: 'box-shadow 280ms ease'
+                }}
+              >
+                <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)` }} />
+                <Box
+                  sx={{
+                    position: 'absolute', left: 14, right: 14, top: CENTER_SLOT * ITEM_HEIGHT, height: ITEM_HEIGHT,
+                    borderRadius: 3,
+                    border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
+                    background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
+                    boxShadow: revealedWinner ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 34px ${theme.palette.success.main}24` : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
+                    zIndex: 3, pointerEvents: 'none'
+                  }}
                 />
-                <Chip label={`${selectedWinners.length}/${quantity} winner${quantity === 1 ? '' : 's'}`} variant='outlined' />
+                <Box
+                  sx={{
+                    position: 'absolute', left: 0, right: 0, top: 0,
+                    transform: `translateY(-${reelOffset}px)`,
+                    transition: rolling && reelOffset > 0 ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)` : 'none',
+                    willChange: rolling ? 'transform' : 'auto'
+                  }}
+                >
+                  {visibleReel.map((name, index) => (
+                    <Box key={`${name}-${index}`} sx={{ height: ITEM_HEIGHT, display: 'grid', placeItems: 'center', px: 3, borderBottom: theme => `1px solid ${theme.palette.divider}` }}>
+                      <Typography variant='h6' fontWeight={800} noWrap sx={{ width: '100%', textAlign: 'center', textOverflow: 'ellipsis' }}>{name}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+                <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className='tabler-caret-right-filled text-xl' /></Box>
+                <Box sx={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className='tabler-caret-right-filled text-xl' /></Box>
+              </Box>
+            ) : (
+              <Box sx={{ minHeight: 220, display: 'grid', placeItems: 'center', borderRadius: 4, border: theme => `1px solid ${theme.palette.divider}`, bgcolor: 'action.hover', p: 4, textAlign: 'center' }}>
+                <Box>
+                  <i className='tabler-user-check text-5xl' />
+                  <Typography variant='h5' fontWeight={800} sx={{ mt: 2 }}>{manualWinner?.fullName ?? 'Select a winner'}</Typography>
+                  <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+                    {manualWinner ? `${manualWinner.source === 'manual' ? 'Manual entrant' : manualWinner.bookingCode} · explicit admin selection` : 'Choose an eligible person above. No spin animation is used in Manual Selection mode.'}
+                  </Typography>
+                </Box>
               </Box>
             )}
 
-            <Box
-              sx={{
-                position: 'relative',
-                height: ITEM_HEIGHT * VISIBLE_ITEMS,
-                overflow: 'hidden',
-                borderRadius: 4,
-                border: theme => `1px solid ${theme.palette.divider}`,
-                bgcolor: 'background.paper',
-                boxShadow: rolling ? theme => `0 18px 48px ${theme.palette.action.hover}` : 'none',
-                transition: 'box-shadow 280ms ease'
-              }}
-            >
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  zIndex: 4,
-                  background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)`
-                }}
-              />
-
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: 14,
-                  right: 14,
-                  top: CENTER_SLOT * ITEM_HEIGHT,
-                  height: ITEM_HEIGHT,
-                  borderRadius: 3,
-                  border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
-                  background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
-                  boxShadow: revealedWinner
-                    ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 34px ${theme.palette.success.main}24`
-                    : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
-                  zIndex: 3,
-                  pointerEvents: 'none',
-                  transition: 'border-color 280ms ease, box-shadow 280ms ease'
-                }}
-              />
-
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  transform: `translateY(-${reelOffset}px)`,
-                  transition: rolling && reelOffset > 0
-                    ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)`
-                    : 'none',
-                  willChange: rolling ? 'transform' : 'auto'
-                }}
-              >
-                {visibleReel.map((name, index) => (
-                  <Box
-                    key={`${name}-${index}`}
-                    sx={{
-                      height: ITEM_HEIGHT,
-                      display: 'grid',
-                      placeItems: 'center',
-                      px: 3,
-                      borderBottom: theme => `1px solid ${theme.palette.divider}`
-                    }}
-                  >
-                    <Typography
-                      variant='h6'
-                      fontWeight={800}
-                      noWrap
-                      sx={{
-                        width: '100%',
-                        textAlign: 'center',
-                        letterSpacing: '.01em',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {name}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-
-              <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}>
-                <i className='tabler-caret-right-filled text-xl' />
-              </Box>
-              <Box sx={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}>
-                <i className='tabler-caret-right-filled text-xl' />
-              </Box>
-            </Box>
-
             {revealedWinner && (
-              <Box
-                sx={{
-                  p: 2.5,
-                  borderRadius: 3,
-                  border: theme => `1px solid ${theme.palette.success.main}`,
-                  bgcolor: 'success.lighter',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 2,
-                  flexWrap: 'wrap'
-                }}
-              >
+              <Box sx={{ p: 2.5, borderRadius: 3, border: theme => `1px solid ${theme.palette.success.main}`, bgcolor: 'success.lighter', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}>
-                    <i className='tabler-trophy text-xl' />
-                  </Box>
+                  <Box sx={{ width: 42, height: 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}><i className='tabler-trophy text-xl' /></Box>
                   <Box>
-                    <Typography variant='caption' color='success.main' fontWeight={800}>WINNER</Typography>
+                    <Typography variant='caption' color='success.main' fontWeight={800}>WINNER · {revealedWinner.selectionMode === 'manual' ? 'MANUAL SELECTION' : 'RANDOM DRAW'}</Typography>
                     <Typography variant='h6' fontWeight={850}>{revealedWinner.fullName}</Typography>
                   </Box>
                 </Box>
-                <Chip label={revealedWinner.bookingCode} color='success' variant='tonal' />
+                <Chip label={revealedWinner.source === 'manual' ? 'Manual entrant' : revealedWinner.bookingCode} color='success' variant='tonal' />
               </Box>
             )}
 
-            <Button
-              size='large'
-              variant='contained'
-              disabled={disabled || rolling || savingPrizeType || !selectedPrize || complete || available.length === 0}
-              onClick={() => void draw()}
-              startIcon={<i className={rolling ? 'tabler-arrows-down-up' : 'tabler-confetti'} />}
-              sx={{ justifySelf: 'start', minWidth: 230 }}
-            >
-              {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start prize draw'}
-            </Button>
-
-            {selectedPrize && available.length === 0 && !complete && (
-              <Alert severity='warning'>No checked-in participant is currently eligible under this prize type&apos;s winner rules.</Alert>
+            {drawMode === 'random' ? (
+              <Button size='large' variant='contained' disabled={disabled || rolling || savingPrizeType || savingManualEntrant || !selectedPrize || complete || available.length === 0} onClick={() => void drawRandom()} startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />} sx={{ justifySelf: 'start', minWidth: 210 }}>
+                {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start random draw'}
+              </Button>
+            ) : (
+              <Button size='large' variant='contained' color='warning' disabled={disabled || rolling || !selectedPrize || !manualWinner || complete} onClick={() => void confirmManualWinner()} startIcon={<i className='tabler-user-check' />} sx={{ justifySelf: 'start', minWidth: 230 }}>
+                {rolling ? 'Saving winner…' : complete ? 'Prize complete' : 'Confirm manual winner'}
+              </Button>
             )}
+
+            {selectedPrize && available.length === 0 && !complete && <Alert severity='warning'>No eligible person is currently available under this prize type&apos;s winner rules.</Alert>}
 
             {selectedPrize && selectedWinners.length > 0 && (
               <Box>
                 <Typography variant='subtitle1' fontWeight={750}>Winner history — {selectedPrize.title}</Typography>
                 <Box sx={{ mt: 1.5, display: 'grid', gap: 1 }}>
                   {selectedWinners.map((winner, index) => (
-                    <Box key={`${winner.registrationId}-${index}`} sx={{ p: 2, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                    <Box key={`${winner.registrationId}-${index}`} sx={{ p: 2, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                       <Box>
                         <Typography fontWeight={700}>{index + 1}. {winner.fullName}</Typography>
-                        <Typography variant='body2' color='text.secondary'>{winner.bookingCode}{winner.eventPackageName ? ` • ${winner.eventPackageName}` : ''}</Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          {winner.source === 'manual' ? 'Manual entrant' : winner.bookingCode}{winner.eventPackageName ? ` • ${winner.eventPackageName}` : ''}
+                        </Typography>
                       </Box>
-                      <Chip
-                        size='small'
-                        label={selectedPrizeType === 'doorprize' ? 'Doorprize winner' : 'Regular-prize winner'}
-                        color={selectedPrizeType === 'doorprize' ? 'warning' : 'success'}
-                        variant='tonal'
-                      />
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Chip size='small' label={winner.selectionMode === 'manual' ? 'Manual selection' : 'Random draw'} color={winner.selectionMode === 'manual' ? 'warning' : 'info'} variant='tonal' />
+                        <Tooltip title={selectedPrizeType === 'doorprize' ? 'Doorprize winner: blocked from later prizes' : 'Regular prize winner'}>
+                          <span><IconButton size='small' disabled><i className={selectedPrizeType === 'doorprize' ? 'tabler-lock' : 'tabler-gift'} /></IconButton></span>
+                        </Tooltip>
+                      </Box>
                     </Box>
                   ))}
                 </Box>
