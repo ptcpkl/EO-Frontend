@@ -34,18 +34,16 @@ const routeForModule = (event: AdminEvent, module: EventModuleDefinition) => {
     case 'participants':
       return `/admin/events/${id}/registrations`
     case 'packages':
-      return `/admin/events/${id}`
+      return `/admin/events/${id}#event-packages`
     case 'checkins':
       return `/admin/check-ins?eventId=${id}`
-    case 'quiz':
-      return `/admin/events/${id}/quiz`
     default:
       return `/admin/events/${id}/modules/${encodeURIComponent(module.key)}`
   }
 }
 
 const isImplementedOperation = (key: EventModuleKey) =>
-  ['registration', 'participants', 'packages', 'checkins', 'quiz'].includes(key)
+  ['registration', 'participants', 'packages', 'checkins'].includes(key)
 
 const EventDashboardPage = () => {
   const params = useParams<{ eventSlug: string }>()
@@ -154,8 +152,8 @@ const EventDashboardPage = () => {
         <Card variant='outlined'>
           <CardContent>
             <Typography variant='body2' color='text.secondary'>Enabled modules</Typography>
-            <Typography variant='h4' fontWeight={750} sx={{ mt: 1 }}>{enabledModules.length}</Typography>
-            <Typography variant='caption' color='text.secondary'>workspace capabilities for this event</Typography>
+            <Typography variant='h4' fontWeight={750} sx={{ mt: 1 }}>{enabledModules.filter(module => module.key !== 'quiz').length}</Typography>
+            <Typography variant='caption' color='text.secondary'>active workspace capabilities</Typography>
           </CardContent>
         </Card>
         <Card variant='outlined'>
@@ -170,15 +168,16 @@ const EventDashboardPage = () => {
       <Box>
         <Typography variant='h5' fontWeight={700}>Event operations</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-          Only modules enabled for this {experience.kind} event appear here.
+          Only modules enabled for this {experience.kind} event appear here. Quiz is kept reserved and never calls the unfinished Quiz backend.
         </Typography>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2.5 }}>
         {enabledModules.map(module => {
           const implemented = isImplementedOperation(module.key)
+          const reserved = module.key === 'quiz'
           return (
-            <Card key={module.key} variant='outlined' sx={{ height: '100%' }}>
+            <Card key={module.key} variant='outlined' sx={{ height: '100%', opacity: reserved ? 0.78 : 1 }}>
               <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
                   <Box sx={{ width: 48, height: 48, borderRadius: 2.5, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
@@ -186,8 +185,8 @@ const EventDashboardPage = () => {
                   </Box>
                   <Chip
                     size='small'
-                    label={implemented ? 'Operational' : 'Configured'}
-                    color={implemented ? 'success' : 'primary'}
+                    label={reserved ? 'Reserved' : implemented ? 'Operational' : 'Configured'}
+                    color={reserved ? 'warning' : implemented ? 'success' : 'primary'}
                     variant='tonal'
                   />
                 </Box>
@@ -195,7 +194,7 @@ const EventDashboardPage = () => {
                 <Box>
                   <Typography variant='h6' fontWeight={700}>{module.label}</Typography>
                   <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75, lineHeight: 1.65 }}>
-                    {module.description}
+                    {reserved ? 'Reserved for the separate Quiz implementation. No Quiz API request is made from this dashboard.' : module.description}
                   </Typography>
                 </Box>
 
@@ -207,7 +206,7 @@ const EventDashboardPage = () => {
                   endIcon={<i className='tabler-arrow-right' />}
                   sx={{ mt: 'auto', alignSelf: 'flex-start' }}
                 >
-                  {implemented ? 'Open module' : 'Open workspace'}
+                  {reserved ? 'View reserved module' : implemented ? 'Open module' : 'Open workspace'}
                 </Button>
               </CardContent>
             </Card>
