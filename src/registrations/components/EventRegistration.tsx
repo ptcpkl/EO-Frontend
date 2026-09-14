@@ -39,8 +39,12 @@ type CoreFieldKey = keyof RegistrationFormData
 type CoreErrors = Partial<Record<CoreFieldKey, string>>
 type CustomAnswers = Record<string, string>
 type CustomErrors = Record<string, string | undefined>
-
 type Props = { slug: string }
+
+type RegistrationAvailability = {
+  open: boolean
+  message: string
+}
 
 const RegistrationPage = styled('main')({
   position: 'relative',
@@ -91,6 +95,46 @@ const initialForm: RegistrationFormData = {
   consent: false
 }
 
+const formatRegistrationTime = (value?: string) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
+const getRegistrationAvailability = (event: PublicEvent | null): RegistrationAvailability => {
+  if (!event) return { open: false, message: '' }
+
+  const now = Date.now()
+  const opensAt = event.registrationStart ? new Date(event.registrationStart).getTime() : Number.NaN
+  const closesAt = event.registrationEnd ? new Date(event.registrationEnd).getTime() : Number.NaN
+  const status = event.registrationStatus?.toLowerCase() ?? ''
+
+  if (event.remainingQuota !== undefined && event.remainingQuota <= 0) {
+    return { open: false, message: 'Registration is unavailable because the event quota is full.' }
+  }
+
+  if (!Number.isNaN(opensAt) && now < opensAt) {
+    return { open: false, message: `Registration is not open yet. It opens ${formatRegistrationTime(event.registrationStart)}.` }
+  }
+
+  if (!Number.isNaN(closesAt) && now > closesAt) {
+    return { open: false, message: `Registration is closed. It closed ${formatRegistrationTime(event.registrationEnd)}.` }
+  }
+
+  if (status.includes('sold') || status.includes('closed') || status.includes('unavailable')) {
+    return { open: false, message: 'Registration is currently unavailable for this event.' }
+  }
+
+  return { open: true, message: '' }
+}
+
 const validateCore = (form: RegistrationFormData): CoreErrors => {
   const errors: CoreErrors = {}
 
@@ -104,21 +148,14 @@ const validateCore = (form: RegistrationFormData): CoreErrors => {
   return errors
 }
 
-const validateCustom = (
-  fields: RegistrationFieldDefinition[],
-  answers: CustomAnswers
-): CustomErrors => {
+const validateCustom = (fields: RegistrationFieldDefinition[], answers: CustomAnswers): CustomErrors => {
   const errors: CustomErrors = {}
 
   for (const field of fields) {
     const value = answers[field.key]?.trim() ?? ''
     if (field.required && !value) errors[field.key] = `${field.label} is required.`
-    if (field.type === 'select' && value && !field.options.includes(value)) {
-      errors[field.key] = `Please select a valid ${field.label.toLowerCase()}.`
-    }
-    if (field.type === 'number' && value && Number.isNaN(Number(value))) {
-      errors[field.key] = `${field.label} must be a number.`
-    }
+    if (field.type === 'select' && value && !field.options.includes(value)) errors[field.key] = `Please select a valid ${field.label.toLowerCase()}.`
+    if (field.type === 'number' && value && Number.isNaN(Number(value))) errors[field.key] = `${field.label} must be a number.`
   }
 
   return errors
@@ -148,10 +185,9 @@ const EventRegistration = ({ slug }: Props) => {
   const [paymentSession, setPaymentSession] = useState<RegistrationPaymentResponse | null>(null)
 
   const paymentLocked = paymentSession?.paymentRequired === true
-  const selectedPackage = useMemo(
-    () => packages.find(item => item.id === form.eventPackageId) ?? null,
-    [packages, form.eventPackageId]
-  )
+  const registrationAvailability = useMemo(() => getRegistrationAvailability(eventData), [eventData])
+  const interactionLocked = paymentLocked || !registrationAvailability.open
+  const selectedPackage = useMemo(() => packages.find(item => item.id === form.eventPackageId) ?? null, [packages, form.eventPackageId])
   const isFreePackage = selectedPackage?.price === 0
   const customFields = experience?.registrationFields ?? []
 
@@ -171,21 +207,14 @@ const EventRegistration = ({ slug }: Props) => {
 
         if (!mounted) return
 
-        const activePackages = loadedPackages
-          .filter(item => item.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-
+        const activePackages = loadedPackages.filter(item => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
         setEventData(loadedEvent)
         setPackages(activePackages)
         setExperience(loadedExperience)
-        setCustomAnswers(
-          Object.fromEntries(loadedExperience.registrationFields.map(field => [field.key, '']))
-        )
+        setCustomAnswers(Object.fromEntries(loadedExperience.registrationFields.map(field => [field.key, ''])))
 
         const availablePackages = activePackages.filter(item => !isPackageSoldOut(item))
-        if (availablePackages.length === 1) {
-          setForm(current => ({ ...current, eventPackageId: availablePackages[0].id }))
-        }
+        if (availablePackages.length === 1) setForm(current => ({ ...current, eventPackageId: availablePackages[0].id }))
       } catch (error) {
         if (mounted) {
           setEventData(null)
@@ -203,14 +232,14 @@ const EventRegistration = ({ slug }: Props) => {
   }, [slug])
 
   const updateField = <K extends CoreFieldKey>(field: K, value: RegistrationFormData[K]) => {
-    if (paymentLocked) return
+    if (interactionLocked) return
     setForm(current => ({ ...current, [field]: value }))
     setCoreErrors(current => ({ ...current, [field]: undefined }))
     setFormMessage('')
   }
 
   const updateCustomField = (key: string, value: string) => {
-    if (paymentLocked) return
+    if (interactionLocked) return
     setCustomAnswers(current => ({ ...current, [key]: value }))
     setCustomErrors(current => ({ ...current, [key]: undefined }))
     setFormMessage('')
@@ -222,9 +251,7 @@ const EventRegistration = ({ slug }: Props) => {
     updateSettings({ mode: nextMode })
   }
 
-  const redirectToStatus = (session: RegistrationPaymentResponse) => {
-    router.push(`/registration/${encodeURIComponent(session.bookingCode)}/status`)
-  }
+  const redirectToStatus = (session: RegistrationPaymentResponse) => router.push(`/registration/${encodeURIComponent(session.bookingCode)}/status`)
 
   const redirectToPaymentResult = (status: 'success' | 'pending', session: RegistrationPaymentResponse) => {
     const query = new URLSearchParams({ registrationId: session.registrationId, bookingCode: session.bookingCode })
@@ -262,6 +289,11 @@ const EventRegistration = ({ slug }: Props) => {
       return
     }
 
+    if (!registrationAvailability.open) {
+      setFormMessage(registrationAvailability.message || 'Registration is not open.')
+      return
+    }
+
     const nextCoreErrors = validateCore(form)
     const nextCustomErrors = validateCustom(customFields, customAnswers)
     setCoreErrors(nextCoreErrors)
@@ -283,16 +315,12 @@ const EventRegistration = ({ slug }: Props) => {
     setFormMessage(isFreePackage ? 'Confirming your free registration...' : 'Creating your registration and secure payment session...')
 
     try {
-      const normalizedCustomFields = Object.fromEntries(
-        customFields.map(field => [field.key, customAnswers[field.key]?.trim() || null])
-      )
-
+      const normalizedCustomFields = Object.fromEntries(customFields.map(field => [field.key, customAnswers[field.key]?.trim() || null]))
       const result = await createExternalRegistrationPayment(eventData.id, {
         eventPackageId: form.eventPackageId,
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         phone: form.whatsappNumber.trim(),
-        // Keep these legacy columns populated for existing seminar admin/report views.
         organization: normalizedCustomFields.institution ?? null,
         department: normalizedCustomFields.position ?? null,
         customFields: normalizedCustomFields
@@ -314,7 +342,7 @@ const EventRegistration = ({ slug }: Props) => {
 
   const hasAvailablePackage = packages.some(item => !isPackageSoldOut(item))
   const messageLower = formMessage.toLowerCase()
-  const messageIsError = ['failed', 'error', 'invalid', 'sold out', 'unavailable', 'unable', 'required'].some(word => messageLower.includes(word))
+  const messageIsError = ['failed', 'error', 'invalid', 'sold out', 'unavailable', 'unable', 'required', 'not open', 'closed'].some(word => messageLower.includes(word))
 
   const logoUrl = eventData?.logoUrl || (legacyFfws(slug) ? '/logoo.png' : '/EO%20Navbar.png')
   const registrationImageUrl = eventData?.registrationImageUrl || (legacyFfws(slug) ? '/denahh.png' : undefined)
@@ -325,7 +353,7 @@ const EventRegistration = ({ slug }: Props) => {
     const commonProps = {
       label: field.label,
       required: field.required,
-      disabled: paymentLocked,
+      disabled: interactionLocked,
       value,
       error: Boolean(customErrors[field.key]),
       helperText: customErrors[field.key],
@@ -335,15 +363,8 @@ const EventRegistration = ({ slug }: Props) => {
 
     if (field.type === 'select') {
       return (
-        <CustomTextField
-          key={field.key}
-          {...commonProps}
-          select
-          onChange={event => updateCustomField(field.key, event.target.value)}
-        >
-          {field.options.map(option => (
-            <MenuItem key={option} value={option}>{option}</MenuItem>
-          ))}
+        <CustomTextField key={field.key} {...commonProps} select onChange={event => updateCustomField(field.key, event.target.value)}>
+          {field.options.map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}
         </CustomTextField>
       )
     }
@@ -365,21 +386,14 @@ const EventRegistration = ({ slug }: Props) => {
     <RegistrationPage>
       <RegistrationBackground aria-hidden='true' />
 
-      <Button
-        aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        onClick={handleToggleMode}
-        variant='contained'
-        sx={{ position: 'fixed', right: 20, top: 20, zIndex: 20, minWidth: 44, width: 44, height: 44, p: 0, borderRadius: 2 }}
-      >
+      <Button aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={handleToggleMode} variant='contained' sx={{ position: 'fixed', right: 20, top: 20, zIndex: 20, minWidth: 44, width: 44, height: 44, p: 0, borderRadius: 2 }}>
         <i className={theme.palette.mode === 'dark' ? 'tabler-sun' : 'tabler-moon'} />
       </Button>
 
       <Box sx={{ position: 'relative', zIndex: 1, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: { xs: 2, sm: 3 }, py: 5 }}>
         <RegistrationCard>
           <Box sx={{ maxWidth: 540, mx: 'auto' }}>
-            <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} variant='text' startIcon={<i className='tabler-arrow-left' />} sx={{ mb: 2, px: 0, color: 'text.secondary' }}>
-              Back to event
-            </Button>
+            <Button component={Link} href={`/events/${encodeURIComponent(slug)}`} variant='text' startIcon={<i className='tabler-arrow-left' />} sx={{ mb: 2, px: 0, color: 'text.secondary' }}>Back to event</Button>
 
             <Box component='img' src={logoUrl} alt={`${eventData?.name ?? 'Event'} logo`} sx={{ display: 'block', maxWidth: 230, maxHeight: 150, width: 'auto', height: 'auto', objectFit: 'contain', mx: 'auto', mb: 4 }} />
 
@@ -388,40 +402,34 @@ const EventRegistration = ({ slug }: Props) => {
               {experience && <Chip label={`${experience.registrationFields.length} event field(s)`} variant='outlined' size='small' />}
             </Box>
 
-            <Typography variant='h4' sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: { xs: '1.5rem', sm: '1.8rem' } }}>
-              Register for {eventData?.name ?? 'Event'}
-            </Typography>
-            <Typography color='text.secondary' sx={{ mt: 1, lineHeight: 1.6 }}>
-              {eventData?.description ?? 'Complete your information and choose an available package.'}
-            </Typography>
+            <Typography variant='h4' sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: { xs: '1.5rem', sm: '1.8rem' } }}>Register for {eventData?.name ?? 'Event'}</Typography>
+            <Typography color='text.secondary' sx={{ mt: 1, lineHeight: 1.6 }}>{eventData?.description ?? 'Complete your information and choose an available package.'}</Typography>
+
+            {!isLoadingData && eventData && !registrationAvailability.open && (
+              <Alert severity='warning' sx={{ mt: 3 }}>{registrationAvailability.message}</Alert>
+            )}
 
             {paymentSession?.paymentRequired && (
-              <Alert severity='info' sx={{ mt: 4 }}>
-                Registration {paymentSession.bookingCode} has been created. Continue the same payment session to avoid duplicate reservations.
-              </Alert>
+              <Alert severity='info' sx={{ mt: 4 }}>Registration {paymentSession.bookingCode} has been created. Continue the same payment session to avoid duplicate reservations.</Alert>
             )}
 
             <Box component='form' noValidate onSubmit={handleSubmit} sx={{ mt: 5, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <Typography variant='subtitle2' color='text.secondary'>Participant information</Typography>
 
-              <CustomTextField label='Full Name' required disabled={paymentLocked} placeholder='Enter your full name' value={form.fullName} onChange={event => updateField('fullName', event.target.value)} error={Boolean(coreErrors.fullName)} helperText={coreErrors.fullName} sx={fieldStyles} />
-              <CustomTextField label='Email' required disabled={paymentLocked} type='email' placeholder='Enter your email address' value={form.email} onChange={event => updateField('email', event.target.value)} error={Boolean(coreErrors.email)} helperText={coreErrors.email} sx={fieldStyles} />
-              <CustomTextField label='WhatsApp Number' required disabled={paymentLocked} type='tel' placeholder='08xxxxxxxxxx' value={form.whatsappNumber} onChange={event => updateField('whatsappNumber', event.target.value)} error={Boolean(coreErrors.whatsappNumber)} helperText={coreErrors.whatsappNumber} sx={fieldStyles} />
+              <CustomTextField label='Full Name' required disabled={interactionLocked} placeholder='Enter your full name' value={form.fullName} onChange={event => updateField('fullName', event.target.value)} error={Boolean(coreErrors.fullName)} helperText={coreErrors.fullName} sx={fieldStyles} />
+              <CustomTextField label='Email' required disabled={interactionLocked} type='email' placeholder='Enter your email address' value={form.email} onChange={event => updateField('email', event.target.value)} error={Boolean(coreErrors.email)} helperText={coreErrors.email} sx={fieldStyles} />
+              <CustomTextField label='WhatsApp Number' required disabled={interactionLocked} type='tel' placeholder='08xxxxxxxxxx' value={form.whatsappNumber} onChange={event => updateField('whatsappNumber', event.target.value)} error={Boolean(coreErrors.whatsappNumber)} helperText={coreErrors.whatsappNumber} sx={fieldStyles} />
 
               {customFields.length > 0 && (
                 <>
-                  <Typography variant='subtitle2' color='text.secondary' sx={{ mt: 1 }}>
-                    {experience?.kind === 'Running' ? 'Running information' : experience?.kind === 'Seminar' ? 'Seminar information' : 'Event information'}
-                  </Typography>
+                  <Typography variant='subtitle2' color='text.secondary' sx={{ mt: 1 }}>{experience?.kind === 'Running' ? 'Running information' : experience?.kind === 'Seminar' ? 'Seminar information' : 'Event information'}</Typography>
                   {customFields.map(renderDynamicField)}
                 </>
               )}
 
               <Box>
                 <Typography fontWeight={600}>Choose Your Package *</Typography>
-                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, mb: 2 }}>
-                  Free packages register immediately. Paid packages continue to secure Midtrans payment.
-                </Typography>
+                <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, mb: 2 }}>Free packages register immediately. Paid packages continue to secure Midtrans payment.</Typography>
 
                 {isLoadingData ? (
                   <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 3, textAlign: 'center' }}><Typography color='text.secondary'>Loading event configuration...</Typography></Box>
@@ -433,11 +441,8 @@ const EventRegistration = ({ slug }: Props) => {
                       const selected = form.eventPackageId === item.id
                       const soldOut = isPackageSoldOut(item)
                       return (
-                        <Button key={item.id} type='button' disabled={soldOut || paymentLocked} onClick={() => updateField('eventPackageId', item.id)} variant={selected ? 'contained' : 'outlined'} color={item.price === 0 ? 'success' : 'primary'} sx={{ p: 2.5, justifyContent: 'flex-start', textAlign: 'left', alignItems: 'stretch', flexDirection: 'column', minHeight: 170 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, width: '100%' }}>
-                            <Typography color='inherit' fontWeight={700}>{item.name}</Typography>
-                            {item.price === 0 && <Chip label='Free' size='small' color='success' variant='tonal' />}
-                          </Box>
+                        <Button key={item.id} type='button' disabled={soldOut || interactionLocked} onClick={() => updateField('eventPackageId', item.id)} variant={selected ? 'contained' : 'outlined'} color={item.price === 0 ? 'success' : 'primary'} sx={{ p: 2.5, justifyContent: 'flex-start', textAlign: 'left', alignItems: 'stretch', flexDirection: 'column', minHeight: 170 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, width: '100%' }}><Typography color='inherit' fontWeight={700}>{item.name}</Typography>{item.price === 0 && <Chip label='Free' size='small' color='success' variant='tonal' />}</Box>
                           <Typography color='inherit' fontWeight={700} sx={{ mt: 1 }}>{item.price === 0 ? 'Free' : `Rp ${item.price.toLocaleString('id-ID')}`}</Typography>
                           <Typography variant='body2' color='inherit' sx={{ mt: 2, opacity: 0.85, whiteSpace: 'normal' }}>{item.benefits?.trim() || 'Package benefits will be announced.'}</Typography>
                           <Typography variant='caption' color='inherit' sx={{ mt: 'auto', pt: 2, opacity: 0.75 }}>{item.isUnlimited ? 'Unlimited quota' : soldOut ? 'Sold out' : `${item.remainingQuota ?? 0} slot(s) remaining`}</Typography>
@@ -452,21 +457,19 @@ const EventRegistration = ({ slug }: Props) => {
               {registrationImageUrl && (
                 <Box sx={{ mt: 1 }}>
                   {registrationImageTitle && <Typography fontWeight={600} sx={{ mb: 1.5 }}>{registrationImageTitle}</Typography>}
-                  <Box component='a' href={registrationImageUrl} target='_blank' rel='noreferrer' sx={{ display: 'block', overflow: 'hidden', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Box component='img' src={registrationImageUrl} alt={registrationImageTitle || `${eventData?.name ?? 'Event'} registration guide`} sx={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} />
-                  </Box>
+                  <Box component='a' href={registrationImageUrl} target='_blank' rel='noreferrer' sx={{ display: 'block', overflow: 'hidden', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><Box component='img' src={registrationImageUrl} alt={registrationImageTitle || `${eventData?.name ?? 'Event'} registration guide`} sx={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} /></Box>
                 </Box>
               )}
 
               <Box>
-                <FormControlLabel control={<Checkbox disabled={paymentLocked} checked={form.consent} onChange={event => updateField('consent', event.target.checked)} />} label='I agree to the processing of my personal data for the purposes of this event.' sx={{ alignItems: 'flex-start', color: 'text.secondary' }} />
+                <FormControlLabel control={<Checkbox disabled={interactionLocked} checked={form.consent} onChange={event => updateField('consent', event.target.checked)} />} label='I agree to the processing of my personal data for the purposes of this event.' sx={{ alignItems: 'flex-start', color: 'text.secondary' }} />
                 {coreErrors.consent && <Typography color='error' variant='caption'>{coreErrors.consent}</Typography>}
               </Box>
 
               {formMessage && <Alert severity={messageIsError ? 'error' : 'info'}>{formMessage}</Alert>}
 
-              <Button fullWidth type='submit' variant='contained' size='large' color={isFreePackage && !paymentSession ? 'success' : 'primary'} disabled={isSubmitting || isLoadingData || !eventData || !experience || (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))}>
-                {isSubmitting ? (isFreePackage ? 'Confirming Registration...' : 'Opening Payment...') : paymentSession?.paymentRequired ? 'Continue Payment' : isFreePackage ? 'Register Free' : 'Register & Pay'}
+              <Button fullWidth type='submit' variant='contained' size='large' color={isFreePackage && !paymentSession ? 'success' : 'primary'} disabled={isSubmitting || isLoadingData || !eventData || !experience || !registrationAvailability.open || (!paymentSession && (!form.eventPackageId || !hasAvailablePackage))}>
+                {isSubmitting ? (isFreePackage ? 'Confirming Registration...' : 'Opening Payment...') : paymentSession?.paymentRequired ? 'Continue Payment' : !registrationAvailability.open ? 'Registration Unavailable' : isFreePackage ? 'Register Free' : 'Register & Pay'}
               </Button>
             </Box>
           </Box>
