@@ -41,7 +41,7 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
   }
 
   const toggleModule = (key: EventModuleKey) => {
-    if (CORE_EVENT_MODULES.includes(key)) return
+    if (CORE_EVENT_MODULES.includes(key) || key === 'quiz') return
     setModules(enabled.has(key) ? value.enabledModules.filter(module => module !== key) : [...value.enabledModules, key])
   }
 
@@ -49,6 +49,16 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
     const fields = value.registrationFields.map((field, fieldIndex) =>
       fieldIndex === index ? { ...field, ...patch } : field
     )
+    onChange({ ...value, kind, registrationFields: fields })
+  }
+
+  const moveField = (index: number, direction: -1 | 1) => {
+    const destination = index + direction
+    if (destination < 0 || destination >= value.registrationFields.length) return
+
+    const fields = [...value.registrationFields]
+    const [field] = fields.splice(index, 1)
+    fields.splice(destination, 0, field)
     onChange({ ...value, kind, registrationFields: fields })
   }
 
@@ -105,11 +115,12 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }, gap: 2 }}>
         {EVENT_MODULE_DEFINITIONS.map(module => {
           const isCore = Boolean(module.core)
+          const isReserved = module.key === 'quiz'
           const isEnabled = enabled.has(module.key)
           const recommended = module.recommendedFor?.includes(kind)
 
           return (
-            <Card key={module.key} variant='outlined' sx={{ height: '100%' }}>
+            <Card key={module.key} variant='outlined' sx={{ height: '100%', opacity: isReserved ? 0.75 : 1 }}>
               <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-start' }}>
                   <Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: 'action.hover', display: 'grid', placeItems: 'center', color: 'primary.main' }}>
@@ -117,7 +128,7 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
                   </Box>
                   <Checkbox
                     checked={isEnabled}
-                    disabled={disabled || isCore}
+                    disabled={disabled || isCore || isReserved}
                     onChange={() => toggleModule(module.key)}
                     inputProps={{ 'aria-label': `Enable ${module.label}` }}
                   />
@@ -126,11 +137,14 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Typography fontWeight={700}>{module.label}</Typography>
                   {isCore && <Chip size='small' label='Core' color='primary' variant='tonal' />}
-                  {!isCore && recommended && <Chip size='small' label={`${kind} default`} variant='outlined' />}
+                  {isReserved && <Chip size='small' label='Reserved' color='warning' variant='tonal' />}
+                  {!isCore && !isReserved && recommended && <Chip size='small' label={`${kind} default`} variant='outlined' />}
                 </Box>
 
                 <Typography variant='body2' color='text.secondary' sx={{ lineHeight: 1.65 }}>
-                  {module.description}
+                  {isReserved
+                    ? 'Reserved for the separate Quiz implementation. This event editor will not call Quiz APIs or modify Quiz data.'
+                    : module.description}
                 </Typography>
               </CardContent>
             </Card>
@@ -141,7 +155,7 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
       <Box>
         <Typography variant='h6' fontWeight={700}>Registration fields</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
-          Full name, email, phone, package, and consent remain core fields. Configure only the extra participant data required by this event.
+          Full name, email, phone, package, and consent remain core fields. Extra fields are rendered in the exact order below; use the arrow buttons to change their hierarchy.
         </Typography>
       </Box>
 
@@ -149,7 +163,35 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
         {value.registrationFields.map((field, index) => (
           <Card key={`${field.key}-${index}`} variant='outlined'>
             <CardContent sx={{ display: 'grid', gap: 2.5 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 180px auto' }, gap: 2, alignItems: 'start' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <Chip size='small' label={`#${index + 1}`} variant='outlined' />
+                  <Typography variant='body2' fontWeight={650}>{field.label || 'Untitled field'}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <IconButton
+                    size='small'
+                    disabled={disabled || index === 0}
+                    onClick={() => moveField(index, -1)}
+                    aria-label={`Move ${field.label} up`}
+                  >
+                    <i className='tabler-arrow-up' />
+                  </IconButton>
+                  <IconButton
+                    size='small'
+                    disabled={disabled || index === value.registrationFields.length - 1}
+                    onClick={() => moveField(index, 1)}
+                    aria-label={`Move ${field.label} down`}
+                  >
+                    <i className='tabler-arrow-down' />
+                  </IconButton>
+                  <IconButton size='small' disabled={disabled} color='error' onClick={() => removeField(index)} aria-label={`Remove ${field.label}`}>
+                    <i className='tabler-trash' />
+                  </IconButton>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 180px' }, gap: 2, alignItems: 'start' }}>
                 <TextField
                   label='Field label'
                   value={field.label}
@@ -174,9 +216,6 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
                 >
                   {fieldTypes.map(type => <MenuItem key={type} value={type}>{type}</MenuItem>)}
                 </TextField>
-                <IconButton disabled={disabled} color='error' onClick={() => removeField(index)} aria-label={`Remove ${field.label}`}>
-                  <i className='tabler-trash' />
-                </IconButton>
               </Box>
 
               <FormControlLabel
@@ -192,7 +231,7 @@ const EventExperienceConfigurator = ({ kind, value, disabled = false, onChange }
                   onChange={event => updateField(index, {
                     options: event.target.value.split(',').map(option => option.trim()).filter(Boolean)
                   })}
-                  helperText='Separate options with commas. Example: 5K, 10K, 21K'
+                  helperText='Separate options with commas. Example: S, M, L, XL'
                   fullWidth
                 />
               )}
