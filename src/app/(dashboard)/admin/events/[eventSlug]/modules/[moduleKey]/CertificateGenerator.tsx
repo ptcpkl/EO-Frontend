@@ -24,6 +24,14 @@ type Props = {
   disabled?: boolean
 }
 
+type RecipientMode = 'eligible' | 'registration' | 'manual'
+
+type CertificateRecipient = {
+  fullName: string
+  bookingCode?: string
+  eventPackageName?: string | null
+}
+
 const escapeHtml = (value: unknown) =>
   String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -45,6 +53,9 @@ const eligibleForTemplate = (registrations: Registration[], template: EventWorks
 export default function CertificateGenerator({ eventId, eventName, templates, disabled = false }: Props) {
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [templateId, setTemplateId] = useState('')
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>('eligible')
+  const [selectedRegistrationId, setSelectedRegistrationId] = useState('')
+  const [manualName, setManualName] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,11 +83,31 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
   }, [templateId, templates])
 
   const template = templates.find(item => item.id === templateId)
-  const recipients = useMemo(() => eligibleForTemplate(registrations, template), [registrations, template])
+  const activeRegistrations = useMemo(
+    () => registrations.filter(item => item.status !== 'CANCELLED'),
+    [registrations]
+  )
+  const eligibleRecipients = useMemo(
+    () => eligibleForTemplate(registrations, template),
+    [registrations, template]
+  )
+
+  const recipients = useMemo<CertificateRecipient[]>(() => {
+    if (recipientMode === 'eligible') return eligibleRecipients
+
+    if (recipientMode === 'registration') {
+      const selected = activeRegistrations.find(item => item.id === selectedRegistrationId)
+      return selected ? [selected] : []
+    }
+
+    const name = manualName.trim()
+    return name ? [{ fullName: name }] : []
+  }, [activeRegistrations, eligibleRecipients, manualName, recipientMode, selectedRegistrationId])
 
   const generate = () => {
     if (!template || recipients.length === 0) return
 
+    setError(null)
     const popup = window.open('', '_blank')
     if (!popup) {
       setError('Certificate preview was blocked by the browser. Allow pop-ups for this site and try again.')
@@ -96,19 +127,25 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
     const bodyText = escapeHtml(template.bodyText || 'has successfully participated in')
     const safeEventName = escapeHtml(eventName)
 
-    const certificates = recipients.map(registration => `
-      <section class="certificate">
-        <div class="eyebrow">${issuer}</div>
-        <h1>${certificateTitle}</h1>
-        <div class="rule"></div>
-        <p class="intro">This certificate is proudly presented to</p>
-        <h2>${escapeHtml(registration.fullName)}</h2>
-        <p class="body">${bodyText}</p>
-        <h3>${safeEventName}</h3>
-        <p class="meta">Booking Code: ${escapeHtml(registration.bookingCode)}${registration.eventPackageName ? ` · ${escapeHtml(registration.eventPackageName)}` : ''}</p>
-        ${signer ? `<div class="signature"><div class="signature-line"></div><strong>${signer}</strong>${signerTitle ? `<span>${signerTitle}</span>` : ''}</div>` : ''}
-      </section>
-    `).join('')
+    const certificates = recipients.map(recipient => {
+      const metadata = recipient.bookingCode
+        ? `Booking Code: ${escapeHtml(recipient.bookingCode)}${recipient.eventPackageName ? ` · ${escapeHtml(recipient.eventPackageName)}` : ''}`
+        : ''
+
+      return `
+        <section class="certificate">
+          <div class="eyebrow">${issuer}</div>
+          <h1>${certificateTitle}</h1>
+          <div class="rule"></div>
+          <p class="intro">This certificate is proudly presented to</p>
+          <h2>${escapeHtml(recipient.fullName)}</h2>
+          <p class="body">${bodyText}</p>
+          <h3>${safeEventName}</h3>
+          ${metadata ? `<p class="meta">${metadata}</p>` : ''}
+          ${signer ? `<div class="signature"><div class="signature-line"></div><strong>${signer}</strong>${signerTitle ? `<span>${signerTitle}</span>` : ''}</div>` : ''}
+        </section>
+      `
+    }).join('')
 
     popup.document.open()
     popup.document.write(`<!doctype html>
@@ -153,12 +190,12 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
       <CardContent sx={{ p: { xs: 3, md: 4 }, display: 'grid', gap: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
           <Box>
-            <Typography variant='h5' fontWeight={750}>Automatic Certificate Generator</Typography>
+            <Typography variant='h5' fontWeight={750}>Certificate Generator</Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: .75, maxWidth: 760 }}>
-              Certificates are created from the selected template and live participant data. By default, only checked-in participants are generated; a template whose eligibility says “all registered participants” includes every active registration.
+              Generate certificates in batch for eligible participants, select one registrant, or type a recipient name manually for an ad-hoc certificate.
             </Typography>
           </Box>
-          <Chip label={`${recipients.length} eligible`} color='success' variant='tonal' />
+          <Chip label={`${recipients.length} selected`} color='success' variant='tonal' />
         </Box>
 
         {error && <Alert severity='error'>{error}</Alert>}
@@ -166,7 +203,7 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={28} /></Box>
         ) : templates.length === 0 ? (
-          <Alert severity='info'>Create a certificate template above first. After that, recipients and certificate names are generated automatically.</Alert>
+          <Alert severity='info'>Create a certificate template above first. After that you can generate from participant data or enter a name manually.</Alert>
         ) : (
           <>
             <TextField
@@ -180,12 +217,60 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
               {templates.map(item => <MenuItem key={item.id} value={item.id}>{item.title}</MenuItem>)}
             </TextField>
 
+            <TextField
+              select
+              label='Recipient source'
+              value={recipientMode}
+              onChange={event => setRecipientMode(event.target.value as RecipientMode)}
+              disabled={disabled}
+              sx={{ maxWidth: 520 }}
+              helperText='Choose automatic batch, one existing registrant, or a manually entered name.'
+            >
+              <MenuItem value='eligible'>All eligible participants ({eligibleRecipients.length})</MenuItem>
+              <MenuItem value='registration'>Choose from registrations</MenuItem>
+              <MenuItem value='manual'>Type name manually</MenuItem>
+            </TextField>
+
+            {recipientMode === 'registration' && (
+              <TextField
+                select
+                required
+                label='Registrant name'
+                value={selectedRegistrationId}
+                onChange={event => setSelectedRegistrationId(event.target.value)}
+                disabled={disabled}
+                sx={{ maxWidth: 640 }}
+                helperText={`${activeRegistrations.length} active registration(s) available.`}
+              >
+                <MenuItem value=''><em>Select registrant</em></MenuItem>
+                {activeRegistrations.map(registration => (
+                  <MenuItem key={registration.id} value={registration.id}>
+                    {registration.fullName} — {registration.bookingCode}{registration.eventPackageName ? ` · ${registration.eventPackageName}` : ''}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {recipientMode === 'manual' && (
+              <TextField
+                required
+                label='Recipient name'
+                value={manualName}
+                onChange={event => setManualName(event.target.value)}
+                disabled={disabled}
+                placeholder='Type the name exactly as it should appear on the certificate'
+                sx={{ maxWidth: 640 }}
+                helperText='Manual names are used only for this generated certificate and do not create a registration record.'
+              />
+            )}
+
             {template && (
               <Box sx={{ p: 3, borderRadius: 3, border: theme => `1px solid ${theme.palette.divider}`, textAlign: 'center', bgcolor: 'action.hover' }}>
                 <Typography variant='overline'>{String(template.issuer || 'Event Organizer')}</Typography>
                 <Typography variant='h5' fontWeight={800} sx={{ mt: 1 }}>{template.title}</Typography>
                 <Typography color='text.secondary' sx={{ mt: 1 }}>{String(template.bodyText || 'has successfully participated in')}</Typography>
                 <Typography variant='h6' sx={{ mt: 1 }}>{eventName}</Typography>
+                {recipients.length === 1 && <Typography variant='h5' fontWeight={800} sx={{ mt: 2 }}>{recipients[0].fullName}</Typography>}
                 {template.signer && <Typography variant='body2' sx={{ mt: 2 }}>Signed by {String(template.signer)}</Typography>}
               </Box>
             )}
@@ -198,7 +283,7 @@ export default function CertificateGenerator({ eventId, eventName, templates, di
               startIcon={<i className='tabler-certificate' />}
               sx={{ justifySelf: 'start' }}
             >
-              Generate {recipients.length} certificate{recipients.length === 1 ? '' : 's'}
+              Generate {recipients.length === 1 ? 'Certificate' : `${recipients.length} Certificates`}
             </Button>
           </>
         )}
