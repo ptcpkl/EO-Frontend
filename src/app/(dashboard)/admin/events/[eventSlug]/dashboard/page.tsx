@@ -37,13 +37,15 @@ const routeForModule = (event: AdminEvent, module: EventModuleDefinition) => {
       return `/admin/events/${id}`
     case 'checkins':
       return `/admin/check-ins?eventId=${id}`
+    case 'quiz':
+      return `/admin/events/${id}/quiz`
     default:
       return `/admin/events/${id}/modules/${encodeURIComponent(module.key)}`
   }
 }
 
 const isImplementedOperation = (key: EventModuleKey) =>
-  ['registration', 'participants', 'packages', 'checkins'].includes(key)
+  ['registration', 'participants', 'packages', 'checkins', 'quiz'].includes(key)
 
 const EventDashboardPage = () => {
   const params = useParams<{ eventSlug: string }>()
