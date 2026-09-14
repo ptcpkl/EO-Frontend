@@ -4,6 +4,12 @@ import { authFetch } from '@/lib/auth'
 type ApiPagedResult<T> = {
   items?: T[]
   Items?: T[]
+  total?: number
+  Total?: number
+  page?: number
+  Page?: number
+  pageSize?: number
+  PageSize?: number
 }
 
 type ApiRegistration = {
@@ -60,6 +66,14 @@ const getNullableString = (value: Record<string, unknown>, ...keys: string[]): s
   return null
 }
 
+const getNumber = (value: Record<string, unknown>, ...keys: string[]): number => {
+  for (const key of keys) {
+    const result = value[key]
+    if (typeof result === 'number' && Number.isFinite(result)) return result
+  }
+  return 0
+}
+
 const normalizeParticipantType = (value: string): Registration['participantType'] =>
   value.toUpperCase() === 'INTERNAL' ? 'INTERNAL' : 'EXTERNAL'
 
@@ -112,8 +126,13 @@ const ensureOk = async (response: Response, fallback: string) => {
   }
 }
 
-export async function getRegistrations(eventId: string, filters?: RegistrationFilters): Promise<Registration[]> {
-  const params = new URLSearchParams({ page: '1', pageSize: '100' })
+const fetchRegistrationPage = async (
+  eventId: string,
+  page: number,
+  pageSize: number,
+  filters?: RegistrationFilters
+): Promise<{ items: Registration[]; total: number }> => {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
 
   if (filters?.search.trim()) params.set('search', filters.search.trim())
   if (filters?.participantType && filters.participantType !== 'ALL') params.set('participantType', filters.participantType)
@@ -126,11 +145,31 @@ export async function getRegistrations(eventId: string, filters?: RegistrationFi
 
   await ensureOk(response, 'Unable to load registrations.')
   const payload = (await response.json()) as ApiPagedResult<ApiRegistration>
-  return getRegistrationItems(payload).map(normalizeRegistration)
+  const record = payload as unknown as Record<string, unknown>
+  const items = getRegistrationItems(payload).map(normalizeRegistration)
+  const total = getNumber(record, 'total', 'Total') || items.length
+  return { items, total }
+}
+
+export async function getRegistrations(eventId: string, filters?: RegistrationFilters): Promise<Registration[]> {
+  return (await fetchRegistrationPage(eventId, 1, 100, filters)).items
+}
+
+export async function getAllRegistrations(eventId: string): Promise<Registration[]> {
+  const pageSize = 100
+  const first = await fetchRegistrationPage(eventId, 1, pageSize)
+  if (first.items.length >= first.total) return first.items
+
+  const pages = Math.ceil(first.total / pageSize)
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, index) => fetchRegistrationPage(eventId, index + 2, pageSize))
+  )
+
+  return [...first.items, ...remaining.flatMap(page => page.items)]
 }
 
 export async function getRegistrationStats(eventId: string): Promise<RegistrationStatsData> {
-  const registrations = await getRegistrations(eventId)
+  const registrations = await getAllRegistrations(eventId)
   const active = registrations.filter(item => item.status !== 'CANCELLED')
 
   return {
