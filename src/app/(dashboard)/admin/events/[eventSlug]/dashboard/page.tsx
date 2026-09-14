@@ -37,13 +37,28 @@ const routeForModule = (event: AdminEvent, module: EventModuleDefinition) => {
       return `/admin/events/${id}`
     case 'checkins':
       return `/admin/check-ins?eventId=${id}`
+    case 'reports':
+      return `/admin/events/${id}/reports`
     default:
       return `/admin/events/${id}/modules/${encodeURIComponent(module.key)}`
   }
 }
 
-const isImplementedOperation = (key: EventModuleKey) =>
-  ['registration', 'participants', 'packages', 'checkins'].includes(key)
+const operationalKeys = new Set<EventModuleKey>([
+  'registration',
+  'participants',
+  'packages',
+  'checkins',
+  'reports',
+  'race-categories',
+  'race-pack',
+  'doorprize',
+  'booths',
+  'speakers',
+  'sessions',
+  'agenda',
+  'certificates'
+])
 
 const EventDashboardPage = () => {
   const params = useParams<{ eventSlug: string }>()
@@ -116,7 +131,7 @@ const EventDashboardPage = () => {
               <Chip label={event.status} color={event.status === 'Published' ? 'success' : 'default'} variant='tonal' size='small' />
             </Box>
             <Typography color='text.secondary' sx={{ mt: 1, maxWidth: 760 }}>
-              This workspace is generated from the modules enabled for this event. Change the event configuration any time while it is not archived.
+              This workspace is generated from the modules enabled for this event. Running and Seminar use the same platform while each event keeps its own operations.
             </Typography>
           </Box>
 
@@ -126,7 +141,7 @@ const EventDashboardPage = () => {
             </Button>
             {event.status !== 'Archived' && event.kind !== 'Workshop' && event.kind !== 'Other' && (
               <Button component={NextLink} href={`/admin/events/${encodeURIComponent(event.id)}/edit`} variant='contained' startIcon={<i className='tabler-adjustments' />}>
-                Configure modules
+                Configure event
               </Button>
             )}
           </Box>
@@ -168,15 +183,17 @@ const EventDashboardPage = () => {
       <Box>
         <Typography variant='h5' fontWeight={700}>Event operations</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-          Only modules enabled for this {experience.kind} event appear here.
+          Only modules enabled for this {experience.kind} event appear here. Quiz is reserved for a later implementation.
         </Typography>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2.5 }}>
         {enabledModules.map(module => {
-          const implemented = isImplementedOperation(module.key)
+          const implemented = operationalKeys.has(module.key)
+          const reserved = module.key === 'quiz'
+
           return (
-            <Card key={module.key} variant='outlined' sx={{ height: '100%' }}>
+            <Card key={module.key} variant='outlined' sx={{ height: '100%', opacity: reserved ? 0.75 : 1 }}>
               <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
                   <Box sx={{ width: 48, height: 48, borderRadius: 2.5, bgcolor: 'action.hover', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
@@ -184,8 +201,8 @@ const EventDashboardPage = () => {
                   </Box>
                   <Chip
                     size='small'
-                    label={implemented ? 'Operational' : 'Configured'}
-                    color={implemented ? 'success' : 'primary'}
+                    label={reserved ? 'Reserved' : implemented ? 'Operational' : 'Configured'}
+                    color={reserved ? 'warning' : implemented ? 'success' : 'primary'}
                     variant='tonal'
                   />
                 </Box>
@@ -202,10 +219,11 @@ const EventDashboardPage = () => {
                   href={routeForModule(event, module)}
                   target={module.key === 'registration' ? '_blank' : undefined}
                   variant={implemented ? 'contained' : 'outlined'}
-                  endIcon={<i className='tabler-arrow-right' />}
+                  disabled={reserved}
+                  endIcon={!reserved ? <i className='tabler-arrow-right' /> : undefined}
                   sx={{ mt: 'auto', alignSelf: 'flex-start' }}
                 >
-                  {implemented ? 'Open module' : 'Open workspace'}
+                  {reserved ? 'Not implemented yet' : 'Open module'}
                 </Button>
               </CardContent>
             </Card>
