@@ -34,6 +34,11 @@ type Props = {
   onUpdatePrize: (id: string, patch: Record<string, unknown>) => Promise<void>
 }
 
+const ITEM_HEIGHT = 68
+const VISIBLE_ITEMS = 5
+const CENTER_SLOT = Math.floor(VISIBLE_ITEMS / 2)
+const REEL_DURATION_MS = 4200
+
 const parseWinners = (value: unknown): DoorprizeWinner[] => {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is DoorprizeWinner => {
@@ -57,10 +62,41 @@ const getPrizeType = (prize: EventWorkspaceItem | undefined): PrizeType => {
   return 'doorprize'
 }
 
-const shufflePreview = (pool: Registration[], size = 5) => {
-  if (!pool.length) return []
-  return Array.from({ length: size }, () => pool[Math.floor(Math.random() * pool.length)].fullName)
+const randomName = (pool: Registration[]) => {
+  if (!pool.length) return '—'
+  return pool[Math.floor(Math.random() * pool.length)].fullName
 }
+
+const buildReel = (pool: Registration[], winner: Registration) => {
+  const names: string[] = []
+  let previous = ''
+
+  for (let index = 0; index < 48; index += 1) {
+    let next = randomName(pool)
+
+    if (pool.length > 1) {
+      let guard = 0
+      while (next === previous && guard < 5) {
+        next = randomName(pool)
+        guard += 1
+      }
+    }
+
+    names.push(next)
+    previous = next
+  }
+
+  const winnerIndex = names.length
+  names.push(winner.fullName)
+
+  // Keep a couple of rows below the final winner so the reel still looks
+  // continuous when it settles with the winner exactly on the center line.
+  names.push(randomName(pool), randomName(pool))
+
+  return { names, winnerIndex }
+}
+
+const wait = (milliseconds: number) => new Promise(resolve => window.setTimeout(resolve, milliseconds))
 
 export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpdatePrize }: Props) {
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -68,7 +104,9 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const [loading, setLoading] = useState(true)
   const [rolling, setRolling] = useState(false)
   const [savingPrizeType, setSavingPrizeType] = useState(false)
-  const [rollingNames, setRollingNames] = useState<string[]>([])
+  const [reelItems, setReelItems] = useState<string[]>([])
+  const [reelOffset, setReelOffset] = useState(0)
+  const [revealedWinner, setRevealedWinner] = useState<DoorprizeWinner | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -95,6 +133,12 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       setSelectedPrizeId(prizes[0]?.id ?? '')
     }
   }, [prizes, selectedPrizeId])
+
+  useEffect(() => {
+    setReelItems([])
+    setReelOffset(0)
+    setRevealedWinner(null)
+  }, [selectedPrizeId])
 
   const eligible = useMemo(
     () => registrations.filter(item => Boolean(item.checkedInAt) || item.status === 'CHECKED_IN'),
@@ -147,6 +191,9 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       setSavingPrizeType(true)
       setError(null)
       await onUpdatePrize(selectedPrize.id, { prizeType: nextType })
+      setReelItems([])
+      setReelOffset(0)
+      setRevealedWinner(null)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to update prize type.')
     } finally {
@@ -157,14 +204,6 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const draw = async () => {
     if (!selectedPrize || !available.length || complete || rolling) return
 
-    setRolling(true)
-    setError(null)
-    setRollingNames(shufflePreview(available))
-
-    const timer = window.setInterval(() => setRollingNames(shufflePreview(available)), 75)
-    await new Promise(resolve => window.setTimeout(resolve, 1800))
-    window.clearInterval(timer)
-
     const winner = available[Math.floor(Math.random() * available.length)]
     const winnerRecord: DoorprizeWinner = {
       registrationId: winner.id,
@@ -173,17 +212,39 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       eventPackageName: winner.eventPackageName ?? null,
       drawnAtUtc: new Date().toISOString()
     }
+    const reel = buildReel(available, winner)
 
-    setRollingNames([winner.fullName])
+    setRolling(true)
+    setError(null)
+    setRevealedWinner(null)
+    setReelItems(reel.names)
+    setReelOffset(0)
+
+    // Give the browser one paint with the reel at its starting position, then
+    // animate the whole strip. The easing creates a fast scroll that naturally
+    // slows down and locks the selected winner onto the center selector.
+    await wait(80)
+    setReelOffset(Math.max(0, reel.winnerIndex - CENTER_SLOT) * ITEM_HEIGHT)
+    await wait(REEL_DURATION_MS + 120)
 
     try {
       await onUpdatePrize(selectedPrize.id, { winners: [...selectedWinners, winnerRecord] })
+      setRevealedWinner(winnerRecord)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save the winner.')
     } finally {
       setRolling(false)
     }
   }
+
+  const idleReel = [
+    `${available.length} ELIGIBLE`,
+    selectedPrizeType === 'doorprize' ? 'DOORPRIZE' : 'REGULAR PRIZE',
+    selectedPrize ? 'READY TO DRAW' : 'SELECT A PRIZE',
+    selectedPrize?.title ? String(selectedPrize.title).toUpperCase() : 'CHECKED-IN PARTICIPANTS',
+    'GOOD LUCK'
+  ]
+  const visibleReel = reelItems.length ? reelItems : idleReel
 
   return (
     <Card variant='outlined'>
@@ -260,48 +321,130 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
 
             <Box
               sx={{
-                height: 250,
+                position: 'relative',
+                height: ITEM_HEIGHT * VISIBLE_ITEMS,
                 overflow: 'hidden',
-                borderRadius: 3,
+                borderRadius: 4,
                 border: theme => `1px solid ${theme.palette.divider}`,
-                bgcolor: 'action.hover',
-                display: 'grid',
-                placeItems: 'center',
-                position: 'relative'
+                bgcolor: 'background.paper',
+                boxShadow: rolling ? theme => `0 18px 48px ${theme.palette.action.hover}` : 'none',
+                transition: 'box-shadow 280ms ease'
               }}
             >
-              <Box sx={{ width: '100%', display: 'grid', gap: .75, px: 3 }}>
-                {(rollingNames.length ? rollingNames : ['READY', 'CHECKED-IN PARTICIPANTS', 'READY']).map((name, index) => (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  pointerEvents: 'none',
+                  zIndex: 4,
+                  background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)`
+                }}
+              />
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 14,
+                  right: 14,
+                  top: CENTER_SLOT * ITEM_HEIGHT,
+                  height: ITEM_HEIGHT,
+                  borderRadius: 3,
+                  border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
+                  background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
+                  boxShadow: revealedWinner
+                    ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 34px ${theme.palette.success.main}24`
+                    : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
+                  zIndex: 3,
+                  pointerEvents: 'none',
+                  transition: 'border-color 280ms ease, box-shadow 280ms ease'
+                }}
+              />
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  transform: `translateY(-${reelOffset}px)`,
+                  transition: rolling && reelOffset > 0
+                    ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)`
+                    : 'none',
+                  willChange: rolling ? 'transform' : 'auto'
+                }}
+              >
+                {visibleReel.map((name, index) => (
                   <Box
                     key={`${name}-${index}`}
                     sx={{
-                      py: index === Math.floor((rollingNames.length || 3) / 2) ? 2 : 1.25,
-                      textAlign: 'center',
-                      borderRadius: 2,
-                      bgcolor: index === Math.floor((rollingNames.length || 3) / 2) ? 'background.paper' : 'transparent',
-                      border: index === Math.floor((rollingNames.length || 3) / 2) ? theme => `1px solid ${theme.palette.primary.main}` : '1px solid transparent',
-                      opacity: index === Math.floor((rollingNames.length || 3) / 2) ? 1 : .45,
-                      transform: rolling ? 'translateY(6px)' : 'none',
-                      transition: 'transform 75ms linear'
+                      height: ITEM_HEIGHT,
+                      display: 'grid',
+                      placeItems: 'center',
+                      px: 3,
+                      borderBottom: theme => `1px solid ${theme.palette.divider}`
                     }}
                   >
-                    <Typography variant={index === Math.floor((rollingNames.length || 3) / 2) ? 'h5' : 'body1'} fontWeight={750}>
+                    <Typography
+                      variant='h6'
+                      fontWeight={800}
+                      noWrap
+                      sx={{
+                        width: '100%',
+                        textAlign: 'center',
+                        letterSpacing: '.01em',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
                       {name}
                     </Typography>
                   </Box>
                 ))}
               </Box>
+
+              <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}>
+                <i className='tabler-caret-right-filled text-xl' />
+              </Box>
+              <Box sx={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}>
+                <i className='tabler-caret-right-filled text-xl' />
+              </Box>
             </Box>
+
+            {revealedWinner && (
+              <Box
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  border: theme => `1px solid ${theme.palette.success.main}`,
+                  bgcolor: 'success.lighter',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}>
+                    <i className='tabler-trophy text-xl' />
+                  </Box>
+                  <Box>
+                    <Typography variant='caption' color='success.main' fontWeight={800}>WINNER</Typography>
+                    <Typography variant='h6' fontWeight={850}>{revealedWinner.fullName}</Typography>
+                  </Box>
+                </Box>
+                <Chip label={revealedWinner.bookingCode} color='success' variant='tonal' />
+              </Box>
+            )}
 
             <Button
               size='large'
               variant='contained'
               disabled={disabled || rolling || savingPrizeType || !selectedPrize || complete || available.length === 0}
               onClick={() => void draw()}
-              startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />}
-              sx={{ justifySelf: 'start', minWidth: 210 }}
+              startIcon={<i className={rolling ? 'tabler-arrows-down-up' : 'tabler-confetti'} />}
+              sx={{ justifySelf: 'start', minWidth: 230 }}
             >
-              {rolling ? 'Rolling…' : complete ? 'Prize complete' : 'Start vertical draw'}
+              {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start prize draw'}
             </Button>
 
             {selectedPrize && available.length === 0 && !complete && (
