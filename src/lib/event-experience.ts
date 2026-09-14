@@ -31,11 +31,21 @@ export type RegistrationFieldDefinition = {
   options: string[]
 }
 
+export type EventWorkspaceItem = {
+  id: string
+  title: string
+  active?: boolean
+  [key: string]: unknown
+}
+
+export type EventModuleData = Partial<Record<EventModuleKey, EventWorkspaceItem[]>>
+
 export type EventExperienceConfig = {
   eventId?: string
   kind: ModularEventKind
   enabledModules: EventModuleKey[]
   registrationFields: RegistrationFieldDefinition[]
+  moduleData: EventModuleData
 }
 
 export type EventModuleDefinition = {
@@ -58,10 +68,10 @@ export const EVENT_MODULE_DEFINITIONS: EventModuleDefinition[] = [
   { key: 'speakers', label: 'Speakers', description: 'Speaker profiles and seminar lineup.', icon: 'tabler-microphone-2', recommendedFor: ['Seminar'] },
   { key: 'sessions', label: 'Sessions', description: 'Seminar sessions, room, capacity, and attendance.', icon: 'tabler-presentation', recommendedFor: ['Seminar'] },
   { key: 'agenda', label: 'Agenda', description: 'Event rundown and scheduled activities.', icon: 'tabler-calendar-time', recommendedFor: ['Seminar'] },
-  { key: 'quiz', label: 'Quiz', description: 'Questions, participant attempts, scores, and winners.', icon: 'tabler-help-hexagon', recommendedFor: ['Running', 'Seminar'] },
-  { key: 'doorprize', label: 'Doorprize', description: 'Eligible participants, drawing, winners, and claim status.', icon: 'tabler-gift', recommendedFor: ['Running', 'Seminar'] },
+  { key: 'quiz', label: 'Quiz', description: 'Reserved for the separate quiz implementation.', icon: 'tabler-help-hexagon', recommendedFor: ['Running', 'Seminar'] },
+  { key: 'doorprize', label: 'Doorprize', description: 'Prize inventory, draw schedule, winners, and claim notes.', icon: 'tabler-gift', recommendedFor: ['Running', 'Seminar'] },
   { key: 'booths', label: 'Booths', description: 'Booth/activity points and participant engagement.', icon: 'tabler-building-store', recommendedFor: ['Running', 'Seminar'] },
-  { key: 'certificates', label: 'Certificates', description: 'Participant certificate readiness and distribution.', icon: 'tabler-certificate', recommendedFor: ['Seminar'] }
+  { key: 'certificates', label: 'Certificates', description: 'Certificate templates, eligibility, and distribution notes.', icon: 'tabler-certificate', recommendedFor: ['Seminar'] }
 ]
 
 export const CORE_EVENT_MODULES: EventModuleKey[] = EVENT_MODULE_DEFINITIONS
@@ -87,14 +97,12 @@ export const defaultRegistrationFields = (kind: ModularEventKind): RegistrationF
     ]
   }
 
-  // Legacy Workshop/Other events stay valid while Running and Seminar are the
-  // only first-class templates in this phase.
   return []
 }
 
 export const defaultEventModules = (kind: ModularEventKind): EventModuleKey[] => {
   const recommended = EVENT_MODULE_DEFINITIONS
-    .filter(module => module.recommendedFor?.includes(kind))
+    .filter(module => module.key !== 'quiz' && module.recommendedFor?.includes(kind))
     .map(module => module.key)
 
   return [...CORE_EVENT_MODULES, ...recommended]
@@ -103,7 +111,8 @@ export const defaultEventModules = (kind: ModularEventKind): EventModuleKey[] =>
 export const createDefaultExperienceConfig = (kind: ModularEventKind): EventExperienceConfig => ({
   kind,
   enabledModules: defaultEventModules(kind),
-  registrationFields: defaultRegistrationFields(kind)
+  registrationFields: defaultRegistrationFields(kind),
+  moduleData: {}
 })
 
 const ensureOk = async (response: Response, fallback: string) => {
@@ -111,15 +120,20 @@ const ensureOk = async (response: Response, fallback: string) => {
   if (!response.ok) throw new Error(await parseError(response, fallback))
 }
 
+const normalizeExperience = (value: EventExperienceConfig): EventExperienceConfig => ({
+  ...value,
+  moduleData: value.moduleData ?? {}
+})
+
 export async function getAdminEventExperience(eventId: string): Promise<EventExperienceConfig> {
   const response = await authFetch(`/admin/events/${encodeURIComponent(eventId)}/experience`, { cache: 'no-store' })
   await ensureOk(response, 'Unable to load event modules.')
-  return (await response.json()) as EventExperienceConfig
+  return normalizeExperience((await response.json()) as EventExperienceConfig)
 }
 
 export async function updateAdminEventExperience(
   eventId: string,
-  config: Pick<EventExperienceConfig, 'enabledModules' | 'registrationFields'>
+  config: Pick<EventExperienceConfig, 'enabledModules' | 'registrationFields'> & Partial<Pick<EventExperienceConfig, 'moduleData'>>
 ): Promise<EventExperienceConfig> {
   const response = await authFetch(`/admin/events/${encodeURIComponent(eventId)}/experience`, {
     method: 'PUT',
@@ -128,11 +142,11 @@ export async function updateAdminEventExperience(
   })
 
   await ensureOk(response, 'Unable to save event modules.')
-  return (await response.json()) as EventExperienceConfig
+  return normalizeExperience((await response.json()) as EventExperienceConfig)
 }
 
 export async function getPublicEventExperience(eventId: string): Promise<EventExperienceConfig> {
   const response = await fetch(`${apiUrl}/events/${encodeURIComponent(eventId)}/experience`, { cache: 'no-store' })
   if (!response.ok) throw new Error(await parseError(response, 'Unable to load event registration configuration.'))
-  return (await response.json()) as EventExperienceConfig
+  return normalizeExperience((await response.json()) as EventExperienceConfig)
 }
