@@ -3,9 +3,12 @@ import { authFetch } from '@/lib/auth'
 
 export type CheckInResponse = {
   registrationId: string
+  eventId: string
   bookingCode: string
   fullName: string
   eventName: string
+  eventPackageId: string | null
+  eventPackageName: string | null
   checkedInAtUtc: string
 }
 
