@@ -20,7 +20,8 @@ import { getAllRegistrations } from '../../registrations/services/registration.s
 import type { Registration } from '../../registrations/types'
 
 type PrizeType = 'regular' | 'doorprize'
-type DrawMode = 'random' | 'manual'
+type DrawMode = 'random' | 'scripted'
+type SelectionMode = DrawMode | 'manual'
 type CandidateSource = 'registration' | 'manual'
 
 type DoorprizeWinner = {
@@ -30,7 +31,7 @@ type DoorprizeWinner = {
   eventPackageName: string | null
   drawnAtUtc: string
   source?: CandidateSource
-  selectionMode?: DrawMode
+  selectionMode?: SelectionMode
 }
 
 type ManualEntrant = {
@@ -54,10 +55,10 @@ type Props = {
   onUpdatePrize: (id: string, patch: Record<string, unknown>) => Promise<void>
 }
 
-const ITEM_HEIGHT = 68
+const ITEM_HEIGHT = 84
 const VISIBLE_ITEMS = 5
 const CENTER_SLOT = Math.floor(VISIBLE_ITEMS / 2)
-const REEL_DURATION_MS = 4200
+const REEL_DURATION_MS = 4300
 
 const parseWinners = (value: unknown): DoorprizeWinner[] => {
   if (!Array.isArray(value)) return []
@@ -76,11 +77,7 @@ const parseManualEntrants = (value: unknown): ManualEntrant[] => {
     const id = typeof record.id === 'string' ? record.id : ''
     const fullName = typeof record.fullName === 'string' ? record.fullName.trim() : ''
     if (!id || !fullName) return []
-    return [{
-      id,
-      fullName,
-      createdAtUtc: typeof record.createdAtUtc === 'string' ? record.createdAtUtc : ''
-    }]
+    return [{ id, fullName, createdAtUtc: typeof record.createdAtUtc === 'string' ? record.createdAtUtc : '' }]
   })
 }
 
@@ -89,26 +86,26 @@ const getQuantity = (prize: EventWorkspaceItem | undefined) => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1
 }
 
-const getPrizeType = (prize: EventWorkspaceItem | undefined): PrizeType => {
-  const value = String(prize?.prizeType ?? '').toLowerCase()
-  if (value === 'regular') return 'regular'
-  return 'doorprize'
+const getPrizeType = (prize: EventWorkspaceItem | undefined): PrizeType =>
+  String(prize?.prizeType ?? '').toLowerCase() === 'regular' ? 'regular' : 'doorprize'
+
+const createManualId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `manual-${crypto.randomUUID()}`
+  return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-const randomName = (pool: DrawCandidate[]) => {
-  if (!pool.length) return '—'
-  return pool[Math.floor(Math.random() * pool.length)].fullName
-}
+const randomName = (pool: DrawCandidate[]) =>
+  pool.length ? pool[Math.floor(Math.random() * pool.length)].fullName : '—'
 
 const buildReel = (pool: DrawCandidate[], winner: DrawCandidate) => {
   const names: string[] = []
   let previous = ''
 
-  for (let index = 0; index < 48; index += 1) {
+  for (let index = 0; index < 52; index += 1) {
     let next = randomName(pool)
     if (pool.length > 1) {
       let guard = 0
-      while (next === previous && guard < 5) {
+      while (next === previous && guard < 6) {
         next = randomName(pool)
         guard += 1
       }
@@ -118,14 +115,8 @@ const buildReel = (pool: DrawCandidate[], winner: DrawCandidate) => {
   }
 
   const winnerIndex = names.length
-  names.push(winner.fullName)
-  names.push(randomName(pool), randomName(pool))
+  names.push(winner.fullName, randomName(pool), randomName(pool))
   return { names, winnerIndex }
-}
-
-const createManualId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `manual-${crypto.randomUUID()}`
-  return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 const wait = (milliseconds: number) => new Promise(resolve => window.setTimeout(resolve, milliseconds))
@@ -140,11 +131,11 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const [savingManualEntrant, setSavingManualEntrant] = useState(false)
   const [drawMode, setDrawMode] = useState<DrawMode>('random')
   const [manualName, setManualName] = useState('')
-  const [manualWinnerId, setManualWinnerId] = useState('')
+  const [scriptedWinnerId, setScriptedWinnerId] = useState('')
   const [reelItems, setReelItems] = useState<string[]>([])
   const [reelOffset, setReelOffset] = useState(0)
   const [revealedWinner, setRevealedWinner] = useState<DoorprizeWinner | null>(null)
-  const [presentationFullscreen, setPresentationFullscreen] = useState(false)
+  const [presentationOpen, setPresentationOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -166,7 +157,10 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   }, [eventId])
 
   useEffect(() => {
-    const onFullscreenChange = () => setPresentationFullscreen(document.fullscreenElement === presentationRef.current)
+    const onFullscreenChange = () => {
+      if (document.fullscreenElement === presentationRef.current) setPresentationOpen(true)
+      else if (!document.fullscreenElement) setPresentationOpen(false)
+    }
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
   }, [])
@@ -182,8 +176,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     setReelItems([])
     setReelOffset(0)
     setRevealedWinner(null)
-    setManualWinnerId('')
-    setManualName('')
+    setScriptedWinnerId('')
   }, [selectedPrizeId, drawMode])
 
   const eligibleRegistrations = useMemo(
@@ -241,11 +234,10 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
 
   const quantity = getQuantity(selectedPrize)
   const complete = selectedWinners.length >= quantity
-  const manualWinner = available.find(item => item.id === manualWinnerId)
+  const scriptedWinner = available.find(item => item.id === scriptedWinnerId)
 
   const changePrizeType = async (nextType: PrizeType) => {
     if (!selectedPrize || disabled || rolling || savingPrizeType || nextType === selectedPrizeType) return
-
     try {
       setSavingPrizeType(true)
       setError(null)
@@ -253,7 +245,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       setReelItems([])
       setReelOffset(0)
       setRevealedWinner(null)
-      setManualWinnerId('')
+      setScriptedWinnerId('')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to update prize type.')
     } finally {
@@ -293,7 +285,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       setSavingManualEntrant(true)
       setError(null)
       await onUpdatePrize(selectedPrize.id, { manualEntrants: manualEntrants.filter(item => item.id !== entrantId) })
-      if (manualWinnerId === entrantId) setManualWinnerId('')
+      if (scriptedWinnerId === entrantId) setScriptedWinnerId('')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to remove manual entrant.')
     } finally {
@@ -301,28 +293,24 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     }
   }
 
-  const winnerRecordFor = (candidate: DrawCandidate, selectionMode: DrawMode): DoorprizeWinner => ({
-    registrationId: candidate.id,
-    fullName: candidate.fullName,
-    bookingCode: candidate.bookingCode,
-    eventPackageName: candidate.eventPackageName,
-    drawnAtUtc: new Date().toISOString(),
-    source: candidate.source,
-    selectionMode
-  })
-
-  const saveWinner = async (winnerRecord: DoorprizeWinner) => {
+  const saveWinner = async (candidate: DrawCandidate, mode: DrawMode) => {
     if (!selectedPrize) return
+    const winnerRecord: DoorprizeWinner = {
+      registrationId: candidate.id,
+      fullName: candidate.fullName,
+      bookingCode: candidate.bookingCode,
+      eventPackageName: candidate.eventPackageName,
+      drawnAtUtc: new Date().toISOString(),
+      source: candidate.source,
+      selectionMode: mode
+    }
     await onUpdatePrize(selectedPrize.id, { winners: [...selectedWinners, winnerRecord] })
     setRevealedWinner(winnerRecord)
-    setManualWinnerId('')
+    setScriptedWinnerId('')
   }
 
-  const drawRandom = async () => {
-    if (!selectedPrize || !available.length || complete || rolling) return
-
-    const winner = available[Math.floor(Math.random() * available.length)]
-    const winnerRecord = winnerRecordFor(winner, 'random')
+  const runReel = async (winner: DrawCandidate, mode: DrawMode) => {
+    if (!selectedPrize || complete || rolling) return
     const reel = buildReel(available, winner)
 
     setRolling(true)
@@ -331,12 +319,12 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     setReelItems(reel.names)
     setReelOffset(0)
 
-    await wait(80)
+    await wait(90)
     setReelOffset(Math.max(0, reel.winnerIndex - CENTER_SLOT) * ITEM_HEIGHT)
-    await wait(REEL_DURATION_MS + 120)
+    await wait(REEL_DURATION_MS + 150)
 
     try {
-      await saveWinner(winnerRecord)
+      await saveWinner(winner, mode)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save the winner.')
     } finally {
@@ -344,37 +332,38 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     }
   }
 
-  const confirmManualWinner = async () => {
-    if (!selectedPrize || !manualWinner || complete || rolling) return
-
-    try {
-      setRolling(true)
-      setError(null)
-      setReelItems([])
-      setReelOffset(0)
-      await saveWinner(winnerRecordFor(manualWinner, 'manual'))
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to save the manual winner.')
-    } finally {
-      setRolling(false)
+  const startDraw = async () => {
+    if (!available.length || complete || rolling) return
+    if (drawMode === 'scripted') {
+      if (!scriptedWinner) {
+        setError('Choose the scripted winner in the admin controls first.')
+        return
+      }
+      await runReel(scriptedWinner, 'scripted')
+      return
     }
+    await runReel(available[Math.floor(Math.random() * available.length)], 'random')
   }
 
-  const enterPresentationFullscreen = async () => {
+  const enterPresentation = async () => {
     if (!presentationRef.current) return
+    setPresentationOpen(true)
     try {
-      await presentationRef.current.requestFullscreen()
+      if (presentationRef.current.requestFullscreen) {
+        await presentationRef.current.requestFullscreen()
+      }
     } catch {
-      setError('Unable to enter fullscreen presentation mode in this browser.')
+      // Keep the fixed viewport presentation as a fallback when native fullscreen is unavailable.
     }
   }
 
-  const exitPresentationFullscreen = async () => {
-    if (!document.fullscreenElement) return
+  const exitPresentation = async () => {
     try {
-      await document.exitFullscreen()
+      if (document.fullscreenElement === presentationRef.current) await document.exitFullscreen()
     } catch {
-      // Browser may already be leaving fullscreen; no action required.
+      // The browser can already be in the process of leaving fullscreen.
+    } finally {
+      setPresentationOpen(false)
     }
   }
 
@@ -387,51 +376,170 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   ]
   const visibleReel = reelItems.length ? reelItems : idleReel
 
-  const reelStage = (
+  const presentationStage = (
     <Box
+      ref={presentationRef}
       sx={{
-        position: 'relative',
-        height: presentationFullscreen ? 'min(52vh, 520px)' : ITEM_HEIGHT * VISIBLE_ITEMS,
-        minHeight: presentationFullscreen ? 340 : undefined,
-        overflow: 'hidden',
-        borderRadius: presentationFullscreen ? 6 : 4,
-        border: theme => `1px solid ${theme.palette.divider}`,
-        bgcolor: 'background.paper',
-        boxShadow: rolling ? theme => `0 22px 70px ${theme.palette.action.hover}` : 'none',
-        transition: 'box-shadow 280ms ease'
+        position: presentationOpen ? 'fixed' : 'relative',
+        inset: presentationOpen ? 0 : 'auto',
+        zIndex: presentationOpen ? 1600 : 'auto',
+        width: presentationOpen ? '100vw' : '100%',
+        height: presentationOpen ? '100dvh' : 'auto',
+        minHeight: presentationOpen ? '100vh' : undefined,
+        bgcolor: presentationOpen ? '#07101f' : 'transparent',
+        color: presentationOpen ? '#fff' : 'text.primary',
+        p: presentationOpen ? { xs: 2, md: 5 } : 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: presentationOpen ? 'center' : 'flex-start',
+        overflow: presentationOpen ? 'hidden' : 'visible'
       }}
     >
-      <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)` }} />
-      <Box
-        sx={{
-          position: 'absolute', left: presentationFullscreen ? 28 : 14, right: presentationFullscreen ? 28 : 14,
-          top: presentationFullscreen ? '50%' : CENTER_SLOT * ITEM_HEIGHT,
-          transform: presentationFullscreen ? 'translateY(-50%)' : undefined,
-          height: presentationFullscreen ? 96 : ITEM_HEIGHT,
-          borderRadius: 3,
-          border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
-          background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
-          boxShadow: revealedWinner ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 42px ${theme.palette.success.main}2c` : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
-          zIndex: 3, pointerEvents: 'none'
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute', left: 0, right: 0, top: presentationFullscreen ? '50%' : 0,
-          marginTop: presentationFullscreen ? -(CENTER_SLOT * ITEM_HEIGHT + ITEM_HEIGHT / 2) : 0,
-          transform: `translateY(-${reelOffset}px)`,
-          transition: rolling && reelOffset > 0 ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)` : 'none',
-          willChange: rolling ? 'transform' : 'auto'
-        }}
-      >
-        {visibleReel.map((name, index) => (
-          <Box key={`${name}-${index}`} sx={{ height: ITEM_HEIGHT, display: 'grid', placeItems: 'center', px: presentationFullscreen ? 6 : 3, borderBottom: theme => `1px solid ${theme.palette.divider}` }}>
-            <Typography variant={presentationFullscreen ? 'h4' : 'h6'} fontWeight={850} noWrap sx={{ width: '100%', textAlign: 'center', textOverflow: 'ellipsis' }}>{name}</Typography>
+      {presentationOpen && (
+        <IconButton
+          onClick={() => void exitPresentation()}
+          sx={{ position: 'absolute', top: 18, right: 18, zIndex: 10, color: '#fff', bgcolor: 'rgba(255,255,255,.08)' }}
+          aria-label='Exit presentation'
+        >
+          <i className='tabler-x' />
+        </IconButton>
+      )}
+
+      <Box sx={{ width: '100%', maxWidth: presentationOpen ? 1320 : 'none', mx: 'auto' }}>
+        <Box sx={{ textAlign: 'center', mb: presentationOpen ? 3 : 2 }}>
+          <Typography
+            variant={presentationOpen ? 'h3' : 'h5'}
+            fontWeight={900}
+            sx={{ color: presentationOpen ? '#fff' : 'text.primary', letterSpacing: '-.02em' }}
+          >
+            {String(selectedPrize?.title || 'Prize Draw')}
+          </Typography>
+          <Typography sx={{ mt: 1, color: presentationOpen ? 'rgba(255,255,255,.62)' : 'text.secondary' }}>
+            {complete ? 'Prize complete' : rolling ? 'Drawing winner…' : `${available.length} eligible participant${available.length === 1 ? '' : 's'}`}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            position: 'relative',
+            height: ITEM_HEIGHT * VISIBLE_ITEMS,
+            overflow: 'hidden',
+            borderRadius: presentationOpen ? 5 : 4,
+            border: presentationOpen ? '1px solid rgba(255,255,255,.14)' : theme => `1px solid ${theme.palette.divider}`,
+            bgcolor: presentationOpen ? '#0d1b2a' : 'background.paper',
+            boxShadow: presentationOpen ? '0 26px 90px rgba(0,0,0,.38)' : undefined
+          }}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 4,
+              background: presentationOpen
+                ? 'linear-gradient(to bottom, #0d1b2a 0%, transparent 24%, transparent 76%, #0d1b2a 100%)'
+                : theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)`
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              left: presentationOpen ? 28 : 14,
+              right: presentationOpen ? 28 : 14,
+              top: CENTER_SLOT * ITEM_HEIGHT,
+              height: ITEM_HEIGHT,
+              borderRadius: 3,
+              border: revealedWinner ? '1px solid #4ade80' : presentationOpen ? '1px solid #60a5fa' : theme => `1px solid ${theme.palette.primary.main}`,
+              background: revealedWinner ? 'rgba(74,222,128,.08)' : presentationOpen ? 'rgba(96,165,250,.08)' : 'transparent',
+              zIndex: 3,
+              pointerEvents: 'none',
+              boxShadow: revealedWinner ? '0 0 36px rgba(74,222,128,.18)' : undefined
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              transform: `translateY(-${reelOffset}px)`,
+              transition: rolling && reelOffset > 0
+                ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)`
+                : 'none',
+              willChange: rolling ? 'transform' : 'auto'
+            }}
+          >
+            {visibleReel.map((name, index) => (
+              <Box
+                key={`${name}-${index}`}
+                sx={{
+                  height: ITEM_HEIGHT,
+                  display: 'grid',
+                  placeItems: 'center',
+                  px: 4,
+                  borderBottom: presentationOpen ? '1px solid rgba(255,255,255,.07)' : theme => `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Typography
+                  fontWeight={900}
+                  noWrap
+                  sx={{
+                    width: '100%',
+                    textAlign: 'center',
+                    textOverflow: 'ellipsis',
+                    fontSize: presentationOpen ? { xs: 24, md: 34 } : 20,
+                    color: presentationOpen ? '#fff' : 'text.primary'
+                  }}
+                >
+                  {name}
+                </Typography>
+              </Box>
+            ))}
           </Box>
-        ))}
+          <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? '#4ade80' : '#60a5fa' }}>
+            <i className='tabler-caret-right-filled text-2xl' />
+          </Box>
+          <Box sx={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? '#4ade80' : '#60a5fa' }}>
+            <i className='tabler-caret-right-filled text-2xl' />
+          </Box>
+        </Box>
+
+        {revealedWinner && (
+          <Box
+            sx={{
+              mt: 2.5,
+              py: presentationOpen ? 2.5 : 2,
+              px: 3,
+              borderRadius: 3,
+              textAlign: 'center',
+              border: presentationOpen ? '1px solid rgba(74,222,128,.45)' : theme => `1px solid ${theme.palette.success.main}`,
+              bgcolor: presentationOpen ? 'rgba(74,222,128,.08)' : 'success.lighter'
+            }}
+          >
+            <Typography variant='overline' fontWeight={900} sx={{ color: presentationOpen ? '#86efac' : 'success.main', letterSpacing: '.22em' }}>
+              WINNER
+            </Typography>
+            <Typography variant={presentationOpen ? 'h3' : 'h5'} fontWeight={900} sx={{ mt: .5, color: presentationOpen ? '#fff' : 'text.primary' }}>
+              {revealedWinner.fullName}
+            </Typography>
+          </Box>
+        )}
+
+        {presentationOpen && (
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+            <Button
+              size='large'
+              variant='contained'
+              onClick={() => void startDraw()}
+              disabled={rolling || complete || available.length === 0 || (drawMode === 'scripted' && !scriptedWinner)}
+              startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />}
+              sx={{ minWidth: 240, py: 1.4, fontWeight: 900 }}
+            >
+              {rolling ? 'Drawing…' : complete ? 'Prize complete' : 'Start Draw'}
+            </Button>
+          </Box>
+        )}
       </Box>
-      <Box sx={{ position: 'absolute', left: presentationFullscreen ? 24 : 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className={`tabler-caret-right-filled ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
-      <Box sx={{ position: 'absolute', right: presentationFullscreen ? 24 : 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className={`tabler-caret-right-filled ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
     </Box>
   )
 
@@ -440,9 +548,9 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
       <CardContent sx={{ p: { xs: 3, md: 4 }, display: 'grid', gap: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant='h5' fontWeight={750}>Live Prize Draw</Typography>
-            <Typography variant='body2' color='text.secondary' sx={{ mt: .75, maxWidth: 780 }}>
-              Use Random Draw for a fair reel draw, or Manual Selection when an admin intentionally chooses the winner. Manual selections are clearly recorded in winner history.
+            <Typography variant='h5' fontWeight={800}>Live Prize Draw</Typography>
+            <Typography variant='body2' color='text.secondary' sx={{ mt: .75, maxWidth: 820 }}>
+              Random Draw picks from the eligible pool. Scripted Draw lets the admin preselect the winner while keeping the same reel presentation; the selection mode remains recorded in admin history.
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -453,19 +561,17 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
         </Box>
 
         <Alert severity='info'>
-          <strong>Regular Prize:</strong> one regular-prize win per participant, but the winner can still win a Doorprize.{' '}
-          <strong>Doorprize:</strong> after winning, that person cannot win any other prize.
+          <strong>Regular Prize:</strong> a winner may still win a Doorprize. <strong>Doorprize:</strong> after winning, that person is blocked from later prizes.
         </Alert>
-
         {error && <Alert severity='error'>{error}</Alert>}
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>
         ) : prizes.length === 0 ? (
-          <Alert severity='info'>Create at least one prize item above before starting the draw.</Alert>
+          <Alert severity='info'>Create at least one prize item before starting the draw.</Alert>
         ) : (
           <>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.3fr) minmax(220px, .7fr)' }, gap: 2, maxWidth: 820 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0,1.3fr) minmax(220px,.7fr)' }, gap: 2, maxWidth: 860 }}>
               <TextField
                 select
                 label='Prize to draw'
@@ -473,20 +579,18 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
                 onChange={event => setSelectedPrizeId(event.target.value)}
                 disabled={disabled || rolling || savingPrizeType || savingManualEntrant}
               >
-                {prizes.map(prize => {
-                  const winners = parseWinners(prize.winners)
-                  const type = getPrizeType(prize)
-                  return <MenuItem key={prize.id} value={prize.id}>{prize.title} · {type === 'doorprize' ? 'Doorprize' : 'Regular'} ({winners.length}/{getQuantity(prize)})</MenuItem>
-                })}
+                {prizes.map(prize => (
+                  <MenuItem key={prize.id} value={prize.id}>
+                    {prize.title} · {getPrizeType(prize) === 'doorprize' ? 'Doorprize' : 'Regular'} ({parseWinners(prize.winners).length}/{getQuantity(prize)})
+                  </MenuItem>
+                ))}
               </TextField>
-
               <TextField
                 select
                 label='Prize type'
                 value={selectedPrizeType}
                 onChange={event => void changePrizeType(event.target.value as PrizeType)}
                 disabled={disabled || rolling || savingPrizeType || !selectedPrize}
-                helperText={selectedPrizeType === 'doorprize' ? 'Winner is blocked from every later draw.' : 'Winner may still enter Doorprize.'}
               >
                 <MenuItem value='regular'>Regular Prize</MenuItem>
                 <MenuItem value='doorprize'>Doorprize</MenuItem>
@@ -496,10 +600,10 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
             <Card variant='outlined'>
               <CardContent sx={{ display: 'grid', gap: 2 }}>
                 <Box>
-                  <Typography variant='subtitle1' fontWeight={750}>Manual entrants</Typography>
-                  <Typography variant='body2' color='text.secondary'>Add names that are not in registration data. They can join either Random Draw or Manual Selection for this prize.</Typography>
+                  <Typography variant='subtitle1' fontWeight={800}>Manual entrants</Typography>
+                  <Typography variant='body2' color='text.secondary'>Add names outside registration data to this prize pool.</Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                   <TextField
                     size='small'
                     label='Add name manually'
@@ -514,11 +618,16 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
                     disabled={disabled || rolling || savingManualEntrant || !selectedPrize}
                     sx={{ minWidth: 280, flex: '1 1 320px' }}
                   />
-                  <Button variant='outlined' onClick={() => void addManualEntrant()} disabled={disabled || rolling || savingManualEntrant || !manualName.trim()} startIcon={<i className='tabler-user-plus' />}>
+                  <Button
+                    variant='outlined'
+                    onClick={() => void addManualEntrant()}
+                    disabled={disabled || rolling || savingManualEntrant || !manualName.trim()}
+                    startIcon={<i className='tabler-user-plus' />}
+                  >
                     Add name
                   </Button>
                 </Box>
-                {manualEntrants.length > 0 && (
+                {!!manualEntrants.length && (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {manualEntrants.map(entrant => (
                       <Chip
@@ -534,27 +643,27 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
               </CardContent>
             </Card>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, .55fr) minmax(0, 1.45fr)' }, gap: 2, alignItems: 'start' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '280px minmax(0,1fr)' }, gap: 2 }}>
               <TextField
                 select
                 label='Draw mode'
                 value={drawMode}
                 onChange={event => setDrawMode(event.target.value as DrawMode)}
                 disabled={disabled || rolling}
-                helperText={drawMode === 'random' ? 'Winner is selected randomly.' : 'Admin explicitly selects the winner.'}
+                helperText={drawMode === 'random' ? 'Randomly selected from the eligible pool.' : 'Admin preselects the winner; admin history records this mode.'}
               >
                 <MenuItem value='random'>Random Draw</MenuItem>
-                <MenuItem value='manual'>Manual Selection</MenuItem>
+                <MenuItem value='scripted'>Scripted Draw</MenuItem>
               </TextField>
 
-              {drawMode === 'manual' && (
+              {drawMode === 'scripted' && (
                 <TextField
                   select
-                  label='Choose winner manually'
-                  value={manualWinnerId}
-                  onChange={event => setManualWinnerId(event.target.value)}
+                  label='Predetermined winner'
+                  value={scriptedWinnerId}
+                  onChange={event => setScriptedWinnerId(event.target.value)}
                   disabled={disabled || rolling || complete || available.length === 0}
-                  helperText='This is an admin selection and remains marked Manual in winner history.'
+                  helperText='This control is never shown in Presentation Fullscreen.'
                 >
                   <MenuItem value=''><em>Select eligible person</em></MenuItem>
                   {available.map(candidate => (
@@ -566,119 +675,59 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
               )}
             </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant='body2' color='text.secondary'>Presentation mode hides admin controls and audit metadata from the projected screen.</Typography>
-              <Button variant='outlined' onClick={() => void enterPresentationFullscreen()} disabled={!selectedPrize || rolling} startIcon={<i className='tabler-maximize' />}>
+            {presentationStage}
+
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button
+                size='large'
+                variant='contained'
+                onClick={() => void startDraw()}
+                disabled={disabled || rolling || !selectedPrize || complete || available.length === 0 || (drawMode === 'scripted' && !scriptedWinner)}
+                startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />}
+              >
+                {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : drawMode === 'scripted' ? 'Run scripted draw' : 'Start random draw'}
+              </Button>
+              <Button
+                size='large'
+                variant='outlined'
+                onClick={() => void enterPresentation()}
+                disabled={!selectedPrize}
+                startIcon={<i className='tabler-maximize' />}
+              >
                 Presentation Fullscreen
               </Button>
             </Box>
 
-            <Box
-              ref={presentationRef}
-              sx={{
-                bgcolor: 'background.default',
-                borderRadius: presentationFullscreen ? 0 : 4,
-                p: presentationFullscreen ? { xs: 3, md: 6 } : 0,
-                width: '100%',
-                height: presentationFullscreen ? '100vh' : 'auto',
-                overflow: presentationFullscreen ? 'auto' : 'visible',
-                display: 'grid',
-                alignContent: presentationFullscreen ? 'center' : 'stretch',
-                gap: presentationFullscreen ? 4 : 2
-              }}
-            >
-              {presentationFullscreen && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, alignItems: 'center' }}>
-                  <Box>
-                    <Typography variant='overline' color='text.secondary'>LIVE PRIZE DRAW</Typography>
-                    <Typography variant='h3' fontWeight={900}>{selectedPrize?.title ?? 'Prize Draw'}</Typography>
-                  </Box>
-                  <IconButton size='large' onClick={() => void exitPresentationFullscreen()} aria-label='Exit fullscreen'>
-                    <i className='tabler-minimize text-3xl' />
-                  </IconButton>
-                </Box>
-              )}
-
-              {drawMode === 'random' ? (
-                reelStage
-              ) : (
-                <Box sx={{ minHeight: presentationFullscreen ? '46vh' : 220, display: 'grid', placeItems: 'center', borderRadius: presentationFullscreen ? 6 : 4, border: theme => `1px solid ${theme.palette.divider}`, bgcolor: 'action.hover', p: presentationFullscreen ? 7 : 4, textAlign: 'center' }}>
-                  <Box>
-                    <i className={`tabler-trophy ${presentationFullscreen ? 'text-8xl' : 'text-5xl'}`} />
-                    <Typography variant={presentationFullscreen ? 'h2' : 'h5'} fontWeight={900} sx={{ mt: 2 }}>
-                      {presentationFullscreen ? (revealedWinner?.fullName ?? 'READY FOR WINNER REVEAL') : (manualWinner?.fullName ?? 'Select a winner')}
-                    </Typography>
-                    {!presentationFullscreen && (
-                      <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-                        {manualWinner ? `${manualWinner.source === 'manual' ? 'Manual entrant' : manualWinner.bookingCode} · explicit admin selection` : 'Choose an eligible person above. Manual mode uses a reveal, not a fake random spin.'}
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              )}
-
-              {revealedWinner && (
-                <Box sx={{ p: presentationFullscreen ? 4 : 2.5, borderRadius: presentationFullscreen ? 5 : 3, border: theme => `1px solid ${theme.palette.success.main}`, bgcolor: 'success.lighter', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: presentationFullscreen ? 2.5 : 1.5 }}>
-                    <Box sx={{ width: presentationFullscreen ? 72 : 42, height: presentationFullscreen ? 72 : 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}><i className={`tabler-trophy ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
-                    <Box>
-                      <Typography variant={presentationFullscreen ? 'h6' : 'caption'} color='success.main' fontWeight={850}>
-                        {presentationFullscreen ? 'WINNER' : `WINNER · ${revealedWinner.selectionMode === 'manual' ? 'MANUAL SELECTION' : 'RANDOM DRAW'}`}
-                      </Typography>
-                      <Typography variant={presentationFullscreen ? 'h2' : 'h6'} fontWeight={900}>{revealedWinner.fullName}</Typography>
-                    </Box>
-                  </Box>
-                  {!presentationFullscreen && <Chip label={revealedWinner.source === 'manual' ? 'Manual entrant' : revealedWinner.bookingCode} color='success' variant='tonal' />}
-                </Box>
-              )}
-
-              {presentationFullscreen && !revealedWinner && (
-                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                  {drawMode === 'random' ? (
-                    <Button size='large' variant='contained' disabled={disabled || rolling || complete || available.length === 0} onClick={() => void drawRandom()} startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />} sx={{ minWidth: 260, py: 1.6, fontSize: '1rem' }}>
-                      {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start Draw'}
-                    </Button>
-                  ) : (
-                    <Button size='large' variant='contained' disabled={disabled || rolling || !manualWinner || complete} onClick={() => void confirmManualWinner()} startIcon={<i className='tabler-trophy' />} sx={{ minWidth: 260, py: 1.6, fontSize: '1rem' }}>
-                      {rolling ? 'Revealing…' : complete ? 'Prize complete' : 'Reveal Winner'}
-                    </Button>
-                  )}
-                </Box>
-              )}
-            </Box>
-
-            {!presentationFullscreen && (drawMode === 'random' ? (
-              <Button size='large' variant='contained' disabled={disabled || rolling || savingPrizeType || savingManualEntrant || !selectedPrize || complete || available.length === 0} onClick={() => void drawRandom()} startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />} sx={{ justifySelf: 'start', minWidth: 210 }}>
-                {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start random draw'}
-              </Button>
-            ) : (
-              <Button size='large' variant='contained' color='warning' disabled={disabled || rolling || !selectedPrize || !manualWinner || complete} onClick={() => void confirmManualWinner()} startIcon={<i className='tabler-user-check' />} sx={{ justifySelf: 'start', minWidth: 230 }}>
-                {rolling ? 'Saving winner…' : complete ? 'Prize complete' : 'Confirm manual winner'}
-              </Button>
-            ))}
-
-            {selectedPrize && available.length === 0 && !complete && <Alert severity='warning'>No eligible person is currently available under this prize type&apos;s winner rules.</Alert>}
+            {selectedPrize && available.length === 0 && !complete && (
+              <Alert severity='warning'>No eligible person is currently available under this prize type&apos;s winner rules.</Alert>
+            )}
 
             {selectedPrize && selectedWinners.length > 0 && (
               <Box>
-                <Typography variant='subtitle1' fontWeight={750}>Winner history — {selectedPrize.title}</Typography>
+                <Typography variant='subtitle1' fontWeight={800}>Winner history — {selectedPrize.title}</Typography>
                 <Box sx={{ mt: 1.5, display: 'grid', gap: 1 }}>
-                  {selectedWinners.map((winner, index) => (
-                    <Box key={`${winner.registrationId}-${index}`} sx={{ p: 2, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Box>
-                        <Typography fontWeight={700}>{index + 1}. {winner.fullName}</Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                          {winner.source === 'manual' ? 'Manual entrant' : winner.bookingCode}{winner.eventPackageName ? ` • ${winner.eventPackageName}` : ''}
-                        </Typography>
+                  {selectedWinners.map((winner, index) => {
+                    const scripted = winner.selectionMode === 'scripted' || winner.selectionMode === 'manual'
+                    return (
+                      <Box
+                        key={`${winner.registrationId}-${index}`}
+                        sx={{ p: 2, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}
+                      >
+                        <Box>
+                          <Typography fontWeight={700}>{index + 1}. {winner.fullName}</Typography>
+                          <Typography variant='body2' color='text.secondary'>
+                            {winner.source === 'manual' ? 'Manual entrant' : winner.bookingCode}{winner.eventPackageName ? ` • ${winner.eventPackageName}` : ''}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <Chip size='small' label={scripted ? 'Scripted draw' : 'Random draw'} color={scripted ? 'warning' : 'info'} variant='tonal' />
+                          <Tooltip title={selectedPrizeType === 'doorprize' ? 'Doorprize winner: blocked from later prizes' : 'Regular prize winner'}>
+                            <span><IconButton size='small' disabled><i className={selectedPrizeType === 'doorprize' ? 'tabler-lock' : 'tabler-gift'} /></IconButton></span>
+                          </Tooltip>
+                        </Box>
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Chip size='small' label={winner.selectionMode === 'manual' ? 'Manual selection' : 'Random draw'} color={winner.selectionMode === 'manual' ? 'warning' : 'info'} variant='tonal' />
-                        <Tooltip title={selectedPrizeType === 'doorprize' ? 'Doorprize winner: blocked from later prizes' : 'Regular prize winner'}>
-                          <span><IconButton size='small' disabled><i className={selectedPrizeType === 'doorprize' ? 'tabler-lock' : 'tabler-gift'} /></IconButton></span>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                  ))}
+                    )
+                  })}
                 </Box>
               </Box>
             )}
