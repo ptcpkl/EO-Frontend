@@ -208,7 +208,16 @@ const ParticipantQuizLive = ({ room, participant }: Props) => {
               <i className='tabler-bolt text-5xl' />
             </Box>
             <Typography variant='h4' fontWeight={900} sx={{ mt: 3 }}>You&apos;re ready!</Typography>
-            <Typography color='text.secondary' sx={{ mt: 1 }}>Keep this screen open. The host will start the Quiz.</Typography>
+            <Typography color='text.secondary' sx={{ mt: 1 }}>Keep this screen open. The host will start {room.quizName}.</Typography>
+          </Box>
+        </Box>
+      )}
+
+      {state.status === 'Countdown' && !countdown && (
+        <Box sx={{ minHeight: 430, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+          <Box>
+            <CircularProgress size={42} />
+            <Typography variant='h4' fontWeight={900} sx={{ mt: 3 }}>Get ready…</Typography>
           </Box>
         </Box>
       )}
