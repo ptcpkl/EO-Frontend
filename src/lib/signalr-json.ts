@@ -1,6 +1,7 @@
 'use client'
 
 const RECORD_SEPARATOR = '\u001e'
+const KEEP_ALIVE_MS = 12_000
 
 type SignalRInvocation = {
   type: 1
@@ -44,6 +45,7 @@ export class SignalRJsonClient {
   private socket: WebSocket | null = null
   private started = false
   private invocationId = 0
+  private keepAliveTimer: number | null = null
   private readonly pending = new Map<string, PendingInvocation>()
   private readonly handlers = new Map<string, Set<EventHandler>>()
   private closeHandlers = new Set<(error?: Error) => void>()
@@ -130,6 +132,7 @@ export class SignalRJsonClient {
 
         for (const frame of frames) {
           let message: Record<string, unknown>
+
           try {
             message = JSON.parse(frame) as Record<string, unknown>
           } catch {
@@ -145,6 +148,7 @@ export class SignalRJsonClient {
 
             handshakeComplete = true
             this.started = true
+            this.startKeepAlive()
             resolve()
             continue
           }
@@ -183,9 +187,23 @@ export class SignalRJsonClient {
 
   stop() {
     this.started = false
+    this.stopKeepAlive()
     if (this.socket && this.socket.readyState <= WebSocket.OPEN) this.socket.close(1000, 'Client stopped')
     this.socket = null
     this.rejectPending(new Error('Quiz realtime connection stopped.'))
+  }
+
+  private startKeepAlive() {
+    this.stopKeepAlive()
+    this.keepAliveTimer = window.setInterval(() => {
+      if (!this.isConnected || !this.socket) return
+      this.socket.send(JSON.stringify({ type: 6 }) + RECORD_SEPARATOR)
+    }, KEEP_ALIVE_MS)
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveTimer !== null) window.clearInterval(this.keepAliveTimer)
+    this.keepAliveTimer = null
   }
 
   private handleMessage(message: SignalRMessage) {
@@ -214,6 +232,7 @@ export class SignalRJsonClient {
   private handleClosed(error?: Error) {
     if (!this.started && !this.socket) return
     this.started = false
+    this.stopKeepAlive()
     this.socket = null
     this.rejectPending(error ?? new Error('Quiz realtime connection closed.'))
     this.closeHandlers.forEach(handler => handler(error))
