@@ -65,11 +65,10 @@ export const parseEventBenefits = (value?: string | null): EventBenefitItem[] =>
         .filter((item): item is Record<string, unknown> => item !== null)
         .map(item => ({
           id: asString(item.id) || makeId(),
-          title: asString(item.title).trim(),
-          description: asString(item.description).trim(),
+          title: asString(item.title),
+          description: asString(item.description),
           icon: /^tabler-[a-z0-9-]+$/i.test(asString(item.icon)) ? asString(item.icon) : DEFAULT_BENEFIT_ICON
         }))
-        .filter(item => item.title)
     }
   } catch {
     // Legacy plain text is intentionally supported below.
@@ -84,14 +83,12 @@ export const parseEventBenefits = (value?: string | null): EventBenefitItem[] =>
 }
 
 export const serializeEventBenefits = (items: EventBenefitItem[]) => {
-  const normalized = items
-    .map(item => ({
-      id: item.id || makeId(),
-      title: item.title.trim(),
-      description: item.description.trim(),
-      icon: /^tabler-[a-z0-9-]+$/i.test(item.icon) ? item.icon : DEFAULT_BENEFIT_ICON
-    }))
-    .filter(item => item.title)
+  const normalized = items.map(item => ({
+    id: item.id || makeId(),
+    title: item.title.slice(0, 120),
+    description: item.description.slice(0, 280),
+    icon: /^tabler-[a-z0-9-]+$/i.test(item.icon) ? item.icon : DEFAULT_BENEFIT_ICON
+  }))
 
   return normalized.length ? JSON.stringify({ format: BENEFIT_FORMAT, items: normalized }) : ''
 }
@@ -110,10 +107,9 @@ export const parseEventContentSections = (value?: string | null): EventContentSe
         .filter((section): section is Record<string, unknown> => section !== null)
         .map(section => ({
           id: asString(section.id) || makeId(),
-          title: asString(section.title).trim() || 'Additional Information',
+          title: asString(section.title),
           contentHtml: sanitizeRichHtml(asString(section.contentHtml))
         }))
-        .filter(section => section.contentHtml.trim())
     }
   } catch {
     // Legacy plain text is intentionally supported below.
@@ -127,13 +123,11 @@ export const parseEventContentSections = (value?: string | null): EventContentSe
 }
 
 export const serializeEventContentSections = (sections: EventContentSection[]) => {
-  const normalized = sections
-    .map(section => ({
-      id: section.id || makeId(),
-      title: section.title.trim() || 'Additional Information',
-      contentHtml: sanitizeRichHtml(section.contentHtml).trim()
-    }))
-    .filter(section => section.contentHtml)
+  const normalized = sections.map(section => ({
+    id: section.id || makeId(),
+    title: section.title.slice(0, 160),
+    contentHtml: sanitizeRichHtml(section.contentHtml)
+  }))
 
   return normalized.length ? JSON.stringify({ format: CONTENT_FORMAT, sections: normalized }) : ''
 }
