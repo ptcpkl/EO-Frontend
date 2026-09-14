@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -131,6 +131,7 @@ const createManualId = () => {
 const wait = (milliseconds: number) => new Promise(resolve => window.setTimeout(resolve, milliseconds))
 
 export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpdatePrize }: Props) {
+  const presentationRef = useRef<HTMLDivElement | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [selectedPrizeId, setSelectedPrizeId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -143,6 +144,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
   const [reelItems, setReelItems] = useState<string[]>([])
   const [reelOffset, setReelOffset] = useState(0)
   const [revealedWinner, setRevealedWinner] = useState<DoorprizeWinner | null>(null)
+  const [presentationFullscreen, setPresentationFullscreen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -162,6 +164,12 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     void load()
     return () => { mounted = false }
   }, [eventId])
+
+  useEffect(() => {
+    const onFullscreenChange = () => setPresentationFullscreen(document.fullscreenElement === presentationRef.current)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
 
   useEffect(() => {
     if (!selectedPrizeId && prizes.length) setSelectedPrizeId(prizes[0].id)
@@ -352,6 +360,24 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     }
   }
 
+  const enterPresentationFullscreen = async () => {
+    if (!presentationRef.current) return
+    try {
+      await presentationRef.current.requestFullscreen()
+    } catch {
+      setError('Unable to enter fullscreen presentation mode in this browser.')
+    }
+  }
+
+  const exitPresentationFullscreen = async () => {
+    if (!document.fullscreenElement) return
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // Browser may already be leaving fullscreen; no action required.
+    }
+  }
+
   const idleReel = [
     `${available.length} ELIGIBLE`,
     selectedPrizeType === 'doorprize' ? 'DOORPRIZE' : 'REGULAR PRIZE',
@@ -360,6 +386,54 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
     'GOOD LUCK'
   ]
   const visibleReel = reelItems.length ? reelItems : idleReel
+
+  const reelStage = (
+    <Box
+      sx={{
+        position: 'relative',
+        height: presentationFullscreen ? 'min(52vh, 520px)' : ITEM_HEIGHT * VISIBLE_ITEMS,
+        minHeight: presentationFullscreen ? 340 : undefined,
+        overflow: 'hidden',
+        borderRadius: presentationFullscreen ? 6 : 4,
+        border: theme => `1px solid ${theme.palette.divider}`,
+        bgcolor: 'background.paper',
+        boxShadow: rolling ? theme => `0 22px 70px ${theme.palette.action.hover}` : 'none',
+        transition: 'box-shadow 280ms ease'
+      }}
+    >
+      <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)` }} />
+      <Box
+        sx={{
+          position: 'absolute', left: presentationFullscreen ? 28 : 14, right: presentationFullscreen ? 28 : 14,
+          top: presentationFullscreen ? '50%' : CENTER_SLOT * ITEM_HEIGHT,
+          transform: presentationFullscreen ? 'translateY(-50%)' : undefined,
+          height: presentationFullscreen ? 96 : ITEM_HEIGHT,
+          borderRadius: 3,
+          border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
+          background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
+          boxShadow: revealedWinner ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 42px ${theme.palette.success.main}2c` : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
+          zIndex: 3, pointerEvents: 'none'
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute', left: 0, right: 0, top: presentationFullscreen ? '50%' : 0,
+          marginTop: presentationFullscreen ? -(CENTER_SLOT * ITEM_HEIGHT + ITEM_HEIGHT / 2) : 0,
+          transform: `translateY(-${reelOffset}px)`,
+          transition: rolling && reelOffset > 0 ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)` : 'none',
+          willChange: rolling ? 'transform' : 'auto'
+        }}
+      >
+        {visibleReel.map((name, index) => (
+          <Box key={`${name}-${index}`} sx={{ height: ITEM_HEIGHT, display: 'grid', placeItems: 'center', px: presentationFullscreen ? 6 : 3, borderBottom: theme => `1px solid ${theme.palette.divider}` }}>
+            <Typography variant={presentationFullscreen ? 'h4' : 'h6'} fontWeight={850} noWrap sx={{ width: '100%', textAlign: 'center', textOverflow: 'ellipsis' }}>{name}</Typography>
+          </Box>
+        ))}
+      </Box>
+      <Box sx={{ position: 'absolute', left: presentationFullscreen ? 24 : 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className={`tabler-caret-right-filled ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
+      <Box sx={{ position: 'absolute', right: presentationFullscreen ? 24 : 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className={`tabler-caret-right-filled ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
+    </Box>
+  )
 
   return (
     <Card variant='outlined'>
@@ -480,7 +554,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
                   value={manualWinnerId}
                   onChange={event => setManualWinnerId(event.target.value)}
                   disabled={disabled || rolling || complete || available.length === 0}
-                  helperText='This is a transparent admin selection and will be marked Manual in winner history.'
+                  helperText='This is an admin selection and remains marked Manual in winner history.'
                 >
                   <MenuItem value=''><em>Select eligible person</em></MenuItem>
                   {available.map(candidate => (
@@ -492,73 +566,88 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
               )}
             </Box>
 
-            {drawMode === 'random' ? (
-              <Box
-                sx={{
-                  position: 'relative',
-                  height: ITEM_HEIGHT * VISIBLE_ITEMS,
-                  overflow: 'hidden',
-                  borderRadius: 4,
-                  border: theme => `1px solid ${theme.palette.divider}`,
-                  bgcolor: 'background.paper',
-                  boxShadow: rolling ? theme => `0 18px 48px ${theme.palette.action.hover}` : 'none',
-                  transition: 'box-shadow 280ms ease'
-                }}
-              >
-                <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: theme => `linear-gradient(to bottom, ${theme.palette.background.paper} 0%, transparent 24%, transparent 76%, ${theme.palette.background.paper} 100%)` }} />
-                <Box
-                  sx={{
-                    position: 'absolute', left: 14, right: 14, top: CENTER_SLOT * ITEM_HEIGHT, height: ITEM_HEIGHT,
-                    borderRadius: 3,
-                    border: theme => `1px solid ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}`,
-                    background: theme => `linear-gradient(90deg, transparent, ${revealedWinner ? theme.palette.success.main : theme.palette.primary.main}14, transparent)`,
-                    boxShadow: revealedWinner ? theme => `0 0 0 1px ${theme.palette.success.main}20, 0 0 34px ${theme.palette.success.main}24` : theme => `0 0 0 1px ${theme.palette.primary.main}14`,
-                    zIndex: 3, pointerEvents: 'none'
-                  }}
-                />
-                <Box
-                  sx={{
-                    position: 'absolute', left: 0, right: 0, top: 0,
-                    transform: `translateY(-${reelOffset}px)`,
-                    transition: rolling && reelOffset > 0 ? `transform ${REEL_DURATION_MS}ms cubic-bezier(0.08, 0.78, 0.12, 1)` : 'none',
-                    willChange: rolling ? 'transform' : 'auto'
-                  }}
-                >
-                  {visibleReel.map((name, index) => (
-                    <Box key={`${name}-${index}`} sx={{ height: ITEM_HEIGHT, display: 'grid', placeItems: 'center', px: 3, borderBottom: theme => `1px solid ${theme.palette.divider}` }}>
-                      <Typography variant='h6' fontWeight={800} noWrap sx={{ width: '100%', textAlign: 'center', textOverflow: 'ellipsis' }}>{name}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-                <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className='tabler-caret-right-filled text-xl' /></Box>
-                <Box sx={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)', zIndex: 5, color: revealedWinner ? 'success.main' : 'primary.main' }}><i className='tabler-caret-right-filled text-xl' /></Box>
-              </Box>
-            ) : (
-              <Box sx={{ minHeight: 220, display: 'grid', placeItems: 'center', borderRadius: 4, border: theme => `1px solid ${theme.palette.divider}`, bgcolor: 'action.hover', p: 4, textAlign: 'center' }}>
-                <Box>
-                  <i className='tabler-user-check text-5xl' />
-                  <Typography variant='h5' fontWeight={800} sx={{ mt: 2 }}>{manualWinner?.fullName ?? 'Select a winner'}</Typography>
-                  <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-                    {manualWinner ? `${manualWinner.source === 'manual' ? 'Manual entrant' : manualWinner.bookingCode} · explicit admin selection` : 'Choose an eligible person above. No spin animation is used in Manual Selection mode.'}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Typography variant='body2' color='text.secondary'>Presentation mode hides admin controls and audit metadata from the projected screen.</Typography>
+              <Button variant='outlined' onClick={() => void enterPresentationFullscreen()} disabled={!selectedPrize || rolling} startIcon={<i className='tabler-maximize' />}>
+                Presentation Fullscreen
+              </Button>
+            </Box>
 
-            {revealedWinner && (
-              <Box sx={{ p: 2.5, borderRadius: 3, border: theme => `1px solid ${theme.palette.success.main}`, bgcolor: 'success.lighter', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}><i className='tabler-trophy text-xl' /></Box>
+            <Box
+              ref={presentationRef}
+              sx={{
+                bgcolor: 'background.default',
+                borderRadius: presentationFullscreen ? 0 : 4,
+                p: presentationFullscreen ? { xs: 3, md: 6 } : 0,
+                width: '100%',
+                height: presentationFullscreen ? '100vh' : 'auto',
+                overflow: presentationFullscreen ? 'auto' : 'visible',
+                display: 'grid',
+                alignContent: presentationFullscreen ? 'center' : 'stretch',
+                gap: presentationFullscreen ? 4 : 2
+              }}
+            >
+              {presentationFullscreen && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, alignItems: 'center' }}>
                   <Box>
-                    <Typography variant='caption' color='success.main' fontWeight={800}>WINNER · {revealedWinner.selectionMode === 'manual' ? 'MANUAL SELECTION' : 'RANDOM DRAW'}</Typography>
-                    <Typography variant='h6' fontWeight={850}>{revealedWinner.fullName}</Typography>
+                    <Typography variant='overline' color='text.secondary'>LIVE PRIZE DRAW</Typography>
+                    <Typography variant='h3' fontWeight={900}>{selectedPrize?.title ?? 'Prize Draw'}</Typography>
+                  </Box>
+                  <IconButton size='large' onClick={() => void exitPresentationFullscreen()} aria-label='Exit fullscreen'>
+                    <i className='tabler-minimize text-3xl' />
+                  </IconButton>
+                </Box>
+              )}
+
+              {drawMode === 'random' ? (
+                reelStage
+              ) : (
+                <Box sx={{ minHeight: presentationFullscreen ? '46vh' : 220, display: 'grid', placeItems: 'center', borderRadius: presentationFullscreen ? 6 : 4, border: theme => `1px solid ${theme.palette.divider}`, bgcolor: 'action.hover', p: presentationFullscreen ? 7 : 4, textAlign: 'center' }}>
+                  <Box>
+                    <i className={`tabler-trophy ${presentationFullscreen ? 'text-8xl' : 'text-5xl'}`} />
+                    <Typography variant={presentationFullscreen ? 'h2' : 'h5'} fontWeight={900} sx={{ mt: 2 }}>
+                      {presentationFullscreen ? (revealedWinner?.fullName ?? 'READY FOR WINNER REVEAL') : (manualWinner?.fullName ?? 'Select a winner')}
+                    </Typography>
+                    {!presentationFullscreen && (
+                      <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+                        {manualWinner ? `${manualWinner.source === 'manual' ? 'Manual entrant' : manualWinner.bookingCode} · explicit admin selection` : 'Choose an eligible person above. Manual mode uses a reveal, not a fake random spin.'}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
-                <Chip label={revealedWinner.source === 'manual' ? 'Manual entrant' : revealedWinner.bookingCode} color='success' variant='tonal' />
-              </Box>
-            )}
+              )}
 
-            {drawMode === 'random' ? (
+              {revealedWinner && (
+                <Box sx={{ p: presentationFullscreen ? 4 : 2.5, borderRadius: presentationFullscreen ? 5 : 3, border: theme => `1px solid ${theme.palette.success.main}`, bgcolor: 'success.lighter', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: presentationFullscreen ? 2.5 : 1.5 }}>
+                    <Box sx={{ width: presentationFullscreen ? 72 : 42, height: presentationFullscreen ? 72 : 42, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: 'success.main', color: 'success.contrastText' }}><i className={`tabler-trophy ${presentationFullscreen ? 'text-4xl' : 'text-xl'}`} /></Box>
+                    <Box>
+                      <Typography variant={presentationFullscreen ? 'h6' : 'caption'} color='success.main' fontWeight={850}>
+                        {presentationFullscreen ? 'WINNER' : `WINNER · ${revealedWinner.selectionMode === 'manual' ? 'MANUAL SELECTION' : 'RANDOM DRAW'}`}
+                      </Typography>
+                      <Typography variant={presentationFullscreen ? 'h2' : 'h6'} fontWeight={900}>{revealedWinner.fullName}</Typography>
+                    </Box>
+                  </Box>
+                  {!presentationFullscreen && <Chip label={revealedWinner.source === 'manual' ? 'Manual entrant' : revealedWinner.bookingCode} color='success' variant='tonal' />}
+                </Box>
+              )}
+
+              {presentationFullscreen && !revealedWinner && (
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                  {drawMode === 'random' ? (
+                    <Button size='large' variant='contained' disabled={disabled || rolling || complete || available.length === 0} onClick={() => void drawRandom()} startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />} sx={{ minWidth: 260, py: 1.6, fontSize: '1rem' }}>
+                      {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start Draw'}
+                    </Button>
+                  ) : (
+                    <Button size='large' variant='contained' disabled={disabled || rolling || !manualWinner || complete} onClick={() => void confirmManualWinner()} startIcon={<i className='tabler-trophy' />} sx={{ minWidth: 260, py: 1.6, fontSize: '1rem' }}>
+                      {rolling ? 'Revealing…' : complete ? 'Prize complete' : 'Reveal Winner'}
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            {!presentationFullscreen && (drawMode === 'random' ? (
               <Button size='large' variant='contained' disabled={disabled || rolling || savingPrizeType || savingManualEntrant || !selectedPrize || complete || available.length === 0} onClick={() => void drawRandom()} startIcon={<i className={rolling ? 'tabler-loader-2 animate-spin' : 'tabler-confetti'} />} sx={{ justifySelf: 'start', minWidth: 210 }}>
                 {rolling ? 'Drawing winner…' : complete ? 'Prize complete' : 'Start random draw'}
               </Button>
@@ -566,7 +655,7 @@ export default function DoorprizeDraw({ eventId, prizes, disabled = false, onUpd
               <Button size='large' variant='contained' color='warning' disabled={disabled || rolling || !selectedPrize || !manualWinner || complete} onClick={() => void confirmManualWinner()} startIcon={<i className='tabler-user-check' />} sx={{ justifySelf: 'start', minWidth: 230 }}>
                 {rolling ? 'Saving winner…' : complete ? 'Prize complete' : 'Confirm manual winner'}
               </Button>
-            )}
+            ))}
 
             {selectedPrize && available.length === 0 && !complete && <Alert severity='warning'>No eligible person is currently available under this prize type&apos;s winner rules.</Alert>}
 
